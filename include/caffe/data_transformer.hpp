@@ -107,6 +107,10 @@ class DataTransformer {
   void Transform(const vector<cv::Mat> & mat_vector,
                 Blob<Dtype>* transformed_blob);
 
+  void Transform(const cv::Mat& cv_img, const cv::Mat& cv_label,
+                 Blob<Dtype>* transformed_image,
+                 Blob<Dtype>* transformed_label);
+
   /**
    * @brief Applies the transformation defined in the data layer's
    * transform_param block to a cv::Mat

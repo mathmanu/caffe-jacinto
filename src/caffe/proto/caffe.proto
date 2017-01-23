@@ -439,6 +439,7 @@ message LayerParameter {
   optional HDF5OutputParameter hdf5_output_param = 113;
   optional HingeLossParameter hinge_loss_param = 114;
   optional ImageDataParameter image_data_param = 115;
+  optional ImageLabelDataParameter image_label_data_param = 1000;
   optional InfogainLossParameter infogain_loss_param = 116;
   optional InnerProductParameter inner_product_param = 117;
   optional InputParameter input_param = 143;
@@ -467,6 +468,11 @@ message LayerParameter {
   // NVIDIA PARAMETERS (Start with 68 because NV is 68 on an old-style phone)
   optional DetectNetGroundTruthParameter detectnet_groundtruth_param = 6801;
   optional DetectNetAugmentationParameter detectnet_augmentation_param = 6802;
+  
+  
+  // TI PARAMETERS (Start with 84 because TI is 84 on an old-style phone)  
+  optional ImageLabelTransformationGroundTruthParameter image_label_transformation_groundtruth_param = 8401;  
+  optional ImageLabelTransformationAugmentationParameter image_label_transformation_augmentation_param = 8402; 
   
   // For logging purposes
   optional bool snapshot_log_weights = 200 [default = false];  
@@ -540,6 +546,9 @@ message TransformationParameter {
   optional bool force_gray = 7 [default = false];
   // Run the transform (synchronously) on the GPU
   optional bool use_gpu_transform = 8 [default = false];
+  optional bool display = 12 [default = false];
+  
+  optional int32 num_labels = 16 [default = 0];  
 }
 // Message that stores parameters used to create gridbox ground truth
 message DetectNetGroundTruthParameter {
@@ -615,6 +624,58 @@ message DetectNetAugmentationParameter {
   optional float desaturation_max = 13 [default = 0.5];
 }
 
+// Message that stores parameters used to create gridbox ground truth
+message ImageLabelTransformationGroundTruthParameter {
+  // Size that incoming images are cropped / scaled to during training / test
+  //  time. The network will only see images of this size.
+  optional uint32 image_size_x = 8 [default = 0];
+  optional uint32 image_size_y = 9 [default = 0];
+}
+
+// Message that stores parameters used to apply image and label augmentations
+// specific to NVDataLayer's online augmentation module
+message ImageLabelTransformationAugmentationParameter {
+  // probability that a random crop of the training image will be taken at test
+  //  time. If image dimensions are less than input size and random cropping is
+  //  off, then the image will be scaled deterministically to the input size.
+  optional float crop_prob = 1 [default = 1.0];
+  // number of pixels to shift the image by. If cropping is enabled, this number
+  //  is added to the range of possible crop offset values.
+  optional uint32 shift_x = 2 [default = 0];
+  optional uint32 shift_y = 3 [default = 0];
+  // probability that the training image will be scaled at test time. 0 turns
+  //  scale augmentation off.
+  optional float scale_prob = 4 [default = 0.33];
+  // minimum and maximum scaling factor. 1.0 implies no scaling.
+  optional float scale_min = 5 [default = 0.7];
+  optional float scale_max = 6 [default = 1.0];
+  // probability that image will be flipped across the Y axis. 0 turns flip
+  //  augmentation off.
+  optional float flip_prob = 7 [default = 0.33];
+  // maximum angle in degrees (in both directions) image may be rotated. 0 turns
+  //  rotation augmentation off.
+  optional float rotation_prob = 8 [default = 0.33];
+  optional float max_rotate_degree = 9 [default = 1.0];
+  // maximum rotation of hue in degrees (in both directions). 0 turns hue
+  //  augmentation off.
+  optional float hue_rotation_prob = 10 [default = 0.33];
+  optional float hue_rotation = 11 [default = 15];
+  // maximum desaturation parameter. 1.0 may convert RGB to luminance. 0 turns
+  //  desaturation augmentation off.
+  optional float desaturation_prob = 12 [default = 0.33];
+  optional float desaturation_max = 13 [default = 0.5];
+  // minimum and maximum scaling values. 0.0 implies that these will be ignored.
+  //  if this is set, scale_min and scale_max will be based on this
+  optional float scale_width = 14 [default = 0.0];
+  optional float scale_height = 15 [default = 0.0]; 
+  // contrast augumentation
+  optional float contrast_adjust_prob = 16 [default = 0.0];
+  optional float contrast_adjust_min = 17 [default = 1.0];
+  optional float contrast_adjust_max = 18 [default = 1.0];    
+  optional int32 num_labels = 19 [default = 0];
+}
+
+
 // Message that stores parameters shared by loss layers
 message LossParameter {
   // If specified, ignore instances with the given label.
@@ -640,6 +701,13 @@ message LossParameter {
   // is not specified, then setting this to false will be equivalent to
   // normalization = BATCH_SIZE to be consistent with previous behavior.
   optional bool normalize = 2;
+  
+  // Bootstrap samples fraction for OHEM.
+  // Only so many fraction of output labels will be backpropagated
+  optional float bootstrap_samples_fraction = 4 [default = 0];  
+  optional float bootstrap_prob_threshold = 5 [default = 0];   
+  optional bool assign_label_weights = 6 [default = false];
+  optional int32 num_label_weights = 7 [default = 0];
 }
 
 // Messages that store parameters used by individual layer types follow, in
@@ -840,6 +908,8 @@ message DataParameter {
   // be larger than the number of keys in the database.
   // DEPRECATED. Each solver accesses a different subset of the database.
   optional uint32 rand_skip = 7 [default = 0];
+  // The shuffle variable is for the data layier to access random data point (for shuffling data when you read it!!). The random point would be set as urand(0, length of data).
+  optional bool shuffle = 12 [default = false];
   optional DB backend = 8 [default = LEVELDB];
   // DEPRECATED. See TransformationParameter. For data pre-processing, we can do
   // simple scaling and subtracting the data mean, if provided. Note that the
@@ -1001,6 +1071,51 @@ message ImageDataParameter {
   optional bool mirror = 6 [default = false];
   optional string root_folder = 12 [default = ""];
 }
+
+message Slice {
+  repeated uint32 dim = 1;
+  repeated uint32 stride = 2;
+  repeated uint32 offset = 3;
+}
+
+
+message ImageLabelDataParameter {
+  // Specify the data source.
+  optional string image_list_path = 1;
+  optional string label_list_path = 2;
+  // Specify the batch size.
+  optional uint32 batch_size = 3 [default = 1];
+  // The rand_skip variable is for the data layer to skip a few data points
+  // to avoid all asynchronous sgd clients to start at the same point. The skip
+  // point would be set as rand_skip * rand(0,1). Note that rand_skip should not
+  // be larger than the number of keys in the database.
+  optional uint32 rand_skip = 4 [default = 0];
+  // Whether or not ImageLayer should shuffle the list of files at every epoch.
+  optional bool shuffle = 5 [default = false];
+
+  // Whether random sample image scales
+  optional bool rand_scale = 6 [default = false];
+  optional float min_scale = 7  [default = 1];
+  optional float max_scale = 8  [default = 1];
+
+  optional string data_dir = 9 [default = ""];
+
+  optional Slice label_slice = 10;
+
+  optional string image_dir = 11 [default = ""];
+  optional string label_dir = 12 [default = ""];
+
+  enum Padding {
+    ZERO = 0;
+    REFLECT = 1;
+  }
+
+  optional Padding padding = 13 [default = REFLECT];
+  
+  optional string image_dir2 = 14 [default = ""];  
+  optional string image_list_path2 = 15;  
+}
+
 
 message InfogainLossParameter {
   // Specify the infogain matrix source.

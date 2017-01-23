@@ -44,6 +44,7 @@ void EltwiseLayer<Dtype>::Reshape(const vector<Blob<Dtype>*>& bottom,
 template <typename Dtype>
 void EltwiseLayer<Dtype>::Forward_cpu(
     const vector<Blob<Dtype>*>& bottom, const vector<Blob<Dtype>*>& top) {
+  this->Quantize_cpu(bottom, top);
   int* mask = NULL;
   const Dtype* bottom_data_a = NULL;
   const Dtype* bottom_data_b = NULL;
@@ -94,6 +95,7 @@ void EltwiseLayer<Dtype>::Forward_cpu(
   default:
     LOG(FATAL) << "Unknown elementwise operation.";
   }
+  this->Quantize_cpu(bottom, top);
 }
 
 template <typename Dtype>

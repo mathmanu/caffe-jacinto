@@ -56,6 +56,8 @@ template <typename Dtype>
 void CuDNNBatchNormLayer<Dtype>::Reshape(
     const vector<Blob<Dtype>*>& bottom,
     const vector<Blob<Dtype>*>& top) {
+  CHECK(bottom[0] != top[0]) << "Top and bottom blobs must be different for CUDNN BatchNorm";
+
   BatchNormLayer<Dtype>::Reshape(bottom, top);
 
   // set up main tensors

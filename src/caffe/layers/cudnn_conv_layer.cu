@@ -15,6 +15,7 @@ __global__ void sync_conv_groups() {}
 template<typename Dtype>
 void CuDNNConvolutionLayer<Dtype>::Forward_gpu(
     const vector<Blob<Dtype>*>& bottom, const vector<Blob<Dtype>*>& top) {
+  this->Quantize_gpu(bottom, top);
   int device;
   CUDA_CHECK(cudaGetDevice(&device));
   size_t& WORKSPACE_SIZE = workspace_size(device);
@@ -63,6 +64,8 @@ void CuDNNConvolutionLayer<Dtype>::Forward_gpu(
   }
   // Possibly use faster algorithms by allowing larger workspace.
   use_modest_workspace_ = false;
+
+  this->Quantize_gpu(bottom, top);
 }
 
 template<typename Dtype>

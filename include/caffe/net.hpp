@@ -118,9 +118,11 @@ class Net {
   void CopyTrainedLayersFromBinaryProto(const string trained_filename);
   void CopyTrainedLayersFromHDF5(const string trained_filename);
   /// @brief Writes the net to a proto.
-  void ToProto(NetParameter* param, bool write_diff = false) const;
+  void ToProto(NetParameter* param, bool write_diff = false, bool write_blobs = true) const;
   /// @brief Writes the net to an HDF5 file.
   void ToHDF5(const string& filename, bool write_diff = false) const;
+  ///
+  void ToProtoLog(NetLogParameter* param, bool write_diff = false) const;
 
   /// @brief returns the network name.
   inline const string& name() const { return name_; }
@@ -235,6 +237,48 @@ class Net {
     solver_ = s;
   }
 
+  /**
+   * @brief Get the count of zero coefficients
+   */
+  int GetSparsity(std::map<std::string, std::pair<int,int> >& sparsity_map, const Dtype threshold);
+  void ClearQuantizationRangeInLayers();
+  void UpdateQuantizationRangeInLayers();
+  void CopyQuantizationRangeInLayers();
+  void SetTrainQuantizationParamsLayerParams(const int layer_id,
+  	  QuantizationParameter_Precision precision, QuantizationParameter_Rounding rounding_scheme,
+        const int bw_conv, const int bw_fc, const int bw_in, const int bw_out,
+        bool unsigned_check_in, bool unsigned_check_out, Dtype sparsity_threshold);
+  void SetTrainQuantizationParamsLayerInput(const int layer_id,
+  	  QuantizationParameter_Precision precision, QuantizationParameter_Rounding rounding_scheme,
+        const int bw_conv, const int bw_fc, const int bw_in, const int bw_out,
+        bool unsigned_check_in, bool unsigned_check_out, Dtype sparsity_threshold);
+  void SetTrainQuantizationParamsLayerOutput(const int layer_id,
+  	  QuantizationParameter_Precision precision, QuantizationParameter_Rounding rounding_scheme,
+        const int bw_conv, const int bw_fc, const int bw_in, const int bw_out,
+        bool unsigned_check_in, bool unsigned_check_out, Dtype sparsity_threshold);
+  void SetTrainQuantizationParams(QuantizationParameter_Precision precision, QuantizationParameter_Rounding rounding_scheme,
+    const int bw_conv, const int bw_fc, const int bw_in, const int bw_out,
+    bool unsigned_check_in, bool unsigned_check_out, Dtype sparsity_threshold,
+    bool quantize_weights, bool quantize_activations);
+  void SetTestQuantizationParams(QuantizationParameter_Precision precision, QuantizationParameter_Rounding rounding_scheme,
+    const int bw_conv, const int bw_fc, const int bw_in, const int bw_out,
+    bool unsigned_check_in, bool unsigned_check_out, Dtype sparsity_threshold,
+    bool quantize_weights, bool quantize_activations);
+  void DisplayQuantizationParams(bool quantize_weights, bool quantize_activations);
+  void DisableQuantization(bool quantize_weights, bool quantize_activations);
+  void Convert2FixedPoint_cpu(Dtype* data, const int cnt, const int bw, int fl, bool unsigned_data, bool clip) const;
+  void AddQuantizationParams();
+
+  int EstimateAbsBits(Dtype val);
+  int GetIntegerLengthWeights(const int layer_id, Dtype& min_layer_weights, Dtype& max_layer_weights);
+  int GetIntegerLengthIn(const int layer_id, const int blob_id, bool unsigned_check_in,
+		  bool& unsigned_layer_in, Dtype& min_layer_in, Dtype& max_layer_in);
+  int GetIntegerLengthOut(const int layer_id, bool unsigned_check_out,
+		  bool& unsigned_layer_out, Dtype& min_layer_out, Dtype& max_layer_out);
+  void DisplaySparsity(float sparsity_threshold);
+
+  void SetWeightConnectivity(WeightConnectMode mode, Dtype threshold);
+
  protected:
   // Helpers for Init.
   /// @brief Append a new top blob to the net.
@@ -319,6 +363,11 @@ class Net {
   const Net* const root_net_;
   /// Pointer to the solver being used with this net
   Solver<Dtype>* solver_;
+  // Range values
+  vector<vector<Dtype> > max_in_;
+  vector<vector<Dtype> > min_in_;
+  vector<Dtype> max_out_, max_weights_;
+  vector<Dtype> min_out_, min_weights_;
   DISABLE_COPY_AND_ASSIGN(Net);
 };
 

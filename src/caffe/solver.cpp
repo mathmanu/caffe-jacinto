@@ -190,6 +190,55 @@ void Solver<Dtype>::InitTestNets() {
   }
 }
 
+template<typename Dtype>
+void Solver<Dtype>::StartQuantization(shared_ptr<Net<Dtype> >& net) {
+  if (param_.quantization_start_iter() > 0 && iter_ >= param_.quantization_start_iter()) {
+    QuantizationParameter_Rounding rounding_scheme = (
+        net->phase() == caffe::TRAIN ?
+            QuantizationParameter_Rounding_STOCHASTIC : param_.quantization_param().rounding_scheme());
+    if (net->phase() == caffe::TRAIN) {
+      if(iter_ == param_.quantization_start_iter()) {
+        net_->AddQuantizationParams();
+      }
+
+      net->SetTrainQuantizationParams(param_.quantization_param().precision(), rounding_scheme,
+          param_.quantization_param().bw_weights(), param_.quantization_param().bw_weights(),
+          param_.quantization_param().bw_layer_in(), param_.quantization_param().bw_layer_out(),
+          param_.unsigned_check_in(), param_.unsigned_check_out(), param_.sparsity_threshold(),
+          param_.quantize_weights(), param_.quantize_activations());
+    } else {
+      net->SetTestQuantizationParams(param_.quantization_param().precision(), rounding_scheme,
+          param_.quantization_param().bw_weights(), param_.quantization_param().bw_weights(),
+          param_.quantization_param().bw_layer_in(), param_.quantization_param().bw_layer_out(),
+          param_.unsigned_check_in(), param_.unsigned_check_out(), param_.sparsity_threshold(),
+          param_.quantize_weights(), param_.quantize_activations());
+    }
+  }
+}
+
+template<typename Dtype>
+void Solver<Dtype>::FinishQuantization(shared_ptr<Net<Dtype> >& net) {
+  string phase = net->phase() == caffe::TRAIN ? "Train" : "Test";
+  if (net->phase() == caffe::TRAIN && param_.quantization_start_iter() > 0) {
+    if (iter_ >= param_.quantization_start_iter()) {
+      if (param_.display_quantization() > 0 && (iter_ % param_.display_quantization() == 0)) {
+        LOG(INFO)<< "Quantizing the net: " << net->name() + " " + phase;
+        net->DisplayQuantizationParams(param_.quantize_weights(), param_.quantize_activations());
+      }
+    } else {
+      //LOG(INFO)<< "Updating Quantization ranges for the net: " << net->name() + " " + phase;
+      net->UpdateQuantizationRangeInLayers();
+    }
+  }
+}
+
+template<typename Dtype>
+void Solver<Dtype>::SetWeightConnectivity() {
+  if (param_.weight_connect_mode() != caffe::WEIGHT_CONNECTED && param_.sparsity_threshold() != 0) {
+    net_->SetWeightConnectivity(param_.weight_connect_mode(), param_.sparsity_threshold());
+  }
+}
+
 template <typename Dtype>
 void Solver<Dtype>::Step(int iters) {
   const int start_iter = iter_;
@@ -211,6 +260,10 @@ void Solver<Dtype>::Step(int iters) {
   net_->SetSolver(this);
 
   while (iter_ < stop_iter) {
+    if(param_.insert_quantization_param()) {
+      StartQuantization(net_);
+    }
+
     // zero-init the params
     net_->ClearParamDiffs();
     if (param_.test_interval() && iter_ % param_.test_interval() == 0
@@ -277,6 +330,16 @@ void Solver<Dtype>::Step(int iters) {
 
     ApplyUpdate();
 
+    if(param_.insert_quantization_param()) {
+      FinishQuantization(net_);
+    }
+
+    if(param_.display_sparsity() > 0 && (iter_ % param_.display_sparsity()) == 0) {
+      if(Caffe::root_solver()) {
+        net_->DisplaySparsity(param_.sparsity_threshold());
+      }
+    }
+
     // Increment the internal iter_ counter -- its value should always indicate
     // the number of times the weights have been updated.
     ++iter_;
@@ -301,6 +364,9 @@ void Solver<Dtype>::Step(int iters) {
 template <typename Dtype>
 void Solver<Dtype>::Solve(const char* resume_file) {
   CHECK(Caffe::root_solver());
+
+  this->SetWeightConnectivity();
+
   LOG(INFO) << "Solving " << net_->name();
   LOG(INFO) << "Learning Rate Policy: " << param_.lr_policy();
 
@@ -383,6 +449,12 @@ void Solver<Dtype>::Test(const int test_net_id) {
       break;
     }
 
+    test_net->SetTestQuantizationParams(param_.quantization_param().precision(), param_.quantization_param().rounding_scheme(),
+        param_.quantization_param().bw_weights(), param_.quantization_param().bw_weights(),
+        param_.quantization_param().bw_layer_in(), param_.quantization_param().bw_layer_out(),
+        param_.unsigned_check_in(), param_.unsigned_check_out(), param_.sparsity_threshold(),
+        param_.quantize_weights(), param_.quantize_activations());
+
     Dtype iter_loss;
     const vector<Blob<Dtype>*>& result =
         test_net->Forward(&iter_loss);
@@ -447,6 +519,10 @@ void Solver<Dtype>::Snapshot() {
   }
 
   SnapshotSolverState(model_filename);
+
+  if(param_.snapshot_log()) {
+	  SnapshotToProtoLog();
+  }
 }
 
 template <typename Dtype>
@@ -488,6 +564,18 @@ string Solver<Dtype>::SnapshotToHDF5() {
   string model_filename = SnapshotFilename(".caffemodel.h5");
   LOG(INFO) << "Snapshotting to HDF5 file " << model_filename;
   net_->ToHDF5(model_filename, param_.snapshot_diff());
+  return model_filename;
+}
+
+template <typename Dtype>
+string Solver<Dtype>::SnapshotToProtoLog() {
+  string model_filename = SnapshotFilename(".prototxt");
+  string binary_filename = SnapshotFilename(".binaryproto");
+  LOG(INFO) << "Snapshotting to prototxt log file " << model_filename;
+  NetLogParameter net_param;
+  net_->ToProtoLog(&net_param, param_.snapshot_diff());
+  WriteProtoToTextFile(net_param, model_filename);
+  WriteProtoToBinaryFile(net_param, binary_filename);
   return model_filename;
 }
 

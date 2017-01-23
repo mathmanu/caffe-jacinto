@@ -106,6 +106,8 @@ class Solver {
   string SnapshotFilename(const string extension);
   string SnapshotToBinaryProto();
   string SnapshotToHDF5();
+  string SnapshotToProtoLog();
+
   // The test routine
   void TestAll();
   void Test(const int test_net_id = 0);
@@ -114,6 +116,11 @@ class Solver {
   virtual void RestoreSolverStateFromBinaryProto(const string& state_file) = 0;
   void DisplayOutputBlobs(const int net_id);
   void UpdateSmoothedLoss(Dtype loss, int start_iter, int average_loss);
+
+  void StartQuantization(shared_ptr<Net<Dtype> >& net);
+  void FinishQuantization(shared_ptr<Net<Dtype> >& net);
+  void SetWeightConnectivity();
+
 
   SolverParameter param_;
   int iter_;

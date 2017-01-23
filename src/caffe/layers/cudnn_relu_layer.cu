@@ -13,6 +13,7 @@ void CuDNNReLULayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
     return ReLULayer<Dtype>::Forward_gpu(bottom, top);
   }
 
+  this->Quantize_gpu(bottom, top);
   const Dtype* bottom_data = bottom[0]->gpu_data();
   Dtype* top_data = top[0]->mutable_gpu_data();
 #if CUDNN_VERSION_MIN(5, 0, 0)
@@ -30,6 +31,7 @@ void CuDNNReLULayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
         cudnn::dataType<Dtype>::zero,
         this->top_desc_, top_data));
 #endif
+  this->Quantize_gpu(bottom, top);
 }
 
 template <typename Dtype>

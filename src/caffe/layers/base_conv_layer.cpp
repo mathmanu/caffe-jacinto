@@ -9,6 +9,16 @@
 namespace caffe {
 
 template <typename Dtype>
+void BaseConvolutionLayer<Dtype>::SetWeightConnectivity(WeightConnectMode mode, Dtype threshold){
+  //disconnect connections
+  if(mode != WEIGHT_CONNECTED){
+      this->mutable_layer_param().set_weight_connect_mode(mode);
+      LOG(INFO)<<"all zero weights of "<<this->layer_param().name()<<" are frozen";
+      this->blobs_[0]->Disconnect(WEIGHT_DISCONNECTED_ELTWISE, threshold);
+  }
+}
+
+template <typename Dtype>
 void BaseConvolutionLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top) {
   // Configure the kernel size, padding, stride, and inputs.

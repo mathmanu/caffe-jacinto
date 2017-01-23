@@ -33,6 +33,7 @@ __global__ void MaxForward(const int nthreads, const Dtype* bottom_data_a,
 template <typename Dtype>
 void EltwiseLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
     const vector<Blob<Dtype>*>& top) {
+  this->Quantize_gpu(bottom, top);
   int* mask = NULL;
   const int count = top[0]->count();
   Dtype* top_data = top[0]->mutable_gpu_data();
@@ -65,6 +66,7 @@ void EltwiseLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
   default:
     LOG(FATAL) << "Unknown elementwise operation.";
   }
+  this->Quantize_gpu(bottom, top);
 }
 
 template <typename Dtype>

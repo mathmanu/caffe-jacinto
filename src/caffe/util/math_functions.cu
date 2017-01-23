@@ -3,6 +3,10 @@
 #include <thrust/functional.h>  // thrust::plus
 #include <thrust/reduce.h>
 
+#include <thrust/extrema.h>
+#include <thrust/pair.h>
+#include <thrust/count.h>
+
 #include <algorithm>
 #include <cmath>
 
@@ -75,6 +79,25 @@ void caffe_gpu_axpy<double>(const int N, const double alpha, const double* X,
   CUBLAS_CHECK(cublasDaxpy(Caffe::cublas_handle(), N, &alpha, X, 1, Y, 1));
 }
 
+template <typename Dtype>
+__global__ void zerout_kernel(void * mutable_gpu_data, int count, Dtype thre) {
+  Dtype* data_ptr_tmp =  static_cast<Dtype*>(mutable_gpu_data);
+  CUDA_KERNEL_LOOP(index, count) {
+    if(data_ptr_tmp[index] < thre && data_ptr_tmp[index]>(-thre)) {
+      data_ptr_tmp[index] = 0;
+    }
+  }
+}
+
+template <typename Dtype>
+void caffe_gpu_zerout(void * mutable_gpu_data, const int count, Dtype th){
+	zerout_kernel<<<CAFFE_GET_BLOCKS(count), CAFFE_CUDA_NUM_THREADS>>>(mutable_gpu_data,  count,  th);
+}
+
+template void caffe_gpu_zerout<int>(void * mutable_gpu_data, const int count, int th);
+template void caffe_gpu_zerout<unsigned int>(void * mutable_gpu_data, const int count, unsigned int th);
+template void caffe_gpu_zerout<float>(void * mutable_gpu_data, const int count, float th);
+template void caffe_gpu_zerout<double>(void * mutable_gpu_data, const int count, double th);
 void caffe_gpu_memcpy(const size_t N, const void* X, void* Y) {
   if (X != Y) {
     CUDA_CHECK(cudaMemcpy(Y, X, N, cudaMemcpyDefault));  // NOLINT(caffe/alt_fn)
@@ -137,15 +160,23 @@ void caffe_gpu_dot<double>(const int n, const double* x, const double* y,
   CUBLAS_CHECK(cublasDdot(Caffe::cublas_handle(), n, x, 1, y, 1, out));
 }
 
-template <>
-void caffe_gpu_asum<float>(const int n, const float* x, float* y) {
-  CUBLAS_CHECK(cublasSasum(Caffe::cublas_handle(), n, x, 1, y));
+template<typename Dtype>
+struct absolute_value_kernel : public thrust::unary_function<Dtype,Dtype> {
+  __host__ __device__ Dtype operator()(const Dtype &x) const {
+    return x < Dtype(0) ? -x : x;
+  }
+};
+template <typename Dtype>
+void caffe_gpu_asum(const int n, const Dtype* x, Dtype* y) {
+  thrust::device_ptr<const Dtype> pWrapper(x);
+  Dtype asum_val = thrust::transform_reduce(pWrapper, pWrapper+n,
+      absolute_value_kernel<Dtype>(), 0, thrust::plus<Dtype>());
+  *y = asum_val;
 }
-
-template <>
-void caffe_gpu_asum<double>(const int n, const double* x, double* y) {
-  CUBLAS_CHECK(cublasDasum(Caffe::cublas_handle(), n, x, 1, y));
-}
+template void caffe_gpu_asum(const int N, const float* x, float* y);
+template void caffe_gpu_asum(const int N, const double* x, double* y);
+template void caffe_gpu_asum(const int N, const int* x, int* y);
+//template void caffe_gpu_asum(const int N, const unsigned int* x, unsigned int* y);
 
 template <>
 void caffe_gpu_scale<float>(const int n, const float alpha, const float *x,
@@ -388,9 +419,11 @@ void caffe_gpu_powx<double>(const int N, const double* a,
       N, a, alpha, y);
 }
 
-DEFINE_AND_INSTANTIATE_GPU_UNARY_FUNC(sign, y[index] = (Dtype(0) < x[index])
-                                      - (x[index] < Dtype(0)));
+DEFINE_AND_INSTANTIATE_GPU_UNARY_FUNC(sign, y[index] = (Dtype(0) < x[index]) - (x[index] < Dtype(0)));
 DEFINE_AND_INSTANTIATE_GPU_UNARY_FUNC(sgnbit, y[index] = signbit(x[index]));
+DEFINE_AND_INSTANTIATE_GPU_2NARY_FUNC(if_zerout, threshold, y[index] = ((x[index] < Dtype(threshold) && x[index] > Dtype(-threshold) ) ? 1 : 0) );
+DEFINE_AND_INSTANTIATE_GPU_2NARY_FUNC(if_nonzerout, threshold, y[index] = ((x[index] >= Dtype(threshold) || x[index] <= Dtype(-threshold) ) ? 1 : 0) )
+DEFINE_AND_INSTANTIATE_GPU_UNARY_FUNC(eltwise_multi, y[index] = y[index]*x[index] )
 
 void caffe_gpu_rng_uniform(const int n, unsigned int* r) {
   CURAND_CHECK(curandGenerate(Caffe::curand_generator(), r, n));
@@ -458,7 +491,20 @@ void caffe_gpu_eltwise_max<double>(const int N,
   caffe_gpu_eltwise_max_kernel<double><<<CAFFE_GET_BLOCKS(N),
                                CAFFE_CUDA_NUM_THREADS>>>(N, alpha, x, beta, y);
 }
-
+template <>
+void caffe_gpu_eltwise_max<int>(const int N,
+    const int alpha, const int* x, const int beta, int* y) {
+  // NOLINT_NEXT_LINE(whitespace/operators)
+  caffe_gpu_eltwise_max_kernel<int><<<CAFFE_GET_BLOCKS(N),
+                               CAFFE_CUDA_NUM_THREADS>>>(N, alpha, x, beta, y);
+}
+template <>
+void caffe_gpu_eltwise_max<unsigned int>(const int N,
+    const unsigned int alpha, const unsigned int* x, const unsigned int beta, unsigned int* y) {
+  // NOLINT_NEXT_LINE(whitespace/operators)
+  caffe_gpu_eltwise_max_kernel<unsigned int><<<CAFFE_GET_BLOCKS(N),
+                               CAFFE_CUDA_NUM_THREADS>>>(N, alpha, x, beta, y);
+}
 
 template <typename Dtype>
 __global__ void caffe_gpu_eltwise_min_kernel(const int N,
@@ -482,5 +528,76 @@ void caffe_gpu_eltwise_min<double>(const int N,
   caffe_gpu_eltwise_min_kernel<double><<<CAFFE_GET_BLOCKS(N),
                                CAFFE_CUDA_NUM_THREADS>>>(N, alpha, x, beta, y);
 }
+template <>
+void caffe_gpu_eltwise_min<int>(const int N,
+    const int alpha, const int* x, const int beta, int* y) {
+  // NOLINT_NEXT_LINE(whitespace/operators)
+  caffe_gpu_eltwise_min_kernel<int><<<CAFFE_GET_BLOCKS(N),
+                               CAFFE_CUDA_NUM_THREADS>>>(N, alpha, x, beta, y);
+}
+template <>
+void caffe_gpu_eltwise_min<unsigned int>(const int N,
+    const unsigned int alpha, const unsigned int* x, const unsigned int beta, unsigned int* y) {
+  // NOLINT_NEXT_LINE(whitespace/operators)
+  caffe_gpu_eltwise_min_kernel<unsigned int><<<CAFFE_GET_BLOCKS(N),
+                               CAFFE_CUDA_NUM_THREADS>>>(N, alpha, x, beta, y);
+}
 
+
+template<typename Dtype>
+__global__ void count_zero_kernel(int N, const Dtype* x, Dtype threshold, Dtype *temp) {
+  CUDA_KERNEL_LOOP(index, N) {
+	  temp[index] = ((x[index] < threshold && x[index] > (-threshold))? 1 : 0);
+  }
+}
+template <typename Dtype>
+Dtype caffe_gpu_count_zero(const int N, const Dtype* x, Dtype threshold) {
+#if 0
+	Dtype *tmp_weights;
+    int device;
+    CUDA_CHECK(cudaGetDevice(&device));
+    cudaStream_t stream = GPUMemory::device_stream(device);
+    GPUMemory::allocate(&tmp_weights, N*sizeof(Dtype), device, stream);
+  // NOLINT_NEXT_LINE(whitespace/operators)
+    count_zero_kernel<Dtype><<<CAFFE_GET_BLOCKS(N),
+                               CAFFE_CUDA_NUM_THREADS>>>(N, x, threshold, tmp_weights);
+	Dtype result = 0;
+	caffe_gpu_asum(N, tmp_weights, &result);
+	GPUMemory::deallocate(tmp_weights, device, stream);
+	return result;    
+#else
+  thrust::device_ptr<const Dtype> pWrapper(x);
+  Dtype val = 0;
+  Dtype count = thrust::count(pWrapper, pWrapper+N, val);
+  return count;
+#endif    
+}
+template float caffe_gpu_count_zero(const int N, const float* x, float threshold);
+template double caffe_gpu_count_zero(const int N, const double* x, double threshold);
+template int caffe_gpu_count_zero(const int N, const int* x, int threshold);
+template unsigned int caffe_gpu_count_zero(const int N, const unsigned int* x, unsigned int threshold);
+
+template <typename Dtype>
+Dtype caffe_gpu_min(const int N, const Dtype* x) {
+  thrust::device_ptr<const Dtype> pWrapper(x);
+  const thrust::device_ptr<const Dtype> min_val = thrust::min_element(pWrapper, pWrapper+N);
+  return *min_val;
+}
+
+template float caffe_gpu_min(const int N, const float* x);
+template double caffe_gpu_min(const int N, const double* x);
+template int caffe_gpu_min(const int N, const int* x);
+template unsigned int caffe_gpu_min(const int N, const unsigned int* x);
+
+template <typename Dtype>
+Dtype caffe_gpu_max(const int N, const Dtype* x) {
+  thrust::device_ptr<const Dtype> pWrapper(x);
+  const thrust::device_ptr<const Dtype> max_val = thrust::max_element(pWrapper, pWrapper+N);
+  return *max_val;
+}
+
+template float caffe_gpu_max(const int N, const float* x);
+template double caffe_gpu_max(const int N, const double* x);
+template int caffe_gpu_max(const int N, const int* x);
+template unsigned int caffe_gpu_max(const int N, const unsigned int* x);
 }  // namespace caffe

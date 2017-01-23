@@ -7,6 +7,16 @@
 namespace caffe {
 
 template <typename Dtype>
+void InnerProductLayer<Dtype>::SetWeightConnectivity(WeightConnectMode mode, Dtype threshold) {
+  //disconnect connections
+  if(mode != WEIGHT_CONNECTED){
+      this->mutable_layer_param().set_weight_connect_mode(mode);
+      LOG(INFO)<<"all zero weights of "<<this->layer_param().name()<<" are frozen";
+      this->blobs_[0]->Disconnect(WEIGHT_DISCONNECTED_ELTWISE, threshold);
+  }
+}
+
+template <typename Dtype>
 void InnerProductLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top) {
   const int num_output = this->layer_param_.inner_product_param().num_output();
@@ -83,6 +93,7 @@ void InnerProductLayer<Dtype>::Reshape(const vector<Blob<Dtype>*>& bottom,
 template <typename Dtype>
 void InnerProductLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
     const vector<Blob<Dtype>*>& top) {
+  this->Quantize_cpu(bottom, top);
   const Dtype* bottom_data = bottom[0]->cpu_data();
   Dtype* top_data = top[0]->mutable_cpu_data();
   const Dtype* weight = this->blobs_[0]->cpu_data();
@@ -94,6 +105,7 @@ void InnerProductLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
         bias_multiplier_.cpu_data(),
         this->blobs_[1]->cpu_data(), (Dtype)1., top_data);
   }
+  this->Quantize_cpu(bottom, top);
 }
 
 template <typename Dtype>

@@ -92,6 +92,11 @@ class Layer {
   virtual void LayerSetUp(const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top) {}
 
+  /*
+   * typically for convolutional layers, to align nonzero weights together
+   * */
+  virtual void SetWeightConnectivity(WeightConnectMode mode, Dtype threshold) {}
+
   /**
    * @brief Whether a layer should be shared by multiple nets during data
    *        parallelism. By default, all layers except for data layers should
@@ -187,11 +192,12 @@ class Layer {
    * @brief Returns the layer parameter.
    */
   const LayerParameter& layer_param() const { return layer_param_; }
+  LayerParameter& mutable_layer_param() { return layer_param_; }
 
   /**
    * @brief Writes the layer parameter to a protocol buffer
    */
-  virtual void ToProto(LayerParameter* param, bool write_diff = false);
+  virtual void ToProto(LayerParameter* param, bool write_diff = false, bool write_blobs = true);
 
   /**
    * @brief Returns the scalar loss associated with a top blob at a given index.
@@ -504,12 +510,14 @@ inline void Layer<Dtype>::Backward(const vector<Blob<Dtype>*>& top,
 
 // Serialize LayerParameter to protocol buffer
 template <typename Dtype>
-void Layer<Dtype>::ToProto(LayerParameter* param, bool write_diff) {
+void Layer<Dtype>::ToProto(LayerParameter* param, bool write_diff, bool write_blobs) {
   param->Clear();
   param->CopyFrom(layer_param_);
   param->clear_blobs();
-  for (int i = 0; i < blobs_.size(); ++i) {
-    blobs_[i]->ToProto(param->add_blobs(), write_diff);
+  if(write_blobs) {
+    for (int i = 0; i < blobs_.size(); ++i) {
+      blobs_[i]->ToProto(param->add_blobs(), write_diff);
+    }
   }
 }
 

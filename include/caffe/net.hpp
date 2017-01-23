@@ -275,6 +275,10 @@ class Net {
 		  bool& unsigned_layer_in, Dtype& min_layer_in, Dtype& max_layer_in);
   int GetIntegerLengthOut(const int layer_id, bool unsigned_check_out,
 		  bool& unsigned_layer_out, Dtype& min_layer_out, Dtype& max_layer_out);
+
+  void OptimizeNet();
+  void ThresholdNet(float threshold_fraction_low, float threshold_fraction_mid, float threshold_fraction_high,
+      float threshold_value_maxratio, float threshold_value);
   void DisplaySparsity(float sparsity_threshold);
 
   void SetWeightConnectivity(WeightConnectMode mode, Dtype threshold);

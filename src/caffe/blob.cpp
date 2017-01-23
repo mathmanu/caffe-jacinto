@@ -677,7 +677,7 @@ void Blob<Dtype>::CopyFrom(const Blob& source, bool copy_diff, bool reshape) {
 }
 
 template <typename Dtype>
-void Blob<Dtype>::FromProto(const BlobProto& proto, bool reshape) {
+void Blob<Dtype>::FromProto(const BlobProto& proto, bool reshape, bool ignore_shape_mismatch) {
   if (reshape) {
     vector<int> shape;
     if (proto.has_num() || proto.has_channels() ||
@@ -696,7 +696,7 @@ void Blob<Dtype>::FromProto(const BlobProto& proto, bool reshape) {
       }
     }
     Reshape(shape);
-  } else {
+  } else if(!ignore_shape_mismatch) {
     CHECK(ShapeEquals(proto)) << "shape mismatch (reshape not set)";
   }
   // copy data

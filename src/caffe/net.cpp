@@ -19,6 +19,7 @@
 #include "caffe/util/upgrade_proto.hpp"
 #include "caffe/quantized_layer.hpp"
 #include "caffe/util/format.hpp"
+#include "caffe/filler.hpp"
 
 #include "caffe/test/test_caffe_main.hpp"
 
@@ -32,7 +33,7 @@ Net<Dtype>::Net(const NetParameter& param, const Net* root_net)
 
 template <typename Dtype>
 Net<Dtype>::Net(const string& param_file, Phase phase, const Net* root_net)
-    : root_net_(root_net) {
+    : root_net_(root_net), solver_(NULL) {
   NetParameter param;
   ReadNetParamsFromTextFileOrDie(param_file, &param);
   param.mutable_state()->set_phase(phase);
@@ -733,11 +734,20 @@ void Net<Dtype>::ShareTrainedLayersWith(const Net* other) {
         << "Incompatible number of blobs for layer " << source_layer_name;
     for (int j = 0; j < target_blobs.size(); ++j) {
       Blob<Dtype>* source_blob = source_layer->blobs()[j].get();
-      CHECK(target_blobs[j]->shape() == source_blob->shape())
-          << "Cannot share param " << j << " weights from layer '"
-          << source_layer_name << "'; shape mismatch.  Source param shape is "
-          << source_blob->shape_string() << "; target param shape is "
-          << target_blobs[j]->shape_string();
+      if(target_blobs[j]->count() != source_blob->count()) {
+		  CHECK(target_blobs[j]->shape() == source_blob->shape())
+			  << "Cannot share param " << j << " weights from layer '"
+			  << source_layer_name << "'; shape mismatch.  Source param shape is "
+			  << source_blob->shape_string() << "; target param shape is "
+			  << target_blobs[j]->shape_string();
+      } else {
+		  if(target_blobs[j]->shape() != source_blob->shape()) {
+			  LOG(WARNING)  << "Shape mismatch, param: " << j << " layer: "
+				  << source_layer_name << " source: "
+				  << source_blob->shape_string() << " target: "
+				  << target_blobs[j]->shape_string();
+		  }
+      }
       target_blobs[j]->ShareData(*source_blob);
     }
   }
@@ -797,22 +807,43 @@ void Net<Dtype>::CopyTrainedLayersFrom(const NetParameter& param) {
     DLOG(INFO) << "Copying source layer " << source_layer_name;
     vector<shared_ptr<Blob<Dtype> > >& target_blobs =
         layers_[target_layer_id]->blobs();
-    CHECK_EQ(target_blobs.size(), source_layer.blobs_size())
-        << "Incompatible number of blobs for layer " << source_layer_name;
-    for (int j = 0; j < target_blobs.size(); ++j) {
+    if(target_blobs.size()!= source_layer.blobs_size()) {
+        LOG(WARNING) << "Incompatible number of blobs for layer " << source_layer_name;
+    }
+    int num_blobs_to_copy = std::min<int>(target_blobs.size(), source_layer.blobs_size());
+    for (int j = 0; j < num_blobs_to_copy; ++j) {
+	  bool do_copy = true;
       if (!target_blobs[j]->ShapeEquals(source_layer.blobs(j))) {
         Blob<Dtype> source_blob;
         const bool kReshape = true;
+        LOG(WARNING) << "Copying from " << source_layer_name << " to " <<
+            layers_[target_layer_id]->layer_param().name() <<
+            " target blob " << j;
         source_blob.FromProto(source_layer.blobs(j), kReshape);
-        LOG(FATAL) << "Cannot copy param " << j << " weights from layer '"
-            << source_layer_name << "'; shape mismatch.  Source param shape is "
-            << source_blob.shape_string() << "; target param shape is "
-            << target_blobs[j]->shape_string() << ". "
-            << "To learn this layer's parameters from scratch rather than "
-            << "copying from a saved net, rename the layer.";
+        if(target_blobs[j]->count() != source_blob.count()) {
+        	do_copy = false;
+            LOG(WARNING) << "Cannot copy param " << j << " weights from layer '"
+                << source_layer_name << "'; shape mismatch.  Source param shape is "
+                << source_blob.shape_string() << "; target param shape is "
+                << target_blobs[j]->shape_string() << ". "
+                << "To learn this layer's parameters from scratch rather than "
+                << "copying from a saved net, rename the layer.";
+        } else {
+            LOG(WARNING) << "Shape mismatch, param: " << j << " layer: "
+                << source_layer_name << " source: "
+                << source_blob.shape_string() << " target: "
+                << target_blobs[j]->shape_string() << ". ";
+        }
       }
-      const bool kReshape = false;
-      target_blobs[j]->FromProto(source_layer.blobs(j), kReshape);
+      const bool ignore_mismatching_blobs = ((solver_==NULL) || solver_->param().ignore_mismatching_blobs());
+      if(do_copy) {
+          const bool kReshape = false;
+          target_blobs[j]->FromProto(source_layer.blobs(j), kReshape, ignore_mismatching_blobs);
+      } else if(!ignore_mismatching_blobs) {
+          LOG(WARNING) << "ignore_mismatching_blobs: " << ignore_mismatching_blobs;
+          LOG(FATAL) << "Cannot copy param " << j << " weights from layer '"
+              << source_layer_name << "'; shape mismatch.";
+      }
     }
   }
   CopyQuantizationRangeInLayers();
@@ -1556,6 +1587,202 @@ int Net<Dtype>::GetIntegerLengthOut(const int layer_id, bool unsigned_check_out,
   return (unsigned_check_out && unsigned_layer_out)?
 		  EstimateAbsBits(max_val_abs) : (EstimateAbsBits(max_val_abs) + 1);
 }
+
+template <typename Dtype>
+void Net<Dtype>::OptimizeNet() {
+  for (int i = 0; i < layers_.size(); i++) {
+    if(layers_[i]->layer_param().has_quantization_param() &&
+        layers_[i]->layer_param().quantization_param().has_rounding_scheme()) {
+      QuantizationParameter& qparam = *layers_[i]->mutable_layer_param().mutable_quantization_param();
+      qparam.set_rounding_scheme(QuantizationParameter_Rounding_NEAREST);
+    }
+  }
+
+  bool can_merge_bn = false;
+  for (int i = 0; i < (layers_.size()-1); i++) {
+    if (layers_[i]->type() == std::string("Convolution") &&
+        layers_[i+1]->type() == std::string("BatchNorm")) {
+      can_merge_bn = true;
+    }
+  }
+
+  if(!can_merge_bn) {
+    return;
+  }
+
+  for (int i = 0; i < (layers_.size()-1); i++) {
+    if (layers_[i]->type() == std::string("Convolution")) {
+      Layer<Dtype>& conv_layer = *layers_[i];
+      Blob<Dtype>& conv_weights = *conv_layer.blobs()[0];
+      int channels = (conv_weights.num_axes() == 1)? conv_weights.count() : conv_weights.shape(0);
+      int outputs = channels;
+
+      // Set bias term if it not there, as it is needed when conbining BN
+      if(conv_layer.blobs().size()==1) {
+        bool bias_term = true;
+        conv_layer.mutable_layer_param().mutable_convolution_param()->set_bias_term(bias_term);
+        conv_layer.mutable_layer_param().mutable_convolution_param()->mutable_bias_filler()->set_type("constant");
+        conv_layer.mutable_layer_param().mutable_convolution_param()->mutable_bias_filler()->set_value(0);
+
+        conv_layer.blobs().resize(2);
+        vector<int> bias_shape(bias_term, outputs);
+        conv_layer.blobs()[1].reset(new Blob<Dtype>(bias_shape));
+        shared_ptr<Filler<Dtype> > bias_filler(GetFiller<Dtype>(
+            conv_layer.layer_param().convolution_param().bias_filler()));
+        bias_filler->Fill(conv_layer.blobs()[1].get());
+      }
+
+      if(layers_[i+1]->type() == std::string("BatchNorm")) {
+        Layer<Dtype>& batch_norm_layer = *layers_[i+1];
+
+        Blob<Dtype>& batch_norm_scale = *batch_norm_layer.blobs()[0];
+        Blob<Dtype>& batch_norm_bias = *batch_norm_layer.blobs()[1];
+        Blob<Dtype>& batch_norm_mean = *batch_norm_layer.blobs()[2];
+        Blob<Dtype>& batch_norm_var = *batch_norm_layer.blobs()[3];
+        Dtype eps = batch_norm_layer.layer_param().batch_norm_param().eps();
+
+        // Absorb the BatchNorm into convolution
+        for(int no=0; no<conv_weights.shape(0); no++) {
+          Dtype var = batch_norm_var.data_at(no) + eps;
+          Dtype stdev_inv = std::pow(var, Dtype(-0.5));
+          Dtype scale = batch_norm_scale.data_at(no);
+          for(int ni=0; ni<conv_weights.shape(1); ni++) {
+            for(int w=0; w<conv_weights.shape(2); w++) {
+              for(int h=0; h<conv_weights.shape(3); h++) {
+                conv_weights.data_at(no,ni,w,h) = conv_weights.data_at(no,ni,w,h) * stdev_inv * scale;
+              }
+            }
+          }
+        }
+
+        Blob<Dtype>& conv_bias = *conv_layer.blobs()[1];
+        for(int no=0; no<channels; no++) {
+          Dtype var = batch_norm_var.data_at(no) + eps;
+          Dtype stdev_inv = std::pow(var, Dtype(-0.5));
+          Dtype scale = batch_norm_scale.data_at(no);
+          Dtype bias = batch_norm_bias.data_at(no);
+          Dtype mean = batch_norm_mean.data_at(no);
+          conv_bias.data_at(no) = (conv_bias.data_at(no) - mean) * stdev_inv * scale + bias;
+        }
+
+        // Set the batch norm to identity
+        for(int c=0; c<channels; c++) {
+          batch_norm_scale.data_at(c) = Dtype(1.0);
+          batch_norm_bias.data_at(c) = Dtype(0.0);
+          batch_norm_mean.data_at(c) = Dtype(0.0);
+          //Change var so that after adding eps, it becomes 1.0
+          batch_norm_var.data_at(c) = Dtype(1.0 - eps);
+        }
+      }
+    }
+  }
+
+  //Merge a BatchNorm layer that comes before convolution layer
+  for (int i = 0; i < (layers_.size()-1); i++) {
+    if (layers_[i]->type() == std::string("BatchNorm") && layers_[i+1]->type() == std::string("Convolution")) {
+      Layer<Dtype>& batch_norm_layer = *layers_[i];
+      Layer<Dtype>& conv_layer = *layers_[i+1];
+      Blob<Dtype>& conv_weights = *conv_layer.blobs()[0];
+      Blob<Dtype>& conv_bias = *conv_layer.blobs()[1];
+      int channels = (conv_weights.num_axes() == 1)? conv_weights.count() : conv_weights.shape(0);
+
+      Blob<Dtype>& batch_norm_scale = *batch_norm_layer.blobs()[0];
+      Blob<Dtype>& batch_norm_bias = *batch_norm_layer.blobs()[1];
+      Blob<Dtype>& batch_norm_mean = *batch_norm_layer.blobs()[2];
+      Blob<Dtype>& batch_norm_var = *batch_norm_layer.blobs()[3];
+      Dtype eps = batch_norm_layer.layer_param().batch_norm_param().eps();
+
+      // Absorb the BatchNorm into convolution
+      for(int no=0; no<conv_weights.shape(0); no++) {
+        Dtype var = batch_norm_var.data_at(no) + eps;
+        Dtype stdev_inv = std::pow(var, Dtype(-0.5));
+        Dtype scale = batch_norm_scale.data_at(no);
+        Dtype bias = batch_norm_bias.data_at(no);
+        Dtype mean = batch_norm_mean.data_at(no);
+
+        Dtype weight_sum = 0;
+        for(int ni=0; ni<conv_weights.shape(1); ni++) {
+          for(int w=0; w<conv_weights.shape(2); w++) {
+            for(int h=0; h<conv_weights.shape(3); h++) {
+              weight_sum += conv_weights.data_at(no,ni,w,h);
+              conv_weights.data_at(no,ni,w,h) = conv_weights.data_at(no,ni,w,h) * stdev_inv * scale;
+            }
+          }
+        }
+        conv_bias.data_at(no) = conv_bias.data_at(no) + bias * weight_sum - mean * stdev_inv * weight_sum;
+      }
+
+      // Set the batch norm to identity
+      for(int c=0; c<channels; c++) {
+        batch_norm_scale.data_at(c) = Dtype(1.0);
+        batch_norm_bias.data_at(c) = Dtype(0.0);
+        batch_norm_mean.data_at(c) = Dtype(0.0);
+        //Change var so that after adding eps, it becomes 1.0
+        batch_norm_var.data_at(c) = Dtype(1.0 - eps);
+      }
+    }
+  }
+
+}
+
+
+template <typename Dtype>
+void Net<Dtype>::ThresholdNet(float threshold_fraction_low, float threshold_fraction_mid, float threshold_fraction_high,
+    float threshold_value_maxratio, float threshold_value_max) {
+  for (int i = 0; i < layers_.size(); i++) {
+    if(layers_[i]->layer_param().has_quantization_param() &&
+        layers_[i]->layer_param().quantization_param().has_rounding_scheme()) {
+      QuantizationParameter& qparam = *layers_[i]->mutable_layer_param().mutable_quantization_param();
+      qparam.set_rounding_scheme(QuantizationParameter_Rounding_NEAREST);
+    }
+  }
+
+  for (int i = 0; i < (layers_.size()-1); i++) {
+    if (layers_[i]->type() == std::string("Convolution")) {
+      Layer<Dtype>& conv_layer = *layers_[i];
+      Blob<Dtype>& conv_weights = *conv_layer.blobs()[0];
+      int num_group = layers_[i]->layer_param().convolution_param().group();
+      //int stride = layers_[i]->layer_param().convolution_param().stride_size()>0? layers_[i]->layer_param().convolution_param().stride(0) : 1;
+
+      int no = (conv_weights.num_axes() == 1)? conv_weights.count() : conv_weights.shape(0);
+      int ni = ((conv_weights.num_axes() == 1)? conv_weights.count() : conv_weights.shape(1))*num_group;
+      float count = conv_weights.count();
+      LOG(WARNING) << layers_[i]->layer_param().name() << " ni=" << ni << " no=" << no;
+
+      if(ni>=32 || no >= 32) {
+        float threshold_fraction_selected = ((ni>=256 && no >= 512)? threshold_fraction_high :
+            ((ni>=32 && no >= 32)? threshold_fraction_mid: threshold_fraction_low));
+        float selected_threshold = 0;
+        float max_abs = std::abs(conv_weights.max());
+        float min_abs = std::abs(conv_weights.min());
+        float max_abs_value = std::max<float>(max_abs, min_abs);
+        LOG(WARNING) << layers_[i]->layer_param().name() << " MaxAbsWeight=" << max_abs_value;
+        float step_size = max_abs_value * 1e-8; //1e-7;
+        LOG(WARNING) << layers_[i]->layer_param().name() << " step_size=" << step_size;
+        float max_threshold_value = std::min<float>(threshold_value_max, max_abs_value*threshold_value_maxratio);
+        LOG(WARNING) << layers_[i]->layer_param().name() << " max_threshold_value=" << max_threshold_value;
+
+        for(float step=0; step<max_abs_value && step<max_threshold_value; step+=step_size) {
+          float zcount = conv_weights.count_zero((Dtype)step);
+          float zratio = zcount / count;
+          //LOG(WARNING) << layers_[i]->layer_param().name() << " Threshold=" << step << " ZeroPercentage=" << zratio*100;
+          if(zratio > threshold_fraction_selected) {
+            selected_threshold = step;
+            //LOG(WARNING) << " Threshold reached" << " selected_threshold" << selected_threshold;
+            break;
+          }
+        }
+
+        conv_weights.Zerout(selected_threshold);
+        float zcount = conv_weights.count_zero(selected_threshold);
+        LOG(WARNING) << layers_[i]->layer_param().name() << " SelectedThreshold=" << selected_threshold << "  ZeroPercentage=" << (zcount*100/count);
+      }
+    }
+  }
+
+  this->DisplaySparsity(1e-10);
+}
+
 template <typename Dtype>
 void Net<Dtype>::DisplaySparsity(float sparsity_threshold) {
 std::map<std::string, std::pair<int,int> > spasity_map;

@@ -193,6 +193,19 @@ class Blob {
     return cpu_data()[offset(n, c, h, w)];
   }
 
+  inline Dtype& data_at(const int n, const int c, const int h,
+      const int w) {
+    return mutable_cpu_data()[offset(n, c, h, w)];
+  }
+
+  inline Dtype data_at(const int n) const {
+    return cpu_data()[n];
+  }
+
+  inline Dtype& data_at(const int n) {
+    return mutable_cpu_data()[n];
+  }
+
   inline Dtype diff_at(const int n, const int c, const int h,
       const int w) const {
     return cpu_diff()[offset(n, c, h, w)];
@@ -243,7 +256,8 @@ class Blob {
   void Disconnect(const WeightConnectMode mode, const Dtype threshold);
   inline void Connect(){ InitializeConnectivity(); }
   int count_zero(const Dtype threshold) const;
-  void FromProto(const BlobProto& proto, bool reshape = true);
+  
+  void FromProto(const BlobProto& proto, bool reshape = true, bool ignore_shape_mismatch = false);
   void ToProto(BlobProto* proto, bool write_diff = false) const;
 
   /// @brief Compute the sum of absolute values (L1 norm) of the data.

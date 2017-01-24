@@ -49,7 +49,7 @@ __global__ void SoftmaxLossForwardProbSumGPU(const int nthreads,
 }
 
 template <typename Dtype>
-void SoftmaxWithLossIOUWeightsLayer<Dtype>::Forward_gpu(
+void SoftmaxWithWeightedLossLayer<Dtype>::Forward_gpu(
     const vector<Blob<Dtype>*>& bottom, const vector<Blob<Dtype>*>& top) {
   iter_count_++;
   softmax_layer_->Forward(softmax_bottom_vec_, softmax_top_vec_);
@@ -159,7 +159,7 @@ __global__ void AssignLabelWeightsGPUKernel(const int nthreads, const Dtype* top
 */
 
 template <typename Dtype>
-void SoftmaxWithLossIOUWeightsLayer<Dtype>::AssignLabelWeights_gpu(const vector<Blob<Dtype>*>& bottom,
+void SoftmaxWithWeightedLossLayer<Dtype>::AssignLabelWeights_gpu(const vector<Blob<Dtype>*>& bottom,
     const vector<Blob<Dtype>*>& top) {
   /*
   //this GPU implementation is not working correctly - so call the CPU version instead.
@@ -209,7 +209,7 @@ void SoftmaxWithLossIOUWeightsLayer<Dtype>::AssignLabelWeights_gpu(const vector<
 }
 
 template <typename Dtype>
-void SoftmaxWithLossIOUWeightsLayer<Dtype>::Backward_gpu(const vector<Blob<Dtype>*>& top,
+void SoftmaxWithWeightedLossLayer<Dtype>::Backward_gpu(const vector<Blob<Dtype>*>& top,
     const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom) {
   if (propagate_down[1]) {
     LOG(FATAL) << this->type()
@@ -288,6 +288,6 @@ void SoftmaxWithLossIOUWeightsLayer<Dtype>::Backward_gpu(const vector<Blob<Dtype
   }
 }
 
-INSTANTIATE_LAYER_GPU_FUNCS(SoftmaxWithLossIOUWeightsLayer);
+INSTANTIATE_LAYER_GPU_FUNCS(SoftmaxWithWeightedLossLayer);
 
 }  // namespace caffe

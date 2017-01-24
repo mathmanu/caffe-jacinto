@@ -2,13 +2,13 @@
 #include <cfloat>
 #include <vector>
 
-#include "caffe/layers/softmax_iouweights_loss_layer.hpp"
+#include "caffe/layers/softmax_weighted_loss_layer.hpp"
 #include "caffe/util/math_functions.hpp"
 
 namespace caffe {
 
 template <typename Dtype>
-void SoftmaxWithLossIOUWeightsLayer<Dtype>::LayerSetUp(
+void SoftmaxWithWeightedLossLayer<Dtype>::LayerSetUp(
     const vector<Blob<Dtype>*>& bottom, const vector<Blob<Dtype>*>& top) {
   LossLayer<Dtype>::LayerSetUp(bottom, top);
   LayerParameter softmax_param(this->layer_param_);
@@ -77,7 +77,7 @@ void SoftmaxWithLossIOUWeightsLayer<Dtype>::LayerSetUp(
 }
 
 template <typename Dtype>
-void SoftmaxWithLossIOUWeightsLayer<Dtype>::Reshape(
+void SoftmaxWithWeightedLossLayer<Dtype>::Reshape(
     const vector<Blob<Dtype>*>& bottom, const vector<Blob<Dtype>*>& top) {
   LossLayer<Dtype>::Reshape(bottom, top);
   softmax_layer_->Reshape(softmax_bottom_vec_, softmax_top_vec_);
@@ -98,7 +98,7 @@ void SoftmaxWithLossIOUWeightsLayer<Dtype>::Reshape(
 }
 
 template <typename Dtype>
-void SoftmaxWithLossIOUWeightsLayer<Dtype>::AssignLabelWeights_cpu(const vector<Blob<Dtype>*>& bottom,
+void SoftmaxWithWeightedLossLayer<Dtype>::AssignLabelWeights_cpu(const vector<Blob<Dtype>*>& bottom,
     const vector<Blob<Dtype>*>& top) {
 
   int num_labels = bottom[0]->shape(softmax_axis_);
@@ -150,7 +150,7 @@ void SoftmaxWithLossIOUWeightsLayer<Dtype>::AssignLabelWeights_cpu(const vector<
 }
 
 template <typename Dtype>
-Dtype SoftmaxWithLossIOUWeightsLayer<Dtype>::get_normalizer(
+Dtype SoftmaxWithWeightedLossLayer<Dtype>::get_normalizer(
     LossParameter_NormalizationMode normalization_mode, int valid_count) {
   Dtype normalizer;
   switch (normalization_mode) {
@@ -180,7 +180,7 @@ Dtype SoftmaxWithLossIOUWeightsLayer<Dtype>::get_normalizer(
 }
 
 template <typename Dtype>
-void SoftmaxWithLossIOUWeightsLayer<Dtype>::Forward_cpu(
+void SoftmaxWithWeightedLossLayer<Dtype>::Forward_cpu(
     const vector<Blob<Dtype>*>& bottom, const vector<Blob<Dtype>*>& top) {
   // The forward pass computes the softmax prob values.
   iter_count_++;
@@ -211,7 +211,7 @@ void SoftmaxWithLossIOUWeightsLayer<Dtype>::Forward_cpu(
 }
 
 template <typename Dtype>
-void SoftmaxWithLossIOUWeightsLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
+void SoftmaxWithWeightedLossLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
     const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom) {
   if (propagate_down[1]) {
     LOG(FATAL) << this->type()
@@ -283,10 +283,10 @@ void SoftmaxWithLossIOUWeightsLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype
 }
 
 #ifdef CPU_ONLY
-STUB_GPU(SoftmaxWithLossIOUWeightsLayer);
+STUB_GPU(SoftmaxWithWeightedLossLayer);
 #endif
 
-INSTANTIATE_CLASS(SoftmaxWithLossIOUWeightsLayer);
-REGISTER_LAYER_CLASS(SoftmaxWithLossIOUWeights);
+INSTANTIATE_CLASS(SoftmaxWithWeightedLossLayer);
+REGISTER_LAYER_CLASS(SoftmaxWithWeightedLoss);
 
 }  // namespace caffe

@@ -79,25 +79,6 @@ void caffe_gpu_axpy<double>(const int N, const double alpha, const double* X,
   CUBLAS_CHECK(cublasDaxpy(Caffe::cublas_handle(), N, &alpha, X, 1, Y, 1));
 }
 
-template <typename Dtype>
-__global__ void zerout_kernel(void * mutable_gpu_data, int count, Dtype thre) {
-  Dtype* data_ptr_tmp =  static_cast<Dtype*>(mutable_gpu_data);
-  CUDA_KERNEL_LOOP(index, count) {
-    if(data_ptr_tmp[index] < thre && data_ptr_tmp[index]>(-thre)) {
-      data_ptr_tmp[index] = 0;
-    }
-  }
-}
-
-template <typename Dtype>
-void caffe_gpu_zerout(void * mutable_gpu_data, const int count, Dtype th){
-	zerout_kernel<<<CAFFE_GET_BLOCKS(count), CAFFE_CUDA_NUM_THREADS>>>(mutable_gpu_data,  count,  th);
-}
-
-template void caffe_gpu_zerout<int>(void * mutable_gpu_data, const int count, int th);
-template void caffe_gpu_zerout<unsigned int>(void * mutable_gpu_data, const int count, unsigned int th);
-template void caffe_gpu_zerout<float>(void * mutable_gpu_data, const int count, float th);
-template void caffe_gpu_zerout<double>(void * mutable_gpu_data, const int count, double th);
 void caffe_gpu_memcpy(const size_t N, const void* X, void* Y) {
   if (X != Y) {
     CUDA_CHECK(cudaMemcpy(Y, X, N, cudaMemcpyDefault));  // NOLINT(caffe/alt_fn)
@@ -424,6 +405,7 @@ DEFINE_AND_INSTANTIATE_GPU_UNARY_FUNC(sgnbit, y[index] = signbit(x[index]));
 DEFINE_AND_INSTANTIATE_GPU_2NARY_FUNC(if_zerout, threshold, y[index] = ((x[index] < Dtype(threshold) && x[index] > Dtype(-threshold) ) ? 1 : 0) );
 DEFINE_AND_INSTANTIATE_GPU_2NARY_FUNC(if_nonzerout, threshold, y[index] = ((x[index] >= Dtype(threshold) || x[index] <= Dtype(-threshold) ) ? 1 : 0) )
 DEFINE_AND_INSTANTIATE_GPU_UNARY_FUNC(eltwise_multi, y[index] = y[index]*x[index] )
+DEFINE_AND_INSTANTIATE_GPU_2NARY_FUNC(zerout, threshold, y[index] = ((x[index] < Dtype(threshold) && x[index] > Dtype(-threshold) ) ? 0 : x[index]) );
 
 void caffe_gpu_rng_uniform(const int n, unsigned int* r) {
   CURAND_CHECK(curandGenerate(Caffe::curand_generator(), r, n));
@@ -552,25 +534,10 @@ __global__ void count_zero_kernel(int N, const Dtype* x, Dtype threshold, Dtype 
 }
 template <typename Dtype>
 Dtype caffe_gpu_count_zero(const int N, const Dtype* x, Dtype threshold) {
-#if 0
-	Dtype *tmp_weights;
-    int device;
-    CUDA_CHECK(cudaGetDevice(&device));
-    cudaStream_t stream = GPUMemory::device_stream(device);
-    GPUMemory::allocate(&tmp_weights, N*sizeof(Dtype), device, stream);
-  // NOLINT_NEXT_LINE(whitespace/operators)
-    count_zero_kernel<Dtype><<<CAFFE_GET_BLOCKS(N),
-                               CAFFE_CUDA_NUM_THREADS>>>(N, x, threshold, tmp_weights);
-	Dtype result = 0;
-	caffe_gpu_asum(N, tmp_weights, &result);
-	GPUMemory::deallocate(tmp_weights, device, stream);
-	return result;    
-#else
   thrust::device_ptr<const Dtype> pWrapper(x);
   Dtype val = 0;
   Dtype count = thrust::count(pWrapper, pWrapper+N, val);
   return count;
-#endif    
 }
 template float caffe_gpu_count_zero(const int N, const float* x, float threshold);
 template double caffe_gpu_count_zero(const int N, const double* x, double threshold);

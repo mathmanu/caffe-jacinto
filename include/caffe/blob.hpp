@@ -250,10 +250,10 @@ class Blob {
   Dtype* mutable_gpu_connectivity();
   void Update();
 
-  void Zerout(Dtype threshold);
+  void Zerout(const Dtype threshold);
   Dtype max() const;
   Dtype min() const;
-  void Disconnect(const WeightConnectMode mode, const Dtype threshold);
+  void SetWeightConnectivity(const WeightConnectMode mode, const Dtype threshold, const bool threshold_weights);
   inline void Connect(){ InitializeConnectivity(); }
   int count_zero(const Dtype threshold) const;
   

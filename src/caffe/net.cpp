@@ -1728,7 +1728,7 @@ void Net<Dtype>::OptimizeNet() {
 
 template <typename Dtype>
 void Net<Dtype>::ThresholdNet(float threshold_fraction_low, float threshold_fraction_mid, float threshold_fraction_high,
-    float threshold_value_maxratio, float threshold_value_max) {
+    float threshold_value_maxratio, float threshold_value_max, float threshold_step_factor) {
   for (int i = 0; i < layers_.size(); i++) {
     if(layers_[i]->layer_param().has_quantization_param() &&
         layers_[i]->layer_param().quantization_param().has_rounding_scheme()) {
@@ -1756,11 +1756,12 @@ void Net<Dtype>::ThresholdNet(float threshold_fraction_low, float threshold_frac
         float max_abs = std::abs(conv_weights.max());
         float min_abs = std::abs(conv_weights.min());
         float max_abs_value = std::max<float>(max_abs, min_abs);
-        LOG(WARNING) << layers_[i]->layer_param().name() << " MaxAbsWeight=" << max_abs_value;
-        float step_size = max_abs_value * 1e-8; //1e-7;
-        LOG(WARNING) << layers_[i]->layer_param().name() << " step_size=" << step_size;
+        float step_size = max_abs_value * threshold_step_factor;
         float max_threshold_value = std::min<float>(threshold_value_max, max_abs_value*threshold_value_maxratio);
+
+        LOG(WARNING) << layers_[i]->layer_param().name() << " MaxAbsWeight=" << max_abs_value;
         LOG(WARNING) << layers_[i]->layer_param().name() << " max_threshold_value=" << max_threshold_value;
+        LOG(WARNING) << layers_[i]->layer_param().name() << " step_size=" << step_size;
 
         for(float step=0; step<max_abs_value && step<max_threshold_value; step+=step_size) {
           float zcount = conv_weights.count_zero((Dtype)step);
@@ -1768,7 +1769,7 @@ void Net<Dtype>::ThresholdNet(float threshold_fraction_low, float threshold_frac
           //LOG(WARNING) << layers_[i]->layer_param().name() << " Threshold=" << step << " ZeroPercentage=" << zratio*100;
           if(zratio > threshold_fraction_selected) {
             selected_threshold = step;
-            //LOG(WARNING) << " Threshold reached" << " selected_threshold" << selected_threshold;
+            LOG(WARNING) << " Threshold reached";
             break;
           }
         }
@@ -1807,9 +1808,9 @@ std::map<std::string, std::pair<int,int> > spasity_map;
 }
 
 template <typename Dtype>
-void Net<Dtype>::SetWeightConnectivity(WeightConnectMode mode, Dtype threshold) {
+void Net<Dtype>::SetWeightConnectivity(WeightConnectMode mode, Dtype threshold, bool threshold_weights) {
   for(int layer_id=0; layer_id<layers_.size(); layer_id++) {
-    layers_[layer_id]->SetWeightConnectivity(mode, threshold);
+    layers_[layer_id]->SetWeightConnectivity(mode, threshold, threshold_weights);
   }
 }
 

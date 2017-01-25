@@ -58,7 +58,7 @@ DEFINE_double(threshold_fraction_high, 0.90, "Optional: fraction of weights to b
 
 DEFINE_double(threshold_value_maxratio, 1e-3, "Optional: determine threshold as a factor of max");
 DEFINE_double(threshold_value_max, 1e-4, "Optional: vlues of weights below which are zeroed");
-
+DEFINE_double(threshold_step_factor, 1e-8, "Optional: step factor to find the optimal threshold for each layer");
 
 // A simple registry for caffe commands.
 typedef int (*BrewFunction)();
@@ -557,7 +557,7 @@ int threshold() {
 
   LOG(INFO) << "Thresholding Net " << FLAGS_model;
   caffe_net.ThresholdNet(FLAGS_threshold_fraction_low, FLAGS_threshold_fraction_mid, FLAGS_threshold_fraction_high,
-      FLAGS_threshold_value_maxratio, FLAGS_threshold_value_max);
+      FLAGS_threshold_value_maxratio, FLAGS_threshold_value_max, FLAGS_threshold_step_factor);
 
   boost::filesystem::path output_path(FLAGS_output);
   string output_prefix = output_path.parent_path().string() + "/" + output_path.stem().string();

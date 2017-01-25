@@ -234,8 +234,9 @@ void Solver<Dtype>::FinishQuantization(shared_ptr<Net<Dtype> >& net) {
 
 template<typename Dtype>
 void Solver<Dtype>::SetWeightConnectivity() {
+  bool threshold_weights = this->param().threshold_weights();
   if (param_.weight_connect_mode() != caffe::WEIGHT_CONNECTED && param_.sparsity_threshold() != 0) {
-    net_->SetWeightConnectivity(param_.weight_connect_mode(), param_.sparsity_threshold());
+    net_->SetWeightConnectivity(param_.weight_connect_mode(), param_.sparsity_threshold(), threshold_weights);
   }
 }
 

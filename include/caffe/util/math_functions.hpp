@@ -159,6 +159,8 @@ DEFINE_CAFFE_CPU_UNARY_FUNC(sign, y[i] = caffe_sign<Dtype>(x[i]));
 DEFINE_CAFFE_CPU_2NARY_FUNC(if_zerout, threshold, y[i] = caffe_if_zerout<Dtype>(x[i], threshold));
 DEFINE_CAFFE_CPU_2NARY_FUNC(if_nonzerout, threshold, y[i] = caffe_if_nonzerout<Dtype>(x[i], threshold));
 DEFINE_CAFFE_CPU_UNARY_FUNC(eltwise_multi, y[i] = y[i]*x[i]);
+DEFINE_CAFFE_CPU_2NARY_FUNC(zerout, threshold, y[i] = ((x[i] < Dtype(threshold) && x[i] > Dtype(-threshold) ) ? 0 : x[i]) );
+
 
 // This returns a nonzero value if the input has its sign bit set.
 // The name sngbit is meant to avoid conflicts with std::signbit in the macro.
@@ -191,9 +193,6 @@ void caffe_gpu_gemv(const CBLAS_TRANSPOSE TransA, const int M, const int N,
 template <typename Dtype>
 void caffe_gpu_axpy(const int N, const Dtype alpha, const Dtype* X,
     Dtype* Y);
-
-template <typename Dtype>
-void caffe_gpu_zerout(void * mutable_gpu_data, int count, Dtype th);
 
 template <typename Dtype>
 void caffe_gpu_axpby(const int N, const Dtype alpha, const Dtype* X,
@@ -283,6 +282,9 @@ void caffe_gpu_if_nonzerout(const int n, Dtype threshold, const Dtype* x, Dtype*
 
 template<typename Dtype>
 void caffe_gpu_eltwise_multi(const int n, const Dtype* x, Dtype* y);
+
+template<typename Dtype>
+void caffe_gpu_zerout(const int n, Dtype threshold, const Dtype* x, Dtype* y);
 
 template<typename Dtype>
 void caffe_gpu_sgnbit(const int n, const Dtype* x, Dtype* y);

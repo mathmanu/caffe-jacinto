@@ -30,7 +30,7 @@ class InnerProductLayer : public QuantizedLayer<Dtype> {
   virtual inline int ExactNumBottomBlobs() const { return 1; }
   virtual inline int ExactNumTopBlobs() const { return 1; }
 
-  virtual void SetWeightConnectivity(WeightConnectMode mode, Dtype threshold);
+  virtual void SetWeightConnectivity(WeightConnectMode mode, Dtype threshold, bool threshold_weights);
 
  protected:
   virtual void Forward_cpu(const vector<Blob<Dtype>*>& bottom,

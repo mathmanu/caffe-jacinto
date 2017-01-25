@@ -278,10 +278,10 @@ class Net {
 
   void OptimizeNet();
   void ThresholdNet(float threshold_fraction_low, float threshold_fraction_mid, float threshold_fraction_high,
-      float threshold_value_maxratio, float threshold_value);
+      float threshold_value_maxratio, float threshold_value, float threshold_step_factor);
   void DisplaySparsity(float sparsity_threshold);
 
-  void SetWeightConnectivity(WeightConnectMode mode, Dtype threshold);
+  void SetWeightConnectivity(WeightConnectMode mode, Dtype threshold, bool threshold_weights);
 
  protected:
   // Helpers for Init.

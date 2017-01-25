@@ -217,34 +217,22 @@ void Blob<Dtype>::Update() {
 }
 
 template <typename Dtype>
-void Blob<Dtype>::Zerout(Dtype threshold) {
+void Blob<Dtype>::Zerout(const Dtype threshold) {
   // Zero out elements whose values are smaller than thre.
-  Dtype thre = Dtype(threshold);
-  Dtype* data_ptr_tmp = 0;
   switch (data_->head()) {
   case SyncedMemory::HEAD_AT_CPU:
     // perform computation on CPU
-    //caffe_axpy<Dtype>(count_, Dtype(-1),
-    //    static_cast<const Dtype*>(diff_->cpu_data()),
-    //    static_cast<Dtype*>(data_->mutable_cpu_data()));
-	  data_ptr_tmp = static_cast<Dtype*>(data_->mutable_cpu_data());
-	  for(int i=0;i<count_;i++){
-		  if(data_ptr_tmp[i]<thre && data_ptr_tmp[i]>(-thre)){
-			  data_ptr_tmp[i]=0;
-		  }
-	  }
+      caffe_cpu_zerout(count_, threshold,
+          static_cast<const Dtype*>(data_->cpu_data()),
+          static_cast<Dtype*>(data_->mutable_cpu_data()));
     break;
   case SyncedMemory::HEAD_AT_GPU:
   case SyncedMemory::SYNCED:
 #ifndef CPU_ONLY
     // perform zerout on GPU
-	  //data_ptr_tmp = static_cast<Dtype*>(data_->mutable_gpu_data());
-	  //	  for(int i=0;i<count_;i++){
-	  //		  if(data_ptr_tmp[i]<thre && data_ptr_tmp[i]>(-thre)){
-	  //			data_ptr_tmp[i]=0;
-	  //		  }
-	  //	  }
-	  caffe_gpu_zerout(data_->mutable_gpu_data(),count_,thre);
+	  caffe_gpu_zerout(count_, threshold,
+	      static_cast<const Dtype*>(data_->gpu_data()),
+	      static_cast<Dtype*>(data_->mutable_gpu_data()));
 #else
     NO_GPU;
 #endif
@@ -331,9 +319,11 @@ Dtype Blob<Dtype>::min() const {
 }
 
 template <typename Dtype>
-void Blob<Dtype>::Disconnect(const WeightConnectMode mode, const Dtype threshold) {
+void Blob<Dtype>::SetWeightConnectivity(const WeightConnectMode mode, const Dtype threshold, const bool threshold_weights) {
     CHECK(mode != WEIGHT_CONNECTED);
-	this->Zerout(threshold);
+    if(threshold_weights) {
+      this->Zerout(threshold);
+    }
 	if(mode == WEIGHT_DISCONNECTED_ELTWISE){
 		switch (Caffe::mode()) {
 			case Caffe::CPU: {

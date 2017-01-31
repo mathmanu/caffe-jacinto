@@ -525,18 +525,21 @@ void caffe_gpu_eltwise_min<unsigned int>(const int N,
                                CAFFE_CUDA_NUM_THREADS>>>(N, alpha, x, beta, y);
 }
 
-
-template<typename Dtype>
-__global__ void count_zero_kernel(int N, const Dtype* x, Dtype threshold, Dtype *temp) {
-  CUDA_KERNEL_LOOP(index, N) {
-	  temp[index] = ((x[index] < threshold && x[index] > (-threshold))? 1 : 0);
+template <typename Dtype>
+struct CheckZeroFunctor {
+  CheckZeroFunctor(const Dtype threshold) : threshold(threshold) {
   }
-}
+  __host__ __device__ bool operator()(const Dtype& x) {
+    return (x<(threshold) && x>(-threshold));
+  }
+  const Dtype threshold;
+};
+
 template <typename Dtype>
 Dtype caffe_gpu_count_zero(const int N, const Dtype* x, Dtype threshold) {
+  CheckZeroFunctor<Dtype> check_zero(threshold);
   thrust::device_ptr<const Dtype> pWrapper(x);
-  Dtype val = 0;
-  Dtype count = thrust::count(pWrapper, pWrapper+N, val);
+  Dtype count = thrust::count_if(pWrapper, pWrapper+N, check_zero);
   return count;
 }
 template float caffe_gpu_count_zero(const int N, const float* x, float threshold);

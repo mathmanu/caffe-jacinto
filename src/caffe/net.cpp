@@ -1759,24 +1759,24 @@ void Net<Dtype>::ThresholdNet(float threshold_fraction_low, float threshold_frac
         float step_size = max_abs_value * threshold_step_factor;
         float max_threshold_value = std::min<float>(threshold_value_max, max_abs_value*threshold_value_maxratio);
 
-        LOG(WARNING) << layers_[i]->layer_param().name() << " MaxAbsWeight=" << max_abs_value;
-        LOG(WARNING) << layers_[i]->layer_param().name() << " max_threshold_value=" << max_threshold_value;
-        LOG(WARNING) << layers_[i]->layer_param().name() << " step_size=" << step_size;
+        //LOG(WARNING) << layers_[i]->layer_param().name() << " MaxAbsWeight=" << max_abs_value;
+        //LOG(WARNING) << layers_[i]->layer_param().name() << " max_threshold_value=" << max_threshold_value;
+        //LOG(WARNING) << layers_[i]->layer_param().name() << " step_size=" << step_size;
 
         for(float step=0; step<max_abs_value && step<max_threshold_value; step+=step_size) {
           float zcount = conv_weights.count_zero((Dtype)step);
           float zratio = zcount / count;
           //LOG(WARNING) << layers_[i]->layer_param().name() << " Threshold=" << step << " ZeroPercentage=" << zratio*100;
-          if(zratio > threshold_fraction_selected) {
+          if(zratio <= threshold_fraction_selected) {
             selected_threshold = step;
-            LOG(WARNING) << " Threshold reached";
+          } else {
             break;
           }
         }
 
         conv_weights.Zerout(selected_threshold);
         float zcount = conv_weights.count_zero(selected_threshold);
-        LOG(WARNING) << layers_[i]->layer_param().name() << " SelectedThreshold=" << selected_threshold << "  ZeroPercentage=" << (zcount*100/count);
+        LOG(WARNING) << layers_[i]->layer_param().name() << " MaxAbsWeight=" << max_abs_value << " MaxThreshold=" << max_threshold_value << " SelectedThreshold=" << selected_threshold << " ZeroPercentage=" << (zcount*100/count);
       }
     }
   }

@@ -475,9 +475,9 @@ message LayerParameter {
   optional ImageLabelTransformationAugmentationParameter image_label_transformation_augmentation_param = 8402; 
   
   // For logging purposes
-  optional bool snapshot_log_weights = 200 [default = true];  
-  optional bool snapshot_log_in = 201 [default = true];
-  optional bool snapshot_log_out = 202 [default = true];  
+  optional bool snapshot_log_weights = 200 [default = false];  
+  optional bool snapshot_log_in = 201 [default = false];
+  optional bool snapshot_log_out = 202 [default = false];  
 }
 
 // Message for layers with reduced word with arithmetic

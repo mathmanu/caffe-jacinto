@@ -1527,13 +1527,14 @@ void Net<Dtype>::DisableQuantization(bool quantize_weights, bool quantize_activa
 template<typename Dtype>
 void Net<Dtype>::AddQuantizationParams() {
   for (int layer_id = 0; layer_id < layers_.size(); layer_id++) {
-    if(layers_[layer_id]->layer_param().type() == "Convolution") {
+    if(layers_[layer_id]->layer_param().type() == "Convolution" || layers_[layer_id]->layer_param().type() == "InnerProduct") {
       QuantizationParameter& quantization_param = *layers_[layer_id]->mutable_layer_param().mutable_quantization_param();
       quantization_param.set_quantize_layer_weights(true);
       if((layer_id+1) < layers_.size() && layers_[layer_id+1]->layer_param().type() != "ReLU") {
         quantization_param.set_quantize_layer_out(true);
       }
-    } else if(layers_[layer_id]->layer_param().type() == "ReLU") {
+    } else if(layers_[layer_id]->layer_param().type() == "ReLU" || layers_[layer_id]->layer_param().type() == "Scale" ||
+        layers_[layer_id]->layer_param().type() == "Pooling") {
       QuantizationParameter& quantization_param = *layers_[layer_id]->mutable_layer_param().mutable_quantization_param();
       quantization_param.set_quantize_layer_out(true);
     } else if(layers_[layer_id]->layer_param().type() == "Eltwise") {

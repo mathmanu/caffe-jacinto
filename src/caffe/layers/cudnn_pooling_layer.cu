@@ -8,6 +8,7 @@ namespace caffe {
 template <typename Dtype>
 void CuDNNPoolingLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
     const vector<Blob<Dtype>*>& top) {
+  this->Quantize_gpu(bottom, top);
   const Dtype* bottom_data = bottom[0]->gpu_data();
   Dtype* top_data = top[0]->mutable_gpu_data();
   CUDNN_CHECK(cudnnPoolingForward(Caffe::cudnn_handle(), pooling_desc_,
@@ -15,6 +16,7 @@ void CuDNNPoolingLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
         bottom_desc_, bottom_data,
         cudnn::dataType<Dtype>::zero,
         top_desc_, top_data));
+  this->Quantize_gpu(bottom, top);
 }
 
 template <typename Dtype>

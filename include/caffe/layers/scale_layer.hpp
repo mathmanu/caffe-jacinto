@@ -8,6 +8,7 @@
 #include "caffe/proto/caffe.pb.h"
 
 #include "caffe/layers/bias_layer.hpp"
+#include "caffe/quantized_layer.hpp"
 
 namespace caffe {
 
@@ -21,10 +22,10 @@ namespace caffe {
  * of the layer.
  */
 template <typename Dtype>
-class ScaleLayer: public Layer<Dtype> {
+class ScaleLayer: public QuantizedLayer<Dtype> {
  public:
   explicit ScaleLayer(const LayerParameter& param)
-      : Layer<Dtype>(param) {}
+      : QuantizedLayer<Dtype>(param) {}
   virtual void LayerSetUp(const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top);
   virtual void Reshape(const vector<Blob<Dtype>*>& bottom,

@@ -6,9 +6,13 @@ import matplotlib
 import matplotlib.pyplot as plt
 import ntpath
 
-sys.path.insert(0, '/user/a0393608/files/work/code/vision/ti/bitbucket/algoref/caffe-jacinto/python')
+sys.path.insert(0, '/user/a0393754/work/caffe/caffe-jacinto/python')
+model_path = '/user/a0393754/work/cfar10_jnet/deploy_final_sparse_quant_jacintonet11_nobn_iter_32000.prototxt'
+pretrained_path = '/user/a0393754/work/cfar10_jnet/final_sparse_quant_jacintonet11_nobn_iter_32000.caffemodel'
+input_name = '/user/a0393754/work/cfar10_jnet/dog4_128x128.png'
 
 import caffe
+caffe.set_mode_cpu()
 from caffe.proto import caffe_pb2
 import cv2
 import numpy as np
@@ -57,9 +61,6 @@ def getLayerByName(net_proto, layer_name):
     
 def infer():
     caffe.set_mode_cpu()
-    model_path = '/user/a0393608/files/shared_files/outputs/oc/cifar10/jacintonet11(32-64-128-256-512)_maxpool/jacintonet11(32-64-128-256-512)_maxpool_quantized(90.73%)/convnet10_iter_10000_deploy.prototxt'
-    pretrained_path = '/user/a0393608/files/shared_files/outputs/oc/cifar10/jacintonet11(32-64-128-256-512)_maxpool/jacintonet11(32-64-128-256-512)_maxpool_quantized(90.73%)/convnet10_iter_10000.caffemodel'
-    input_name = '/user/a0393608/files/shared_files/outputs/oc/cifar10/inputs/dog4_128x128.png'
     mean_pixel = [0, 0, 0]
     num = 0
 
@@ -68,10 +69,12 @@ def infer():
     
     # moved image reading out from predict()
     image = cv2.imread(input_name, 1).astype(np.float32) - mean_pixel
-    layer_names=['data', 'conv1a_relu', 'fc10']    
-    blob_names=['data', 'conv1a', 'fc10']
+    layer_names=['data', 'conv1a_relu', 'fc10', 'prob']    
+    blob_names=['data', 'conv1a', 'fc10', 'prob']
     out_blobs, net = predict(model_path, pretrained_path, image, num, blobs=blob_names)
-             
+    
+    print (out_blobs['prob'])   
+       
     if 'data' in out_blobs.keys():
         writeNPAryAsRaw(out_blobs['data'], 'data'+'_uint8'+'.bin', opDataType=np.uint8, opQ=8)       
           

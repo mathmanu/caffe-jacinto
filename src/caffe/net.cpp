@@ -1139,7 +1139,15 @@ void Net<Dtype>::Update() {
     learnable_params_[i]->Update();
 
 	if(this->solver_ && this->solver_->param().threshold_weights()) {
-       learnable_params_[i]->Zerout(this->solver_->param().sparsity_threshold());
+	  Dtype sparsity_threshold = this->solver_->param().sparsity_threshold();
+      learnable_params_[i]->Zerout(sparsity_threshold);
+
+      Dtype sparsity_target = this->solver_->param().sparsity_target();
+      Dtype count = learnable_params_[i]->count();
+      Dtype sparsity = learnable_params_[i]->count_zero(sparsity_threshold) / count;
+	  if(sparsity >= sparsity_target) {
+	    this->params_lr_[i] = this->solver_->param().sparsity_lr_mult();
+	  }
 	}
   }
 }
@@ -1790,9 +1798,9 @@ void Net<Dtype>::DisplaySparsity(float sparsity_threshold) {
 std::map<std::string, std::pair<int,int> > spasity_map;
   int blob_count = this->GetSparsity(spasity_map, sparsity_threshold);
   LOG(INFO) << "Num Params(" << blob_count << "), ";
-  int total_zero_count = 0, total_count = 0;
+  Dtype total_zero_count = 0, total_count = 0;
   std::stringstream ss;
-  ss << "Convolution and InnerProduct Layers, Sparsity (% zero weights): ";
+  ss << "Convolution and InnerProduct Layers, Sparsity (zero_weights/count): ";
   for(std::map<std::string, std::pair<int,int> >::iterator
       iter = spasity_map.begin(); iter != spasity_map.end(); iter++) {
     std::string param_name = iter->first;
@@ -1800,12 +1808,13 @@ std::map<std::string, std::pair<int,int> > spasity_map;
     Dtype count = iter->second.second;
     total_zero_count += zero_count;
     total_count += count;
-    ss << param_name << "(" << std::round(zero_count*100/count) << ") ";
+    ss << param_name << "(" << std::setprecision(3) << (zero_count/count) << ") ";
     //ss << param_name << "(" << zero_count << "/" << count << ") ";
   }
   LOG(INFO) << ss.str();
-  LOG(INFO) << "Total Sparsity (% zero weights) = " << std::setprecision(2) << (total_zero_count*100/total_count)
-      << " (" << std::setprecision(8) << total_zero_count << "/" << total_count << ")";
+  LOG(INFO) << "Total Sparsity (zero_weights/count) = "
+      << " (" << total_zero_count << "/" << total_count << ") "
+      << std::setprecision(3) << (total_zero_count/total_count);
 }
 
 template <typename Dtype>

@@ -1,75 +1,17 @@
-#Sover parameters
-test_iter: 200
-test_interval: 1000
-test_initialization: true
-display: 1000
 
-base_lr: 0.001
-
-max_iter: 32000
-lr_policy: "poly"
-power: 1
-momentum: 0.9
-
-weight_decay: 1e-4
-regularization_type: "L1"
-
-snapshot: 10000
-snapshot_prefix: "training/sparse_jacintonet11_nobn"
-solver_mode: GPU
-
-display_sparsity: 1000
-sparsity_threshold: 1e-10
-#threshold_weights: true
-weight_connect_mode: WEIGHT_DISCONNECTED_ELTWISE
-
-#ignore_mismatching_blobs: true
-
-#Net parameters
-net_param {
 
 name: "JacintoNet-11"
-
-layer {
-  name: "data"
-  type: "Data"
-  top: "data"
-  top: "label"
-  include {  phase: TRAIN  }
-  transform_param {
-    #scale: 0.0078125  
-    crop_size: 32
-    mirror: true
-    mean_value: 128
-    mean_value: 128
-    mean_value: 128
-  }
-  data_param {
-    source: "/user/a0393608/files/data/datasets/object-detect/other/cifar10/lmdb/cifar10_train_lmdb"
-    batch_size: 64
-    backend: LMDB
-  }
+input: "data"
+input_shape {
+  dim: 1
+  dim: 3
+  dim: 32
+  dim: 32
 }
-
-layer {
-  name: "data"
-  type: "Data"
-  top: "data"
-  top: "label"
-  include {  phase: TEST  }
-  transform_param {
-    #scale: 0.0078125  
-    crop_size: 32
-    mirror: false       
-    mean_value: 128
-    mean_value: 128
-    mean_value: 128
-  }
-  data_param {
-    source: "/user/a0393608/files/data/datasets/object-detect/other/cifar10/lmdb/cifar10_test_lmdb"
-    batch_size: 64
-    backend: LMDB
-  }
+input: "im_info"
+input_shape {
+  dim: 1
+  dim: 3
 }
 
 layer {
@@ -89,7 +31,7 @@ layer {
     bias_filler { type: "constant" value: 0 }    
     dilation: 1    
     group: 1
-    engine: CUDNN      
+    
   }
 }
 
@@ -120,7 +62,7 @@ layer {
     bias_filler { type: "constant" value: 0 }    
     dilation: 1    
     group: 4 #1
-    engine: CUDNN      
+    
   }
 }
 
@@ -150,7 +92,7 @@ layer {
     bias_filler { type: "constant" value: 0 }    
     dilation: 1    
     group: 1 #4
-    engine: CUDNN      
+    
   }
 }
 
@@ -180,7 +122,7 @@ layer {
     bias_filler { type: "constant" value: 0 }    
     dilation: 1    
     group: 4
-    engine: CUDNN      
+    
   }
 }
 
@@ -210,7 +152,7 @@ layer {
     bias_filler { type: "constant" value: 0 }    
     dilation: 1    
     group: 1 #4
-    engine: CUDNN      
+    
   }
 }
 
@@ -240,7 +182,7 @@ layer {
     bias_filler { type: "constant" value: 0 }    
     dilation: 1    
     group: 4
-    engine: CUDNN      
+    
   }
 }
 
@@ -270,7 +212,7 @@ layer {
     bias_filler { type: "constant" value: 0 }    
     dilation: 1    
     group: 1 #4
-    engine: CUDNN      
+    
   }
 }
 
@@ -300,7 +242,7 @@ layer {
     bias_filler { type: "constant" value: 0 }    
     dilation: 1    
     group: 4
-    engine: CUDNN      
+    
   }
 }
 
@@ -330,7 +272,7 @@ layer {
     bias_filler { type: "constant" value: 0 }    
     dilation: 1    
     group: 1 #4
-    engine: CUDNN      
+    
   }
 }
 
@@ -360,7 +302,7 @@ layer {
     bias_filler { type: "constant" value: 0 }    
     dilation: 1    
     group: 4
-    engine: CUDNN      
+    
   }
 }
 
@@ -397,40 +339,8 @@ layer {
   }
 }
 layer {
-  name: "loss"
-  type: "SoftmaxWithLoss"
+  name: "prob"
+  type: "Softmax"
   bottom: "fc10"
-  bottom: "label"
-  propagate_down: 1
-  propagate_down: 0
-  top: "loss"
-  loss_weight: 1
+  top: "prob"
 }
-
-layer {
-  name: "accuracy"
-  type: "Accuracy"
-  bottom: "fc10"
-  bottom: "label"
-  top: "accuracy"
-  include {
-    phase: TEST
-  }
-}
-layer {
-  name: "accuracy/top-5"
-  type: "Accuracy"
-  bottom: "fc10"
-  bottom: "label"
-  top: "accuracy/top-5"
-  include {
-    phase: TEST
-  }
-  accuracy_param {
-    top_k: 5
-  }
-}
-
-}
-
-

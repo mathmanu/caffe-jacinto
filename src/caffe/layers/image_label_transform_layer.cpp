@@ -41,8 +41,7 @@ template<typename Dtype>
 ImageLabelTransformationLayer<Dtype>::ImageLabelTransformationLayer(
     const LayerParameter& param) :
     Layer<Dtype>(param),
-    a_param_(param.image_label_transformation_augmentation_param()),
-    g_param_(param.image_label_transformation_groundtruth_param()),
+    a_param_(param.image_label_transform_param()),
     t_param_(param.transform_param()),
     phase_(param.phase()),
     rng_(new Caffe::RNG(caffe_rng_rand())) {}
@@ -124,15 +123,15 @@ void ImageLabelTransformationLayer<Dtype>::Reshape(
   top[0]->Reshape(
       bottom[0]->num(),
       bottom[0]->channels(),
-      g_param_.image_size_y(),
-      g_param_.image_size_x());
+      a_param_.crop_height(),
+      a_param_.crop_width());
   // resize tensor output layer: (never changes /wrt input blobs)
 
   top[1]->Reshape(
       bottom[1]->num(),
       bottom[1]->channels(),
-      g_param_.image_size_y(),
-      g_param_.image_size_x());
+      a_param_.crop_height(),
+      a_param_.crop_width());
 }
 
 
@@ -372,35 +371,35 @@ void ImageLabelTransformationLayer<Dtype>::Forward_cpu(
   vector<Mat3v> outputImages(inputImages.size());
   vector<Mat3v> outputLabels(inputLabels.size());
 
-#if 1
-  auto transform_image_label_func = [&](int iImage) {
-    const Mat3v& inputImage = inputImages[iImage];
-    const Mat3v& inputLabel = inputLabels[iImage];
-    Mat3v& outputImage = outputImages[iImage];
-    Mat3v& outputLabel = outputLabels[iImage];
+  if(a_param_.threads() != 1) {
+    auto transform_image_label_func = [&](int iImage) {
+      const Mat3v& inputImage = inputImages[iImage];
+      const Mat3v& inputLabel = inputLabels[iImage];
+      Mat3v& outputImage = outputImages[iImage];
+      Mat3v& outputLabel = outputLabels[iImage];
 
-    transform(inputImage, inputLabel, &outputImage, &outputLabel);
+      transform(inputImage, inputLabel, &outputImage, &outputLabel);
 
-    //cv::imshow("Source", inputImage/255.0);
-    //cv::imshow("Transormed", outputImage/255.0);
-    //cv::waitKey(1000);
-  };
-  ParallelFor(0, inputImages.size(), transform_image_label_func);
-#else
-  for (size_t iImage = 0; iImage != inputImages.size(); ++iImage) {
-    const Mat3v& inputImage = inputImages[iImage];
-    const Mat3v& inputLabel = inputLabels[iImage];
-    Mat3v& outputImage = outputImages[iImage];
-    Mat3v& outputLabel = outputLabels[iImage];
+      //cv::imshow("Source", inputImage/255.0);
+      //cv::imshow("Transormed", outputImage/255.0);
+      //cv::waitKey(1000);
+    };
+    ParallelFor(0, inputImages.size(), transform_image_label_func);
+  } else {
+    for (size_t iImage = 0; iImage != inputImages.size(); ++iImage) {
+      const Mat3v& inputImage = inputImages[iImage];
+      const Mat3v& inputLabel = inputLabels[iImage];
+      Mat3v& outputImage = outputImages[iImage];
+      Mat3v& outputLabel = outputLabels[iImage];
 
-    transform(inputImage, inputLabel, &outputImage, &outputLabel);
+      transform(inputImage, inputLabel, &outputImage, &outputLabel);
 
-    cv::namedWindow("Transormed", CV_WINDOW_AUTOSIZE);
-	cv::imshow("Source", inputImage/255.0);
-	cv::imshow("Transormed", outputImage/255.0);
-    cv::waitKey(1000);
+      //cv::namedWindow("Transormed", CV_WINDOW_AUTOSIZE);
+      //cv::imshow("Source", inputImage/255.0);
+      //cv::imshow("Transormed", outputImage/255.0);
+      //cv::waitKey(1000);
+    }
   }
-#endif
 
   // emplace images in output image blob:
   matsToBlob(outputImages, top[0]);
@@ -414,8 +413,8 @@ void ImageLabelTransformationLayer<Dtype>::transform(
     Mat3v* img_aug,
     Mat3v* label_aug
 ) {
-  uint32_t image_x = g_param_.image_size_x();
-  uint32_t image_y = g_param_.image_size_y();
+  uint32_t image_x = a_param_.crop_width();
+  uint32_t image_y = a_param_.crop_height();
 
   // Perform mean subtraction on un-augmented image:
   Mat3v img_temp = img.clone();  // size determined by scale
@@ -623,7 +622,7 @@ Point ImageLabelTransformationLayer<Dtype>::augmentation_crop(
     const Mat3v& label_src,
     Mat3v* label_dst
 ) {
-  Size2i crop(g_param_.image_size_x(), g_param_.image_size_y());
+  Size2i crop(a_param_.crop_width(), a_param_.crop_height());
   Size2i shift(a_param_.shift_x(), a_param_.shift_y());
   Size2i imgSize(img_src.cols, img_src.rows);
   Point2i offset, inner, outer;

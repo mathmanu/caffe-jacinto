@@ -4,9 +4,9 @@ Train sparse and quantized CNN models. Generate models with arbitrary amount of 
 ## Training
 #### Classification
 Train a sparse, quantized CNN for classification (cifar10 dataset is used as an example)
-[classification](classification/README.md)  
+[cifar10_classification](cifar10_classification/README.md)  
 
 #### Segmentation
 Train a sprase, quantized CNN for semantic segmentation
-[segmentation](segmentation/README.md)  
+[pascalvoc2012_segmentation](pascalvoc2012_segmentation/README.md)  
 

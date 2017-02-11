@@ -12,8 +12,10 @@
 namespace caffe {
 
 /**
- * @brief Computes the classification accuracy for a one-of-many
- *        classification task.
+ * @brief Computes the IOU classification accuracy for a one-of-many classification task.
+ *        This IOU is correct for one batch, however, its averaging over iterations is incorrect.
+ *        Averaging should have happened before the division, inside the layer, but it is happening in solver.
+ *        Negative values are not taken care in the Solver::Test() function, so the averaged output can be incorrect/negative.
  */
 template <typename Dtype>
 class IOUAccuracyLayer : public Layer<Dtype> {

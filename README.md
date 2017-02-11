@@ -1,34 +1,32 @@
 # Caffe-jacinto
-Caffe-jacinto is a fork of [NVIDIA/caffe](https://github.com/NVIDIA/caffe) that enables training of sparse, quantized CNN models. It also has several additional features on top of caffe:
+Caffe-jacinto is a fork of [NVIDIA/caffe](https://github.com/NVIDIA/caffe) that enables training of sparse, quantized CNN models.
 
 ### Features
 
-- Sparsity
- - Measuring sparsity in convolution layers even while training is in progress. 
- - Zeroing out of small coefficients during training, similar to caffe-scnn [paper](https://arxiv.org/abs/1608.03665), [code](https://github.com/wenwei202/caffe/tree/scnn)
- - Thresholding tool to zero-out some convolution weights in each layer to attain a certain sparsity in each layer.
+Sparsity
+- Measuring sparsity in convolution layers even while training is in progress. 
+- Zeroing out of small coefficients during training, similar to caffe-scnn [paper](https://arxiv.org/abs/1608.03665), [code](https://github.com/wenwei202/caffe/tree/scnn)
+- Thresholding tool to zero-out some convolution weights in each layer to attain a certain sparsity in each layer.
 
-- Quantization
- - Collecting statistics (range of weights) to enable quantization
- - Dynamic -8bit fixed point quantization, improved from Ristretto [paper](https://arxiv.org/abs/1605.06402), [code](https://github.com/pmgysel/caffe)
+Quantization
+- Collecting statistics (range of weights) to enable quantization
+- Dynamic -8bit fixed point quantization, improved from Ristretto [paper](https://arxiv.org/abs/1605.06402), [code](https://github.com/pmgysel/caffe)
 
-- Classification
- - Training scripts and example models that demonstrate sparsification and quantization for classification on cifar10 dataset
+Classification
+- Training scripts and example models that demonstrate sparsification and quantization for classification on cifar10 dataset
 
-- Semantic segmentation
- - Training scripts and example models that demonstrate sparsification and quantization for semantic segmentation on [Cityscapes dataset](https://www.cityscapes-dataset.com/)
- - Additional layers to help semantic segmentation training: [ImageLabelData Layer](https://github.com/fyu/caffe-dilation), IOUAccuracy Layer
+Semantic segmentation
+- Training scripts and example models that demonstrate sparsification and quantization for semantic segmentation on [Cityscapes dataset](https://www.cityscapes-dataset.com/)
+- Additional layers to help semantic segmentation training: [ImageLabelData Layer](https://github.com/fyu/caffe-dilation), IOUAccuracy Layer 
 
-### Training procedure
+### Installation and usage
+The procedure for installation and usage of Caffe-jacinto is quite similar to Caffe. Please see the Caffe section below to understand the details.
 
-- Classification
- - [Train a sparse, quantized CNN for classification (cifar10 dataset is used as an example)](examples/tidsp/sparse_quant/classification/README.md)
+Several new optionas are added in solver and layer parameters to support sparsity and quantization. These options will be explained with examples for training with sparsity and quantization.
 
-- Segmentation
- - [Train a sprase, quantized CNN for semantic segmentation](examples/tidsp/sparse_quant/segmentation/README.md)
+### Training procedure for sparsity and quantization
 
-### References
-- TODO
+[Train sparse, quantized CNN for classification or segmentation](examples/tidsp/sparse_quant/README.md)
 
 
 # Caffe

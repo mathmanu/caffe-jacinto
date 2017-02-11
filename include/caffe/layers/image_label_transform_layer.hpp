@@ -166,8 +166,7 @@ class ImageLabelTransformationLayer : public Layer<Dtype> {
   void pixelMeanSubtraction(Mat3v* source) const;
   void channelMeanSubtraction(Mat3v* source) const;
 
-  ImageLabelTransformationAugmentationParameter a_param_;
-  ImageLabelTransformationGroundTruthParameter g_param_;
+  ImageLabelTransformationParameter a_param_;
   TransformationParameter t_param_;
 
   Phase phase_;

@@ -286,7 +286,9 @@ message SolverParameter {
   optional int32 display_sparsity = 44 [default = 0];
   optional float sparsity_threshold = 45 [default = 0];
   optional bool threshold_weights = 56 [default = false];
-  
+  optional float sparsity_target = 57 [default = 1.0];
+   optional float sparsity_lr_mult = 58 [default = 1.0];
+    
   // Quantization params  
   optional uint32 quantization_start_iter = 46 [default = 2000];  
   optional bool unsigned_check_in = 47 [default = true];
@@ -469,10 +471,8 @@ message LayerParameter {
   optional DetectNetGroundTruthParameter detectnet_groundtruth_param = 6801;
   optional DetectNetAugmentationParameter detectnet_augmentation_param = 6802;
   
-  
-  // TI PARAMETERS (Start with 84 because TI is 84 on an old-style phone)  
-  optional ImageLabelTransformationGroundTruthParameter image_label_transformation_groundtruth_param = 8401;  
-  optional ImageLabelTransformationAugmentationParameter image_label_transformation_augmentation_param = 8402; 
+  // TI PARAMETERS (Start with 84 because TI is 84 on an old-style phone)   
+  optional ImageLabelTransformationParameter image_label_transform_param = 8402; 
   
   // For logging purposes
   optional bool snapshot_log_weights = 200 [default = false];  
@@ -624,17 +624,9 @@ message DetectNetAugmentationParameter {
   optional float desaturation_max = 13 [default = 0.5];
 }
 
-// Message that stores parameters used to create gridbox ground truth
-message ImageLabelTransformationGroundTruthParameter {
-  // Size that incoming images are cropped / scaled to during training / test
-  //  time. The network will only see images of this size.
-  optional uint32 image_size_x = 8 [default = 0];
-  optional uint32 image_size_y = 9 [default = 0];
-}
-
 // Message that stores parameters used to apply image and label augmentations
 // specific to NVDataLayer's online augmentation module
-message ImageLabelTransformationAugmentationParameter {
+message ImageLabelTransformationParameter {
   // probability that a random crop of the training image will be taken at test
   //  time. If image dimensions are less than input size and random cropping is
   //  off, then the image will be scaled deterministically to the input size.
@@ -673,6 +665,12 @@ message ImageLabelTransformationAugmentationParameter {
   optional float contrast_adjust_min = 17 [default = 1.0];
   optional float contrast_adjust_max = 18 [default = 1.0];    
   optional int32 num_labels = 19 [default = 0];
+  
+  // Output image size. The network will only see images of this size.
+  optional uint32 crop_width = 20 [default = 0];
+  optional uint32 crop_height = 21 [default = 0];
+  
+  optional uint32 threads = 22 [default = 0];
 }
 
 
@@ -1114,6 +1112,8 @@ message ImageLabelDataParameter {
   
   optional string image_dir2 = 14 [default = ""];  
   optional string image_list_path2 = 15;  
+  
+  optional uint32 threads = 16 [default = 0];
 }
 
 

@@ -337,7 +337,7 @@ void Solver<Dtype>::Step(int iters) {
 
     if(param_.display_sparsity() > 0 && (iter_ % param_.display_sparsity()) == 0) {
       if(Caffe::root_solver()) {
-        net_->DisplaySparsity(param_.sparsity_threshold());
+        net_->DisplaySparsity(1e-10);
       }
     }
 

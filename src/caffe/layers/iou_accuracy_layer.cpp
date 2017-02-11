@@ -33,12 +33,14 @@ void IOUAccuracyLayer<Dtype>::Reshape(
       << "e.g., if label axis == 1 and prediction shape is (N, C, H, W), "
       << "label count (number of labels) must be N*H*W, "
       << "with integer values in {0, 1, ..., C-1}.";
-  vector<int> top_shape(0);  // Accuracy is a scalar; 0 axes.
+  vector<int> top_shape(1);  // Accuracy is a scalar; 0 axes.
+  top_shape[0] = 1;
   top[0]->Reshape(top_shape);
   if (top.size() > 1) {
     // Per-class accuracy is a vector; 1 axes.
+    int num_labels = bottom[0]->shape(label_axis_);
     vector<int> top_shape_per_class(1);
-    top_shape_per_class[0] = bottom[0]->shape(label_axis_);
+    top_shape_per_class[0] = num_labels;
     top[1]->Reshape(top_shape_per_class);
   }
 }
@@ -64,7 +66,7 @@ void IOUAccuracyLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
         continue;
       }
 
-      if(label_value >= num_labels || num_labels < 0) {
+      if(label_value < 0 || label_value >= num_labels || num_labels < 0) {
         //LOG(INFO) << "Invalid label_value: " << label_value;
         continue;
       }
@@ -77,12 +79,18 @@ void IOUAccuracyLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
         bottom_data_vector.push_back(std::make_pair(
             bottom_data[i * dim + k * inner_num_ + j], k));
       }
-      std::partial_sort(
-          bottom_data_vector.begin(), bottom_data_vector.begin() + top_k_,
+      std::partial_sort(bottom_data_vector.begin(), bottom_data_vector.begin() + top_k_,
           bottom_data_vector.end(), std::greater<std::pair<Dtype, int> >());
 
       int prediction_value = bottom_data_vector[0].second;
+
+      if(prediction_value < 0 || prediction_value >= num_labels || prediction_value < 0) {
+        //LOG(INFO) << "Invalid label_value: " << label_value;
+        continue;
+      }
+
       confusion_matrix[label_value][prediction_value] += 1;
+
       ++count;
     }
   }
@@ -98,37 +106,32 @@ void IOUAccuracyLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
   }
   mean_iou = count_iou>0? (mean_iou / count_iou) : 0;
 
-  // LOG(INFO) << "MeanIOU: " << mean_iou;
+  //LOG(INFO) << "MeanIOU: " << mean_iou;
   top[0]->mutable_cpu_data()[0] = mean_iou;
-  if (top.size() > 1) {
-    for (int i = 0; i < top[1]->count(); ++i) {
+  for (int i = 0; i < std::min<Dtype>(num_labels, top[1]->count()); ++i) {
+    //LOG(INFO) << "IOU[" << i << "]: " << iou[i];
+    if (top.size() > 1) {
       top[1]->mutable_cpu_data()[i] = iou[i];
     }
   }
   // IOUAccuracy layer should not be used as a loss function.
 }
 
+//Information: See definition of IU (a.k.a. IOU) here:
+//https://arxiv.org/abs/1411.4038
 template <typename Dtype>
 Dtype IOUAccuracyLayer<Dtype>::getIOUScoreForLabel(vector<vector<Dtype> >& confusion_matrix, int label) {
-  Dtype diag =0, nlabel = 0, ndet = 0;
-  for(int i=0; i<confusion_matrix.size(); i++) {
-    for(int j=0; j<confusion_matrix[0].size(); j++) {
-      if(i==j && i==label) {
-        diag += confusion_matrix[i][j];
-      }
-      if(i==label) {
-        nlabel += confusion_matrix[i][j];
-      }
-      if(j == label) {
-        ndet += confusion_matrix[i][j];
-      }
-    }
+  Dtype ture_pos = confusion_matrix[label][label];
+  Dtype label_count = 0;
+  for(int j=0; j<confusion_matrix[label].size(); j++) {
+    label_count += confusion_matrix[label][j];
   }
-  Dtype tp = diag;
-  Dtype fn = nlabel - tp;
-  Dtype fp = ndet - tp;
-  Dtype denom = tp+fp+fn;
-  Dtype score = ((denom>0 && nlabel>0)? (tp / denom) : (-1));
+  Dtype label_observed = 0;
+  for(int j=0; j<confusion_matrix[label].size(); j++) {
+    label_observed += confusion_matrix[j][label];
+  }
+  Dtype den = label_count + label_observed - ture_pos;
+  Dtype score = ((den>0)? (ture_pos / den) : (-1));
   return score;
 }
 

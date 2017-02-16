@@ -5,12 +5,12 @@ test_initialization: true
 display: 100
 
 type: "Adam"
-base_lr: 1e-3
+base_lr: 1e-4
 
 lr_policy: "multistep"
 gamma: 0.1
 stepvalue: 15000
-stepvalue: 30000
+stepvalue: 25000
 max_iter: 32000
 momentum: 0.9
 
@@ -44,7 +44,7 @@ layer {
   top: "label"
   include {  phase: TRAIN  }
   transform_param {
-    crop_size: 256
+    crop_size: 512
     ##mirror: true    
     ##mean_value: 128
     ##mean_value: 128
@@ -58,15 +58,26 @@ layer {
     batch_size: 16
     shuffle: true 
     label_slice {
-      dim: 256
-      dim: 256
+      dim: 512
+      dim: 512
       stride: 1
       stride: 1
       offset: 0
       offset: 0
     }
     padding: REFLECT
-    #threads: 1
+    #Min and Max sizes. This will be applied before the rest of the processing.
+    #Setting both of these may cause distortion of the image. Recommed to set only one of these or a large range.
+    #size_min: 1024    
+    #size_max: 2048   
+    
+    #Random scaling before crop    
+    scale_prob: 0.5
+    scale_min: 0.75
+    scale_max: 1.25    
+    
+    #Set to 1 to disable multireaded read      
+    #threads: 1           
   }
 }
 
@@ -77,7 +88,7 @@ layer {
   top: "label"
   include {  phase: TEST  }
   transform_param {
-    crop_size: 256
+    crop_size: 512
     mirror: false       
     #mean_value: 128
     #mean_value: 128
@@ -90,8 +101,8 @@ layer {
     batch_size: 8
     shuffle: true
     label_slice {
-      dim: 256
-      dim: 256
+      dim: 512
+      dim: 512
       stride: 1
       stride: 1
       offset: 0
@@ -1190,7 +1201,7 @@ layer {
   param { lr_mult: 1 decay_mult: 1.0 }
   param { lr_mult: 2 decay_mult: 0 }    
   convolution_param {
-    num_output: 32
+    num_output: 8
     kernel_size: 3
     pad: 1
     bias_term: true       
@@ -1225,11 +1236,11 @@ layer {
     decay_mult: 0
   }
   convolution_param {
-    num_output: 32
+    num_output: 8
     bias_term: false
     pad: 1
     kernel_size: 4
-    group: 32
+    group: 8
     stride: 2
     weight_filler {
       type: "bilinear"
@@ -1246,11 +1257,11 @@ layer {
     decay_mult: 0
   }
   convolution_param {
-    num_output: 32
+    num_output: 8
     bias_term: false
     pad: 1
     kernel_size: 4
-    group: 32
+    group: 8
     stride: 2
     weight_filler {
       type: "bilinear"
@@ -1267,11 +1278,11 @@ layer {
     decay_mult: 0
   }
   convolution_param {
-    num_output: 32
+    num_output: 8
     bias_term: false
     pad: 1
     kernel_size: 4
-    group: 32
+    group: 8
     stride: 2
     weight_filler {
       type: "bilinear"

@@ -19,6 +19,7 @@ namespace caffe {
 template<typename Dtype>
 class ImageLabelDataLayer : public BasePrefetchingDataLayer<Dtype> {
  public:
+
   explicit ImageLabelDataLayer(const LayerParameter &param);
 
   virtual ~ImageLabelDataLayer();
@@ -45,6 +46,14 @@ class ImageLabelDataLayer : public BasePrefetchingDataLayer<Dtype> {
   virtual void ShuffleImages();
 
   virtual void SampleScale(cv::Mat *image, cv::Mat *label);
+
+  void ResizeTo(
+      const cv::Mat& img,
+      cv::Mat* img_temp,
+      const cv::Mat& label,
+      cv::Mat* label_temp,
+      const cv::Size& size
+  );
 
   virtual void load_batch(Batch<Dtype>* batch);
 

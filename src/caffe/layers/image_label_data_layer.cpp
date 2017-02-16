@@ -227,19 +227,106 @@ void ImageLabelDataLayer<Dtype>::ShuffleImages() {
 
 template <typename Dtype>
 void ImageLabelDataLayer<Dtype>::SampleScale(cv::Mat *image, cv::Mat *label) {
-  ImageLabelDataParameter data_param =
-      this->layer_param_.image_label_data_param();
-  if (!data_param.rand_scale()) return;
-  double scale = std::uniform_real_distribution<double>(
-      data_param.min_scale(), data_param.max_scale())(*rng_);
-  cv::Size zero_size(0, 0);
-  cv::resize(*label, *label, cv::Size(0, 0),
-             scale, scale, cv::INTER_NEAREST);
+  ImageLabelDataParameter data_param = this->layer_param_.image_label_data_param();
+  if(data_param.size_min() != 0 || data_param.size_max() != 0) {
+    int size_min = data_param.size_min();
+    int size_max = data_param.size_max();
 
-  if (scale > 1) {
-    cv::resize(*image, *image, zero_size, scale, scale, cv::INTER_CUBIC);
+    bool adjust_size = (size_min != 0 && (std::min<int>(image->cols, image->rows) < size_min)) ||
+        (size_max != 0 && (std::max<int>(image->cols, image->rows) > size_max));
+    if(adjust_size) {
+      auto clip_size = [&](int size) {
+        if(size_min && size_max) {
+          return std::max<int>(std::min<int>(size, size_max), size_min);
+        } else if(size_min) {
+          return std::max<int>(size, size_min);
+        } else if(size_max) {
+          return std::min<int>(size, size_max);
+        } else {
+          return size;
+        }
+      };
+
+      cv::Size scaleSize(image->cols, image->rows);
+      if(size_min) {
+        if(image->cols < image->rows) {
+          scaleSize.width = clip_size(scaleSize.width);
+          scaleSize.height = clip_size(round(scaleSize.width * image->rows / (double)image->cols));
+        } else {
+          scaleSize.height = clip_size(scaleSize.height);
+          scaleSize.width = clip_size(round(scaleSize.height * image->cols / (double)image->rows));
+        }
+      } else if(size_max) {
+        if(image->cols > image->rows) {
+          scaleSize.width = clip_size(scaleSize.width);
+          scaleSize.height = clip_size(round(scaleSize.width * image->rows / (double)image->cols));
+        } else {
+          scaleSize.height = clip_size(scaleSize.height);
+          scaleSize.width = clip_size(round(scaleSize.height * image->cols / (double)image->rows));
+        }
+      }
+
+      ResizeTo(*image, image, *label, label, scaleSize);
+    }
+  }
+
+  if(data_param.scale_prob()) {
+    double scale_prob_rand_value = std::uniform_real_distribution<double>(0, 1.0)(*rng_);
+    bool doScale = (scale_prob_rand_value <= data_param.scale_prob());
+    //LOG(INFO) << "Random Resizing" << doScale;
+    if(doScale) {
+      double scale = std::uniform_real_distribution<double>(data_param.scale_min(), data_param.scale_max())(*rng_);
+      cv::Size zero_size(0, 0);
+      cv::resize(*label, *label, cv::Size(0, 0), scale, scale, cv::INTER_NEAREST);
+
+      if (scale > 1) {
+        cv::resize(*image, *image, zero_size, scale, scale, cv::INTER_CUBIC);
+      } else {
+        cv::resize(*image, *image, zero_size, scale, scale, cv::INTER_AREA);
+      }
+    }
+  }
+}
+
+template<typename Dtype>
+void ImageLabelDataLayer<Dtype>::ResizeTo(
+    const cv::Mat& img,
+    cv::Mat* img_temp,
+    const cv::Mat& label,
+    cv::Mat* label_temp,
+    const cv::Size& size
+) {
+  // perform scaling if desired size and image size are non-equal:
+  if (size.height != img.rows || size.width != img.cols) {
+    //int orig_height = img.rows;
+    //int orig_width = img.cols;
+    int new_height = size.height;
+    int new_width = size.width;
+    //if(orig_width > orig_height) {
+    //    new_width = new_height*orig_width/orig_height;
+    //} else {
+    //    new_height = new_width*orig_height/orig_width;
+    //}
+
+    //LOG(INFO) << "Resizing " << img.cols << "x" << img.rows << " to " << new_width << "x" << new_height;
+
+    double scale_value = ((new_width / (double)img.cols) + (new_height / (double)img.rows)) / 2;
+    if(scale_value > 1) {
+        cv::resize(img, *img_temp, cv::Size(new_width, new_height), cv::INTER_CUBIC);
+    } else {
+        cv::resize(img, *img_temp, cv::Size(new_width, new_height), cv::INTER_AREA);
+    }
+    cv::resize(label, *label_temp, cv::Size(new_width, new_height), cv::INTER_NEAREST);
+
+    int h_off = (new_height - size.height) / 2;
+    int w_off = (new_width - size.width) / 2;
+    cv::Rect roi(w_off, h_off, size.width, size.height);
+    *img_temp = (*img_temp)(roi);
+    *label_temp = (*label_temp)(roi);
+
   } else {
-    cv::resize(*image, *image, zero_size, scale, scale, cv::INTER_AREA);
+    *img_temp = img.clone();
+    *label_temp = label.clone();
   }
 }
 
@@ -346,6 +433,7 @@ void ImageLabelDataLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
       cv::Mat cv_label = ReadImageToCVMat(label_dir + label_lines_[line_d],
                                           false);
       SampleScale(&cv_img, &cv_label);
+
       switch (data_param.padding()) {
         case ImageLabelDataParameter_Padding_ZERO:
           cv_img = ExtendLabelMargin(cv_img, label_margin_w_, label_margin_h_, 0);

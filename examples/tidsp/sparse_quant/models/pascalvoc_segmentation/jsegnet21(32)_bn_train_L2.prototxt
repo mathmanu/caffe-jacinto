@@ -5,12 +5,12 @@ test_initialization: true
 display: 100
 
 type: "Adam"
-base_lr: 1e-3
+base_lr: 1e-4
 
 lr_policy: "multistep"
 gamma: 0.1
 stepvalue: 15000
-stepvalue: 30000
+stepvalue: 25000
 max_iter: 32000
 momentum: 0.9
 
@@ -35,7 +35,7 @@ random_seed: 33
 #Net parameters
 net_param {
 
-name: "ConvNet-10(8)"
+name: "ConvNet-10(32)"
 
 layer {
   name: "data"

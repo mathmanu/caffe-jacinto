@@ -1092,9 +1092,9 @@ message ImageLabelDataParameter {
   optional bool shuffle = 5 [default = false];
 
   // Whether random sample image scales
-  optional bool rand_scale = 6 [default = false];
-  optional float min_scale = 7  [default = 1];
-  optional float max_scale = 8  [default = 1];
+  optional float scale_prob = 6 [default = 0];
+  optional float scale_min = 7  [default = 1];
+  optional float scale_max = 8  [default = 1];
 
   optional string data_dir = 9 [default = ""];
 
@@ -1114,6 +1114,8 @@ message ImageLabelDataParameter {
   optional string image_list_path2 = 15;  
   
   optional uint32 threads = 16 [default = 0];
+  optional uint32 size_min = 17 [default = 0];  
+  optional uint32 size_max = 18 [default = 0]; 
 }
 
 

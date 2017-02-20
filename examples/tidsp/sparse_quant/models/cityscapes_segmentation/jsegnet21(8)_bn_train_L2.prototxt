@@ -1325,23 +1325,21 @@ layer {
   }    
 }
 
-#The averaging over iterations is incorrect. 
-#And can even result in negative values. Commenting out for now.
-#For more details, see comments in iou_accuracy_layer.hpp
-#layer {
-#  name: "iou"
-#  type: "IOUAccuracy"
-#  bottom: "ctx_final_score"
-#  bottom: "label"
-#  top: "iou/mean"
-#  top: "iou/class"  
-#  accuracy_param {
-#    ignore_label: 255
-#  }  
-#  include {
-#    phase: TEST
-#  }
-#}
+layer {
+  name: "iou"
+  type: "IOUAccuracy"
+  bottom: "ctx_final_score"
+  bottom: "label"
+  top: "iou/mean"
+  top: "iou/class"  
+  accuracy_param {
+    ignore_label: 255
+    history_size: 1000
+  }  
+  include {
+    phase: TEST
+  }
+}
 
 layer {
   name: "pixel_accuracy/top-1"

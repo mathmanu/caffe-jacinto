@@ -17,6 +17,9 @@ void IOUAccuracyLayer<Dtype>::LayerSetUp(
   if (has_ignore_label_) {
     ignore_label_ = this->layer_param_.accuracy_param().ignore_label();
   }
+
+  image_iter_ = 0;
+  history_size_ = this->layer_param_.accuracy_param().history_size();
 }
 
 template <typename Dtype>
@@ -43,6 +46,11 @@ void IOUAccuracyLayer<Dtype>::Reshape(
     top_shape_per_class[0] = num_labels;
     top[1]->Reshape(top_shape_per_class);
   }
+
+  const int num_labels = bottom[0]->shape(label_axis_);
+  int num_predictions = num_labels;
+  confusion_matrix_ = vector<vector<Dtype>>(num_labels, vector<Dtype>(num_predictions, 0.0));
+  batch_size_ = bottom[0]->shape(0);
 }
 
 template <typename Dtype>
@@ -53,9 +61,6 @@ void IOUAccuracyLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
   const Dtype* bottom_label = bottom[1]->cpu_data();
   const int dim = bottom[0]->count() / outer_num_;
   const int num_labels = bottom[0]->shape(label_axis_);
-
-  int num_predictions = num_labels;
-  vector<vector<Dtype> > confusion_matrix(num_labels, vector<Dtype>(num_predictions, 0.0));
 
   int count = 0;
   for (int i = 0; i < outer_num_; ++i) {
@@ -89,7 +94,7 @@ void IOUAccuracyLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
         continue;
       }
 
-      confusion_matrix[label_value][prediction_value] += 1;
+      confusion_matrix_[label_value][prediction_value] += 1;
 
       ++count;
     }
@@ -98,8 +103,9 @@ void IOUAccuracyLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
   vector<Dtype> iou(num_labels, 0);
   Dtype mean_iou = 0, count_iou = 0;
   for (int i = 0; i < num_labels; ++i) {
-    iou[i] = getIOUScoreForLabel(confusion_matrix, i);
-    if(iou[i] >= 0) {
+    bool valid = false;
+    iou[i] = getIOUScoreForLabel(confusion_matrix_, i, valid);
+    if(valid) {
       mean_iou += iou[i];
       count_iou++;
     }
@@ -115,12 +121,32 @@ void IOUAccuracyLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
     }
   }
   // IOUAccuracy layer should not be used as a loss function.
+
+  //Reduce the effect of old samples by scaling down confusion matrix.
+  //image_iter_ has to be increased by batch_size_ after forward/backward.
+  for(int b=0; b<batch_size_; b++) {
+    if(history_size_ == 0) {
+      for (int i = 0; i < confusion_matrix_.size(); ++i) {
+        for (int j = 0; j < confusion_matrix_[i].size(); ++j) {
+          confusion_matrix_[i][j] = 0;
+        }
+      }
+    } else {
+      if((image_iter_ % history_size_) == 0) {
+        for (int i = 0; i < confusion_matrix_.size(); ++i) {
+          for (int j = 0; j < confusion_matrix_[i].size(); ++j) {
+            confusion_matrix_[i][j] = confusion_matrix_[i][j] / 2;
+          }
+        }
+      }
+    }
+    image_iter_++;
+  }
 }
 
-//Information: See definition of IU (a.k.a. IOU) here:
-//https://arxiv.org/abs/1411.4038
+//Information: See definition of IU (a.k.a. IOU) here: https://arxiv.org/abs/1411.4038
 template <typename Dtype>
-Dtype IOUAccuracyLayer<Dtype>::getIOUScoreForLabel(vector<vector<Dtype> >& confusion_matrix, int label) {
+Dtype IOUAccuracyLayer<Dtype>::getIOUScoreForLabel(vector<vector<Dtype> >& confusion_matrix, int label, bool& valid) {
   Dtype ture_pos = confusion_matrix[label][label];
   Dtype label_count = 0;
   for(int j=0; j<confusion_matrix[label].size(); j++) {
@@ -131,7 +157,9 @@ Dtype IOUAccuracyLayer<Dtype>::getIOUScoreForLabel(vector<vector<Dtype> >& confu
     label_observed += confusion_matrix[j][label];
   }
   Dtype den = label_count + label_observed - ture_pos;
-  Dtype score = ((den>0)? (ture_pos / den) : (-1));
+  valid = (den>0);
+  Dtype score = (valid? (ture_pos/den) : 0);
+
   return score;
 }
 

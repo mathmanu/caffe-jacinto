@@ -726,7 +726,14 @@ message AccuracyParameter {
 
   // If specified, ignore instances with the given label.
   optional int32 ignore_label = 3;
+  
+  //Number of images to be considered for computing IOU accuracy
+  //Value of 0 indicates only current batch will be considered.
+  //This may not be ideal, as we may want to accumulate over a large number of images.
+  //Default value is 1000.
+  optional int32 history_size = 4 [default = 1000];
 }
+
 
 message ArgMaxParameter {
   // If true produce pairs (argmax, maxval)

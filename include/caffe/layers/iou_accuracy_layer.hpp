@@ -43,7 +43,7 @@ class IOUAccuracyLayer : public Layer<Dtype> {
   virtual inline int MinTopBlobs() const { return 1; }
   virtual inline int MaxTopBlos() const { return 2; }
 
-  Dtype getIOUScoreForLabel(vector<vector<Dtype> >& confusion_matrix, int label);
+  Dtype getIOUScoreForLabel(vector<vector<Dtype> >& confusion_matrix, int label, bool& valid);
 
  protected:
   /**
@@ -90,6 +90,11 @@ class IOUAccuracyLayer : public Layer<Dtype> {
   bool has_ignore_label_;
   /// The label indicating that an instance should be ignored.
   int ignore_label_;
+
+  vector<vector<Dtype> > confusion_matrix_;
+  int batch_size_;
+  int image_iter_;
+  int history_size_;
 };
 
 }  // namespace caffe

@@ -13,7 +13,7 @@ echo Logging output to "$LOG"
 
 #-------------------------------------------------------
 export PYTHONPATH=../../../../python:$PYTHONPATH
-export DATASETPATH=/user/a0393608/files/data/datasets/object-detect/other/pascal/2012/VOCdevkit/VOC2012
+export DATASETPATH=/data/ssd/datasets/object-detect/other/pascal/2012/VOCdevkit/VOC2012
 #-------------------------------------------------------
 
 #The label images are converted copied to local folder. This is because paletted pngs need the index to be stored and image. 

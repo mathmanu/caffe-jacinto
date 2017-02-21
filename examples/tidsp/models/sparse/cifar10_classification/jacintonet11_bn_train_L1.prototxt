@@ -4,19 +4,24 @@ test_interval: 1000
 test_initialization: true
 display: 1000
 
-base_lr: 0.1
+base_lr: 1e-3
 
-max_iter: 32000
-lr_policy: "poly"
-power: 1
+max_iter: 64000
+lr_policy: "fixed"
 momentum: 0.9
 
 weight_decay: 1e-4
-regularization_type: "L2"
+regularization_type: "L1"
 
 snapshot: 10000
-snapshot_prefix: "training/train_L2_jacintonet11_bn"
+snapshot_prefix: "training/train_L1_jacintonet11_bn"
 solver_mode: GPU
+
+display_sparsity: 1000
+sparsity_threshold: 1e-4
+sparsity_target: 0.80
+sparsity_lr_mult: 0.01
+threshold_weights: true
 
 #ignore_mismatching_blobs: true
 
@@ -40,7 +45,7 @@ layer {
     mean_value: 128
   }
   data_param {
-    source: "/user/a0393608/files/data/datasets/object-detect/other/cifar10/lmdb/cifar10_train_lmdb"
+    source: "/data/ssd/datasets/object-detect/other/cifar10/lmdb/cifar10_train_lmdb"
     batch_size: 64
     backend: LMDB
   }
@@ -61,7 +66,7 @@ layer {
     mean_value: 128
   }
   data_param {
-    source: "/user/a0393608/files/data/datasets/object-detect/other/cifar10/lmdb/cifar10_test_lmdb"
+    source: "/data/ssd/datasets/object-detect/other/cifar10/lmdb/cifar10_test_lmdb"
     batch_size: 64
     backend: LMDB
   }

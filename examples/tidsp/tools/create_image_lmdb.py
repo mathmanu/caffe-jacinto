@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 
 from __future__ import print_function
 
@@ -10,7 +10,6 @@ import lmdb
 from PIL import Image
 import argparse
 import random
-import shutil
 
 def get_arguments():
     parser = argparse.ArgumentParser()
@@ -18,7 +17,7 @@ def get_arguments():
     parser.add_argument('--list_file', type=str, help='Path to a file containing list of images')
     parser.add_argument('--image_dir', type=str, required=True, help='Path to image folder')
     parser.add_argument('--search_string', type=str, default='*.png', help='Wildcard. eg. train/*/*.png')
-    parser.add_argument('--output_dir', type=str, default='label-folder', help='Path to output folder')    
+    parser.add_argument('--output_dir', type=str, default='image-lmdb', help='Path to output folder')    
     parser.add_argument('--label_dict', type=str, default=None, help='Label type translation. eg. {17:0, 19:1}')
     parser.add_argument('--width', type=int, default=None, help='Output Image Width')
     parser.add_argument('--height', type=int, default=None, help='Output Image Height')    
@@ -30,45 +29,45 @@ def create_lut(args):
     if args.label_dict:
         lut = np.zeros(256, dtype=np.uint8)
         for k in range(256):
-            lut[k] = k
+            lut[k] = k        
         for k in args.label_dict.keys():
             lut[k] = args.label_dict[k] 
         return lut
     else:
         return None
     
-def create_folder(args, image_indices):
+def create_lmdb(args, image_indices):
     if args.label_dict:
         lut = create_lut(args)
-    if os.path.exists(args.output_dir):
-        shutil.rmtree(args.output_dir)
-    os.mkdir(args.output_dir)
-    for in_idx, in_ in enumerate(image_indices):  
-        print('{} {} '.format(in_idx, in_), end='')           
-        im = Image.open(in_) # or load whatever ndarray you need                      
-        if args.label:
-            im = np.array(im, dtype=np.uint8)     
-            shape_orig = im.shape                      
-            if args.height and args.width:
-                im = Image.fromarray(im, 'P')                
-                im = im.resize([args.height, args.width], Image.NEAREST)
-            im = np.array(im, dtype=np.uint8)   
-            if args.label_dict:
-                im = lut[im]                    
-            #im = im[np.newaxis, ...]                       
-        else:
-            im_orig = np.array(im, dtype=np.uint8)  
-            shape_orig = im_orig.shape                             
-            if args.height and args.width:
-                im = im.resize([args.height, args.width], Image.ANTIALIAS)
-            im = np.array(im, dtype=np.uint8)
-            #im = im[:,:,::-1]          #RGB to BGR
-            #im = im.transpose((2,0,1)) #Channel x Height x Width order (switch from H x W x C)
-                 
-        print(shape_orig)                        
-        out_path = os.path.join(args.output_dir, os.path.basename(in_))                              
-        im = Image.fromarray(im)
-        im.save(out_path)
+    in_db = lmdb.open(args.output_dir, map_size=int(1e12))
+    with in_db.begin(write=True) as in_txn:
+        for in_idx, in_ in enumerate(image_indices):  
+            print('{} {} '.format(in_idx, in_), end='')           
+            im = Image.open(in_) # or load whatever ndarray you need                      
+            if args.label:
+                im = np.array(im, dtype=np.uint8)     
+                shape_orig = im.shape       
+                if args.height and args.width:
+                    im = Image.fromarray(im, 'P')                
+                    im = im.resize([args.height, args.width], Image.NEAREST)
+                if args.label_dict:
+                    im = lut[im]     
+                im = np.array(im, dtype=np.uint8)                   
+                im = im[np.newaxis, ...]                       
+            else:
+                im_orig = np.array(im, dtype=np.uint8)  
+                shape_orig = im_orig.shape                             
+                if args.height and args.width:
+                    im = im.resize([args.height, args.width], Image.ANTIALIAS)
+                im = np.array(im, dtype=np.uint8)
+                im = im[:,:,::-1]          #RGB to BGR
+                im = im.transpose((2,0,1)) #Channel x Height x Width order (switch from H x W x C)
+                     
+            print(shape_orig, end=' ')                        
+            print(im.shape)                                    
+            im_dat = caffe.io.array_to_datum(im)
+            in_txn.put('{:0>10d}'.format(in_idx), im_dat.SerializeToString())
+    in_db.close()
 
 
 def main(): 
@@ -107,7 +106,7 @@ def main():
     
     print('done')
     
-    create_folder(args, image_indices)
+    create_lmdb(args, image_indices)
 
 if __name__ == "__main__":
     print('Starting...')

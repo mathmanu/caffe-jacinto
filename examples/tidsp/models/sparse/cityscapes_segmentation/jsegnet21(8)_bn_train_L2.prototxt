@@ -1,76 +1,138 @@
 #Sover parameters
-test_iter: 100
+test_iter: 200
 test_interval: 1000
 test_initialization: true
 display: 100
 
-base_lr: 0.1
-iter_size: 2
+type: "Adam"
+base_lr: 1e-4
 
-max_iter: 320000
-lr_policy: "poly"
-power: 1
+lr_policy: "multistep"
+gamma: 0.1
+stepvalue: 15000
+stepvalue: 25000
+max_iter: 32000
 momentum: 0.9
 
 weight_decay: 1e-4
 regularization_type: "L2"
 
 snapshot: 1000
-snapshot_prefix: "training/jacintonet11_bn"
+snapshot_prefix: "training/jsegnet21_train_L2_bn"
 solver_mode: GPU
 random_seed: 33
 
+#snapshot_log: true
 #ignore_mismatching_blobs: true
 
+#display_sparsity: 1000
+#sparsity_threshold: 1e-4
+#threshold_weights: true
+#weight_connect_mode: WEIGHT_DISCONNECTED_ELTWISE
+
+#insert_quantization_param: true
 
 #Net parameters
 net_param {
 
-name: "ConvNet-10(1000)"
+name: "ConvNet-10(8)"
 
 layer {
   name: "data"
-  type: "Data"
+  type: "ImageLabelData"
   top: "data"
   top: "label"
   include {  phase: TRAIN  }
   transform_param {
-    crop_size: 224
-    mirror: true
-    mean_value: 128
-    mean_value: 128
-    mean_value: 128
+    crop_size: 640
+    ##mirror: true    
+    ##mean_value: 128
+    ##mean_value: 128
+    ##mean_value: 128
+    #num_labels: 5
+    #display: true
   }
-  data_param {
-    source: "/user/a0393608/files/data/datasets/object-detect/other/ilsvrc/2012/lmdb/size256/ilsvrc12_train_lmdb"
-    batch_size: 128 #BATCH SIZE - LARGER is USUALLY BETTER
-    backend: LMDB
+  image_label_data_param {    
+    image_list_path: "data/train-image-list.txt"
+    label_list_path: "data/train-label-list.txt"
+    batch_size: 16
+    shuffle: true 
+    label_slice {
+      dim: 640
+      dim: 640
+      stride: 1
+      stride: 1
+      offset: 0
+      offset: 0
+    }
+    padding: REFLECT
+    #Min and Max sizes. This will be applied before the rest of the processing.
+    #Setting both of these may cause distortion of the image. Recommed to set only one of these or a large range.
+    #size_min: 512    
+    #size_max: 2048   
+    
+    #Random scaling before crop    
+    scale_prob: 0.5
+    scale_min: 0.75
+    scale_max: 1.25    
+    
+    #Set to 1 to disable multireaded read      
+    #threads: 1           
   }
 }
 
 layer {
   name: "data"
-  type: "Data"
+  type: "ImageLabelData"
   top: "data"
   top: "label"
   include {  phase: TEST  }
   transform_param {
-    crop_size: 224
+    crop_size: 640
     mirror: false       
-    mean_value: 128
-    mean_value: 128
-    mean_value: 128
+    #mean_value: 128
+    #mean_value: 128
+    #mean_value: 128
   }
-  data_param {
-    source: "/user/a0393608/files/data/datasets/object-detect/other/ilsvrc/2012/lmdb/size256/ilsvrc12_val_lmdb"
-    batch_size: 128 #BATCH SIZE - LARGER is USUALLY BETTER
-    backend: LMDB
+  image_label_data_param {    
+    image_list_path: "data/val-image-list.txt"
+    label_list_path: "data/val-label-list.txt"
+    
+    batch_size: 4
+    shuffle: true
+    label_slice {
+      dim: 640
+      dim: 640
+      stride: 1
+      stride: 1
+      offset: 0
+      offset: 0
+    }
+    padding: REFLECT
   }
 }
 
 layer {
-  name: "conv1a"
+  name: "data_bias"
   bottom: "data"
+  top: "data_bias"
+  type: "Bias"
+  param { #scale
+    lr_mult: 0
+    decay_mult: 0
+  }
+  bias_param {
+    filler {
+      type: "constant"
+      value: -128
+    }
+  }
+}
+
+
+layer {
+  name: "conv1a"
+  bottom: "data_bias"
   top: "conv1a"
   type: "Convolution"
   param { lr_mult: 1 decay_mult: 1 }
@@ -591,7 +653,7 @@ layer {
     num_output: 512
     kernel_size: 3
     pad: 1
-    stride: 2
+    stride: 1
     bias_term: true
     weight_filler { type: "msra" std: 0.010 }
     bias_filler { type: "constant" value: 0 }    
@@ -654,14 +716,14 @@ layer {
   convolution_param {
     num_output: 512
     kernel_size: 3
-    pad: 1
+    pad: 2
     stride: 1
     bias_term: true
     weight_filler { type: "msra" std: 0.010 }
     bias_filler { type: "constant" value: 0 }    
-    dilation: 1    
+    dilation: 2    
     group: 4
-    engine: CUDNN      
+    engine: CAFFE      
   }
 }
 layer {
@@ -708,62 +770,588 @@ layer {
      engine: CUDNN
   }
 }
+
+#------------------------------------------------------
+#Output layers
+#------------------------------------------------------
 layer {
-  name: "pool5"
+  name: "out5a"
+  type: "Convolution"
   bottom: "res5a_branch2b/bn"
-  top: "pool5"
-  type: "Pooling"
-  pooling_param {
-    pool: AVE
-    kernel_size: 7
-    stride: 1
-  }
-}
-layer {
-  name: "fc1000"
-  type: "InnerProduct"
-  bottom: "pool5"
-  top: "fc1000"
+  top: "out5a"
   param { lr_mult: 1 decay_mult: 1 }
-  param { lr_mult: 2 decay_mult: 0 }
-  inner_product_param {
-     num_output: 1000
-     weight_filler { type: "msra" std: 0.010 }
-     bias_filler { type: "constant" value: 0 }
+  param { lr_mult: 2 decay_mult: 0 }    
+  convolution_param {
+    num_output: 64
+    kernel_size: 3
+    pad: 4
+    bias_term: true    
+    weight_filler { type: "msra" std: 0.010 }
+    bias_filler { type: "constant" value: 0 } 
+    dilation: 4
+    group: 2
+    engine: CAFFE    
+  }  
+}
+layer {
+	bottom: "out5a"
+	top: "out5a/bn"
+	name: "bn_out5a"
+	type: "BatchNorm"
+    param { #scale
+      lr_mult: 1
+      decay_mult: 1
+    }
+    param { #shift/bias
+     lr_mult: 1
+      decay_mult: 1
+    } 
+    param { #global mean
+      lr_mult: 0
+      decay_mult: 0
+    }
+    param { #global var
+     lr_mult: 0
+      decay_mult: 0
+    }     
+    batch_norm_param {
+      scale_filler {
+        type: "constant"
+        value: 1
+      }
+      bias_filler {
+        type: "constant"
+        value: 0
+      }
+      moving_average_fraction: 0.99
+      eps: 0.0001        
+      engine: CUDNN
+    }
+}
+layer {
+  name: "out5a_relu"
+  type: "ReLU"
+  bottom: "out5a/bn"
+  top: "out5a/bn"
+  relu_param {
+      engine: CUDNN      
+  }     
+}
+layer {
+  name: "out5_up2"
+  type: "Deconvolution"
+  bottom: "out5a/bn"
+  top: "out5_up2"
+  param {
+    lr_mult: 0
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 64
+    bias_term: false
+    pad: 1
+    kernel_size: 4
+    group: 64
+    stride: 2
+    weight_filler {
+      type: "bilinear"
+    }    
   }
 }
 layer {
-  name: "loss"
-  type: "SoftmaxWithLoss"
-  bottom: "fc1000"
-  bottom: "label"
-  propagate_down: 1
-  propagate_down: 0
-  top: "loss"
-  loss_weight: 1
+  name: "out3a"
+  type: "Convolution"
+  bottom: "res3a_branch2b/bn"
+  top: "out3a"
+  param { lr_mult: 1 decay_mult: 1 }
+  param { lr_mult: 2 decay_mult: 0 }    
+  convolution_param {
+    num_output: 64
+    kernel_size: 3
+    pad: 1
+    bias_term: true    
+    weight_filler { type: "msra" std: 0.010 }
+    bias_filler { type: "constant" value: 0 } 
+    dilation: 1
+    group: 2
+    engine: CUDNN    
+  }  
+}
+layer {
+	bottom: "out3a"
+	top: "out3a/bn"
+	name: "bn_out3a"
+	type: "BatchNorm"
+    param { #scale
+      lr_mult: 1
+      decay_mult: 1
+    }
+    param { #shift/bias
+     lr_mult: 1
+      decay_mult: 1
+    } 
+    param { #global mean
+      lr_mult: 0
+      decay_mult: 0
+    }
+    param { #global var
+     lr_mult: 0
+      decay_mult: 0
+    }     
+    batch_norm_param {
+      scale_filler {
+        type: "constant"
+        value: 1
+      }
+      bias_filler {
+        type: "constant"
+        value: 0
+      }
+      moving_average_fraction: 0.99
+      eps: 0.0001        
+      engine: CUDNN
+    }
+}
+layer {
+  name: "out3a_relu"
+  type: "ReLU"
+  bottom: "out3a/bn"
+  top: "out3a/bn"
+  relu_param {
+      engine: CUDNN      
+  }     
+}
+layer {
+	name: "out3_out5_combined"
+	bottom: "out5_up2"
+	bottom: "out3a/bn"
+	top: "out3_out5_combined"
+	type: "Eltwise"
+}
+
+#----------------------------------------------------------------------------
+#Additional ctx layers
+#----------------------------------------------------------------------------
+layer {
+  name: "ctx_conv1"
+  type: "Convolution"
+  bottom: "out3_out5_combined"
+  top: "ctx_conv1"
+  param { lr_mult: 1 decay_mult: 1.0 }
+  param { lr_mult: 2 decay_mult: 0 }    
+  convolution_param {
+    num_output: 64
+    pad: 1
+    kernel_size: 3
+    bias_term: true       
+    weight_filler { type: "msra" std: 0.010 }
+    bias_filler { type: "constant" value: 0 }  
+    dilation: 1
+    group: 1     
+    engine: CUDNN    
+  }  
 }
 
 layer {
-  name: "accuracy"
-  type: "Accuracy"
-  bottom: "fc1000"
+	bottom: "ctx_conv1"
+	top: "ctx_conv1/bn"
+	name: "bn_ctx_conv1"
+	type: "BatchNorm"
+    param { #scale
+      lr_mult: 1
+      decay_mult: 1
+    }
+    param { #shift/bias
+     lr_mult: 1
+      decay_mult: 1
+    } 
+    param { #global mean
+      lr_mult: 0
+      decay_mult: 0
+    }
+    param { #global var
+     lr_mult: 0
+      decay_mult: 0
+    }     
+    batch_norm_param {
+      scale_filler {
+        type: "constant"
+        value: 1
+      }
+      bias_filler {
+        type: "constant"
+        value: 0
+      }
+      moving_average_fraction: 0.99
+      eps: 0.0001       
+      engine: CUDNN
+    }
+}
+
+layer {
+  name: "ctx_relu1"
+  type: "ReLU"
+  bottom: "ctx_conv1/bn"
+  top: "ctx_conv1/bn"
+  relu_param {
+     engine: CUDNN
+  }  
+}
+
+layer {
+  name: "ctx_conv2"
+  type: "Convolution"
+  bottom: "ctx_conv1/bn"
+  top: "ctx_conv2"
+  param { lr_mult: 1 decay_mult: 1.0 }
+  param { lr_mult: 2 decay_mult: 0 }    
+  convolution_param {
+    num_output: 64
+    pad: 4
+    kernel_size: 3
+    bias_term: true       
+    weight_filler { type: "msra" std: 0.010 }
+    bias_filler { type: "constant" value: 0 } 
+    dilation: 4
+    group: 1 
+    engine: CAFFE       
+  } 
+}
+
+layer {
+	bottom: "ctx_conv2"
+	top: "ctx_conv2/bn"
+	name: "bn_ctx_conv2"
+	type: "BatchNorm"
+    param { #scale
+      lr_mult: 1
+      decay_mult: 1
+    }
+    param { #shift/bias
+     lr_mult: 1
+      decay_mult: 1
+    } 
+    param { #global mean
+      lr_mult: 0
+      decay_mult: 0
+    }
+    param { #global var
+     lr_mult: 0
+      decay_mult: 0
+    }     
+    batch_norm_param {
+      scale_filler {
+        type: "constant"
+        value: 1
+      }
+      moving_average_fraction: 0.99
+      eps: 0.0001       
+      engine: CUDNN
+    }
+}
+
+layer {
+  name: "ctx_relu2"
+  type: "ReLU"
+  bottom: "ctx_conv2/bn"
+  top: "ctx_conv2/bn"
+  relu_param {
+     engine: CUDNN
+  }     
+}
+
+layer {
+  name: "ctx_conv3"
+  type: "Convolution"
+  bottom: "ctx_conv2/bn"
+  top: "ctx_conv3"
+  param { lr_mult: 1 decay_mult: 1.0 }
+  param { lr_mult: 2 decay_mult: 0 }    
+  convolution_param {
+    num_output: 64
+    pad: 4
+    kernel_size: 3
+    bias_term: true       
+    weight_filler { type: "msra" std: 0.010 }
+    bias_filler { type: "constant" value: 0 } 
+    dilation: 4
+    group: 1 
+    engine: CAFFE       
+  }
+}
+
+layer {
+	bottom: "ctx_conv3"
+	top: "ctx_conv3/bn"
+	name: "bn_ctx_conv3"
+	type: "BatchNorm"
+    param { #scale
+      lr_mult: 1
+      decay_mult: 1
+    }
+    param { #shift/bias
+     lr_mult: 1
+      decay_mult: 1
+    } 
+    param { #global mean
+      lr_mult: 0
+      decay_mult: 0
+    }
+    param { #global var
+     lr_mult: 0
+      decay_mult: 0
+    }     
+    batch_norm_param {
+      scale_filler {
+        type: "constant"
+        value: 1
+      }
+      bias_filler {
+        type: "constant"
+        value: 0
+      }
+      moving_average_fraction: 0.99
+      eps: 0.0001       
+      engine: CUDNN
+    }
+}
+
+
+layer {
+  name: "ctx_relu3"
+  type: "ReLU"
+  bottom: "ctx_conv3/bn"
+  top: "ctx_conv3/bn"
+  relu_param {
+     engine: CUDNN
+  }  
+}
+
+layer {
+  name: "ctx_conv4"
+  type: "Convolution"
+  bottom: "ctx_conv3/bn"
+  top: "ctx_conv4"
+  param { lr_mult: 1 decay_mult: 1.0 }
+  param { lr_mult: 2 decay_mult: 0 }    
+  convolution_param {
+    num_output: 64
+    pad: 4
+    kernel_size: 3
+    bias_term: true       
+    weight_filler { type: "msra" std: 0.010 }
+    bias_filler { type: "constant" value: 0 } 
+    dilation: 4
+    group: 1     
+    engine: CAFFE       
+  }  
+}
+
+layer {
+	bottom: "ctx_conv4"
+	top: "ctx_conv4/bn"
+	name: "bn_ctx_conv4"
+	type: "BatchNorm"
+    param { #scale
+      lr_mult: 1
+      decay_mult: 1
+    }
+    param { #shift/bias
+     lr_mult: 1
+      decay_mult: 1
+    } 
+    param { #global mean
+      lr_mult: 0
+      decay_mult: 0
+    }
+    param { #global var
+     lr_mult: 0
+      decay_mult: 0
+    }     
+    batch_norm_param {
+      scale_filler {
+        type: "constant"
+        value: 1
+      }
+      bias_filler {
+        type: "constant"
+        value: 0
+      }
+      moving_average_fraction: 0.99
+      eps: 0.0001       
+      engine: CUDNN
+    }
+}
+
+layer {
+  name: "ctx_conv4_relu"
+  type: "ReLU"
+  bottom: "ctx_conv4/bn"
+  top: "ctx_conv4/bn"
+  relu_param {
+     engine: CUDNN
+  }  
+}
+
+layer {
+  name: "ctx_final"
+  type: "Convolution"
+  bottom: "ctx_conv4/bn"
+  top: "ctx_final"
+  param { lr_mult: 1 decay_mult: 1.0 }
+  param { lr_mult: 2 decay_mult: 0 }    
+  convolution_param {
+    num_output: 8
+    kernel_size: 3
+    pad: 1
+    bias_term: true       
+    weight_filler { type: "msra" std: 0.010 }
+    bias_filler { type: "constant" value: 0 }   
+    dilation: 1   
+    group: 1      
+    engine: CUDNN       
+  }   
+}
+
+layer {
+  name: "ctx_final_relu"
+  type: "ReLU"
+  bottom: "ctx_final"
+  top: "ctx_final"
+  relu_param {
+     engine: CUDNN
+  }      
+}
+
+#--------------------------------------------
+#Final deconvolution layers
+#--------------------------------------------
+layer {
+  name: "out_deconv_final_up2"
+  type: "Deconvolution"
+  bottom: "ctx_final"
+  top: "out_deconv_final_up2"
+  param {
+    lr_mult: 0
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 8
+    bias_term: false
+    pad: 1
+    kernel_size: 4
+    group: 8
+    stride: 2
+    weight_filler {
+      type: "bilinear"
+    }    
+  }
+}
+layer {
+  name: "out_deconv_final_up4"
+  type: "Deconvolution"
+  bottom: "out_deconv_final_up2"
+  top: "out_deconv_final_up4"
+  param {
+    lr_mult: 0
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 8
+    bias_term: false
+    pad: 1
+    kernel_size: 4
+    group: 8
+    stride: 2
+    weight_filler {
+      type: "bilinear"
+    }    
+  }
+}
+layer {
+  name: "out_deconv_final_up8"
+  type: "Deconvolution"
+  bottom: "out_deconv_final_up4"
+  top: "out_deconv_final_up8"
+  param {
+    lr_mult: 0
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 8
+    bias_term: false
+    pad: 1
+    kernel_size: 4
+    group: 8
+    stride: 2
+    weight_filler {
+      type: "bilinear"
+    }    
+  }
+}
+#----
+layer {
+  name: "ctx_final_score"
+  type: "Crop"
+  bottom: "out_deconv_final_up8"
   bottom: "label"
-  top: "accuracy"
+  top: "ctx_final_score"
+  crop_param {
+    axis: 2
+    offset: 0
+  }
+}
+
+#--------------------------------------------
+#Score/Loss/Accuracy of final layer 
+#--------------------------------------------
+layer {
+  name: "loss"
+  type: "SoftmaxWithLoss"
+  bottom: "ctx_final_score"
+  bottom: "label"
+  top: "loss"
+  #loss_weight: 1.0
+  loss_param {
+    ignore_label: 255
+    normalization: VALID
+    #assign_label_weights: true
+    #num_label_weights: 5
+    #bootstrap_prob_threshold: 0.9
+    #bootstrap_samples_fraction: 0.01
+  }
+  accuracy_param {
+    ignore_label: 255
+  }    
+}
+
+layer {
+  name: "iou"
+  type: "IOUAccuracy"
+  bottom: "ctx_final_score"
+  bottom: "label"
+  top: "iou/mean"
+  top: "iou/class"  
+  accuracy_param {
+    ignore_label: 255
+    history_size: 1000
+  }  
   include {
     phase: TEST
   }
 }
+
 layer {
-  name: "accuracy/top-5"
+  name: "pixel_accuracy/top-1"
   type: "Accuracy"
-  bottom: "fc1000"
+  bottom: "ctx_final_score"
   bottom: "label"
-  top: "accuracy/top-5"
+  top: "pixel_accuracy/top-1"
+  accuracy_param {
+    ignore_label: 255
+  }  
   include {
     phase: TEST
-  }
-  accuracy_param {
-    top_k: 5
   }
 }
 

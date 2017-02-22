@@ -6,9 +6,9 @@ display: 1000
 
 base_lr: 0.1
 
-max_iter: 32000
 lr_policy: "poly"
 power: 1
+max_iter: 32000
 momentum: 0.9
 
 weight_decay: 1e-4
@@ -40,7 +40,7 @@ layer {
     mean_value: 128
   }
   data_param {
-    source: "/data/ssd/datasets/object-detect/other/cifar10/lmdb/cifar10_train_lmdb"
+    source: "./data/cifar10_train_lmdb"
     batch_size: 64
     backend: LMDB
   }
@@ -61,7 +61,7 @@ layer {
     mean_value: 128
   }
   data_param {
-    source: "/data/ssd/datasets/object-detect/other/cifar10/lmdb/cifar10_test_lmdb"
+    source: "./data/cifar10_test_lmdb"
     batch_size: 64
     backend: LMDB
   }
@@ -127,9 +127,6 @@ layer {
   bottom: "conv1a/bn"
   top: "conv1a/bn"
   type: "ReLU"
-  relu_param {
-     engine: CUDNN
-  }
 }
 layer {
   name: "conv1b"
@@ -191,9 +188,6 @@ layer {
   bottom: "conv1b/bn"
   top: "conv1b/bn"
   type: "ReLU"
-  relu_param {
-     engine: CUDNN
-  }
 }
 layer {
   name: "res2a_branch2a"
@@ -255,9 +249,6 @@ layer {
   bottom: "res2a_branch2a/bn"
   top: "res2a_branch2a/bn"
   type: "ReLU"
-  relu_param {
-     engine: CUDNN
-  }
 }
 layer {
   name: "res2a_branch2b"
@@ -319,9 +310,6 @@ layer {
   bottom: "res2a_branch2b/bn"
   top: "res2a_branch2b/bn"
   type: "ReLU"
-  relu_param {
-     engine: CUDNN
-  }
 }
 layer {
   name: "res3a_branch2a"
@@ -383,9 +371,6 @@ layer {
   bottom: "res3a_branch2a/bn"
   top: "res3a_branch2a/bn"
   type: "ReLU"
-  relu_param {
-     engine: CUDNN
-  }
 }
 layer {
   name: "res3a_branch2b"
@@ -447,9 +432,6 @@ layer {
   bottom: "res3a_branch2b/bn"
   top: "res3a_branch2b/bn"
   type: "ReLU"
-  relu_param {
-     engine: CUDNN
-  }
 }
 layer {
   name: "res4a_branch2a"
@@ -511,9 +493,6 @@ layer {
   bottom: "res4a_branch2a/bn"
   top: "res4a_branch2a/bn"
   type: "ReLU"
-  relu_param {
-     engine: CUDNN
-  }
 }
 layer {
   name: "res4a_branch2b"
@@ -575,9 +554,6 @@ layer {
   bottom: "res4a_branch2b/bn"
   top: "res4a_branch2b/bn"
   type: "ReLU"
-  relu_param {
-     engine: CUDNN
-  }
 }
 layer {
   name: "res5a_branch2a"
@@ -639,9 +615,6 @@ layer {
   bottom: "res5a_branch2a/bn"
   top: "res5a_branch2a/bn"
   type: "ReLU"
-  relu_param {
-     engine: CUDNN
-  }
 }
 layer {
   name: "res5a_branch2b"
@@ -703,9 +676,6 @@ layer {
   bottom: "res5a_branch2b/bn"
   top: "res5a_branch2b/bn"
   type: "ReLU"
-  relu_param {
-     engine: CUDNN
-  }
 }
 layer {
   name: "pool5"

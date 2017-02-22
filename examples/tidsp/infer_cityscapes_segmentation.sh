@@ -2,11 +2,10 @@
 #palette used to translate id's to colors
 palette="[[0,0,0],[128,64,128],[220,20,60],[250,170,30],[0,0,142],[0,0,0],[0,0,0],[0,0,0],[0,0,0],[0,0,0],[0,0,0],[0,0,0],[0,0,0],[0,0,0],[0,0,0],[0,0,0],[0,0,0],[0,0,0],[0,0,0]]"
 
-model="models/sparse/cityscapes_segmentation/jsegnet21(8)_bn_deploy.prototxt"
+nw_path="/data/mmcodec_video2_tier3/users/manu/shared/release/object/segmentation"
 
-nw_path="/data/mmcodec_video2_tier3/users/manu/release/segmentation/experiments"
-weights="$nw_path/2017.02.20/cityscapes_crop640_scale_augument(0.75-1.25)/jsegnet21_train_L2_bn_iter_32000.caffemodel" 
-#weights="weights/cityscapes_crop640_scale_augument(0.75-1.25)/jsegnet21_train_L2_bn_iter_32000.caffemodel"
+model="$nw_path/0.5.1.rc11/2017.03.05.jacintonet11+seg10/cityscapes_sparse_quant(0.5.1.rc11)/sparse+quant/jacintonet11+seg10_train_L1_nobn_quant_final_iter_4000_deploy.prototxt"
+weights="$nw_path/0.5.1.rc11/2017.03.05.jacintonet11+seg10/cityscapes_sparse_quant(0.5.1.rc11)/sparse+quant/jacintonet11+seg10_train_L1_nobn_quant_final_iter_4000.caffemodel" 
 
 num_images=100
 

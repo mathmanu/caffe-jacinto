@@ -23,10 +23,44 @@ caffe=../../build/tools/caffe.bin
 #--v=5
 
 #L2 regularized training
-pause 'Starting L2 training.'
 
-$caffe train --solver="models/sparse/cityscapes_segmentation/jsegnet21(8)_bn_train_L2.prototxt" --gpu=0 --weights="/user/a0393608/files/work/code/vision/ti/bitbucket/algoref/vision-dl-src/apps/classification/training/2016.12/convnet10x3c512(c3.1c4.1c5.1)(grp1-4)(lr-poly320k)(61.1%)/original/convnet10_iter_320000.caffemodel"
+nw_path="/data/mmcodec_video2_tier3/users/manu/experiments/object"
+gpu="0" #"1,0" #'0'
 
+#L2 training.
+#weights="$nw_path/classification/2017.02/imagenet_jacintonet11(60.77%)/jacintonet11_bn_iter_320000.caffemodel"
+weights="training/jacintonet11_bn_iter_320000.caffemodel"
+$caffe train --solver="models/sparse/cityscapes_segmentation/jacintonet11+seg10(8)_bn_train_L2.prototxt" --gpu=$gpu --weights=$weights
 pause 'Finished L2 training.'
+
+#L1 training.
+weights="training/jacintonet11+seg10_train_L2_bn_iter_32000.caffemodel"
+$caffe train --solver="models/sparse/cityscapes_segmentation/jacintonet11+seg10(8)_bn_train_L1.prototxt" --gpu=$gpu --weights=$weights
+pause 'Finished L1 training.'
+
+#Threshold step - force a fixed fraction of sparsity - OPTIONAL
+weights="training/jacintonet11+seg10_train_L1_bn_iter_32000.caffemodel"
+$caffe threshold --threshold_fraction_low 0.40 --threshold_fraction_mid 0.80 --threshold_fraction_high 0.80 --threshold_value_max 0.2 --threshold_value_maxratio 0.2 --threshold_step_factor 1e-6 --model="models/sparse/cityscapes_segmentation/jacintonet11+seg10(8)_bn_deploy.prototxt" --gpu=$gpu --weights=$weights --output="training/jacintonet11+seg10_train_L1_bn_sparse_iter_32000.caffemodel"
+pause 'Finished thresholding. Press [Enter] to continue...'
+
+#Sparse finetuning
+weights="training/jacintonet11+seg10_train_L1_bn_sparse_iter_32000.caffemodel"
+$caffe train --solver="models/sparse/cityscapes_segmentation/jacintonet11+seg10(8)_bn_train_L1_finetune.prototxt"  --gpu=$gpu --weights=$weights
+pause 'Finished sparse finetuning. Press [Enter] to continue...'
+
+#Optimize step (merge batch norm coefficients to convolution weights - batch norm coefficients will be set to identity after this in the caffemodel)
+weights="training/jacintonet11+seg10_train_L1_bn_finetune_iter_32000.caffemodel"
+$caffe optimize --model="models/sparse/cityscapes_segmentation/jacintonet11+seg10(8)_bn_deploy.prototxt"  --gpu=$gpu --weights=$weights --output="training/jacintonet11+seg10_train_L1_bn_quant_optimized_iter_32000.caffemodel"
+pause 'Finished optimization. Press [Enter] to continue...'
+
+#Final NoBN Quantization step
+weights="training/jacintonet11+seg10_train_L1_bn_quant_optimized_iter_32000.caffemodel"
+$caffe train --solver="models/sparse/cityscapes_segmentation/jacintonet11+seg10(8)_nobn_train_L1_quant_final.prototxt"  --gpu=$gpu --weights=$weights
+pause 'Finished final NoBN step. Press [Enter] to continue...'
+
+#Save the final model
+cp training/*.txt final/
+cp training/jacintonet11+seg10_train_L1_nobn_quant_final_iter_4000.* final/
+pause 'Done.'
 
 

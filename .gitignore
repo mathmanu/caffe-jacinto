@@ -97,3 +97,9 @@ MANIFEST-*
 # Images
 *.png
 *.jpg
+
+# Videos
+*.mp4
+*.MP4
+
+

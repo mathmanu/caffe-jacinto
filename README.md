@@ -1,33 +1,42 @@
 # Caffe-jacinto
 Caffe-jacinto is a fork of [NVIDIA/caffe](https://github.com/NVIDIA/caffe) that enables training of sparse, quantized CNN models.
 
+After cloning the source code, switch to the branch caffe-0.15, if you are not on it already.
+
+The procedure for installation and usage of Caffe-jacinto is quite similar to [NVIDIA/Caffe](https://github.com/NVIDIA/caffe), which in-turn is derived from [BVLC/Caffe](https://github.com/BVLC/caffe). Please see the tutorial documentations in their websites before proceeding further, if you are not familiar with Caffe.
+
+In summary, if you have all the per-requisites installed, you can go to the caffe-jacinto folder and execute the following:
+* make 
+ * Instead, you can also do "make -j50" to speed up the compilaiton
+* make pycaffe
+ * To compile the python bindings
+
 ### Features
 
-Sparsity
-- Measuring sparsity in convolution layers even while training is in progress. 
-- Zeroing out of small coefficients during training, similar to caffe-scnn [paper](https://arxiv.org/abs/1608.03665), [code](https://github.com/wenwei202/caffe/tree/scnn)
-- Thresholding tool to zero-out some convolution weights in each layer to attain a certain sparsity in each layer.
+New layers have been added to help train for semantic segmentation. Several new options have also been added in solver and layer parameters to support sparsity and quantization. These options will be explained with examples for training.
 
-Quantization
-- Collecting statistics (range of weights) to enable quantization
-- Dynamic -8bit fixed point quantization, improved from Ristretto [paper](https://arxiv.org/abs/1605.06402), [code](https://github.com/pmgysel/caffe)
+###### Sparsity
+* Measuring sparsity in convolution layers even while training is in progress. 
+* Zeroing out of small coefficients during training, similar to caffe-scnn [paper](https://arxiv.org/abs/1608.03665), [code](https://github.com/wenwei202/caffe/tree/scnn)
+* Thresholding tool to zero-out some convolution weights in each layer to attain a certain sparsity in each layer.
 
-Classification
-- Training scripts and example models that demonstrate sparsification and quantization for classification on cifar10 dataset
+###### Quantization
+* Collecting statistics (range of weights) to enable quantization
+* Dynamic -8bit fixed point quantization, improved from Ristretto [paper](https://arxiv.org/abs/1605.06402), [code](https://github.com/pmgysel/caffe)
 
-Semantic segmentation
-- Training scripts and example models that demonstrate sparsification and quantization for semantic segmentation on [Cityscapes dataset](https://www.cityscapes-dataset.com/)
-- Additional layers to help semantic segmentation training: [ImageLabelData Layer](https://github.com/fyu/caffe-dilation), IOUAccuracy Layer 
+### Examples
+###### Classification:<br>
+* [Train sparse, quantized CNN on cifar10 dataset](examples/tidsp/models/sparse/cifar10_classification/README.md): Training scripts and example models that demonstrate training with sparsification and quantization for classification. Note that this is just a toy example and no inference script is provided to test teh final model.
 
-### Installation and usage
-The procedure for installation and usage of Caffe-jacinto is quite similar to Caffe. Please see the Caffe section below to understand the details.
+* [Training on LSVRC ImageNet dataset](examples/tidsp/models/sparse/imagenet_classification/README.md).
 
-Several new optionas are added in solver and layer parameters to support sparsity and quantization. These options will be explained with examples for training with sparsity and quantization.
+###### Semantic segmentation:<br>
+* New layers, training scripts and examples are provided for semanitc segmentaiton.
+* [Train sparse, quantized CNN for segmentation](examples/tidsp/models/sparse/imagenet_segmentation/README.md): Train sparse, quantized CNN on the cityscapes dataset. 
+* Note that ImageNet training is must be done before doing this segmentation training to create the pre-trained weights.
 
-### Training procedure for sparsity and quantization
-
-[Train sparse, quantized CNN for classification or segmentation](examples/tidsp/sparse_quant/README.md)
-
+<br>
+The following sections are kept as it is from the original Caffe.
 
 # Caffe
 

@@ -1,41 +1,39 @@
 #Sover parameters
 test_iter: 200
-test_interval: 1000
+test_interval: 2000
 test_initialization: true
 display: 100
 
 type: "Adam"
-base_lr: 1e-4
+base_lr: 1e-5
 
-lr_policy: "multistep"
+lr_policy: "fixed"
 gamma: 0.1
-stepvalue: 15000
-stepvalue: 25000
 max_iter: 32000
 momentum: 0.9
 
-weight_decay: 1e-4
-regularization_type: "L2"
+weight_decay: 1e-5
+regularization_type: "L1"
 
 snapshot: 1000
-snapshot_prefix: "training/jsegnet21_train_L2_bn"
+snapshot_prefix: "training/jacintonet11+seg10_train_L1_bn_finetune"
 solver_mode: GPU
 random_seed: 33
 
 #snapshot_log: true
 #ignore_mismatching_blobs: true
 
-#display_sparsity: 1000
-#sparsity_threshold: 1e-4
+display_sparsity: 1000
+sparsity_threshold: 1e-4
 #threshold_weights: true
-#weight_connect_mode: WEIGHT_DISCONNECTED_ELTWISE
+weight_connect_mode: WEIGHT_DISCONNECTED_ELTWISE
 
 #insert_quantization_param: true
 
 #Net parameters
 net_param {
 
-name: "ConvNet-10(8)"
+name: "ConvNet-11+seg10(8)"
 
 layer {
   name: "data"
@@ -129,7 +127,6 @@ layer {
   }
 }
 
-
 layer {
   name: "conv1a"
   bottom: "data_bias"
@@ -147,7 +144,6 @@ layer {
     bias_filler { type: "constant" value: 0 }    
     dilation: 1    
     group: 1
-    engine: CUDNN      
   }
 }
 layer {
@@ -182,7 +178,6 @@ layer {
     }  
     moving_average_fraction: 0.99
     eps: 0.0001    
-    engine: CUDNN    
   }
 }
 layer {
@@ -190,9 +185,6 @@ layer {
   bottom: "conv1a/bn"
   top: "conv1a/bn"
   type: "ReLU"
-  relu_param {
-     engine: CUDNN
-  }
 }
 layer {
   name: "conv1b"
@@ -211,7 +203,6 @@ layer {
     bias_filler { type: "constant" value: 0 }    
     dilation: 1    
     group: 4 #1
-    engine: CUDNN      
   }
 }
 layer {
@@ -246,7 +237,6 @@ layer {
     }  
     moving_average_fraction: 0.99
     eps: 0.0001    
-    engine: CUDNN    
   }
 }
 layer {
@@ -254,9 +244,6 @@ layer {
   bottom: "conv1b/bn"
   top: "conv1b/bn"
   type: "ReLU"
-  relu_param {
-     engine: CUDNN
-  }
 }
 layer {
   name: "res2a_branch2a"
@@ -275,7 +262,6 @@ layer {
     bias_filler { type: "constant" value: 0 }    
     dilation: 1    
     group: 1 #4
-    engine: CUDNN      
   }
 }
 layer {
@@ -310,7 +296,6 @@ layer {
     }  
     moving_average_fraction: 0.99
     eps: 0.0001    
-    engine: CUDNN    
   }
 }
 layer {
@@ -318,9 +303,6 @@ layer {
   bottom: "res2a_branch2a/bn"
   top: "res2a_branch2a/bn"
   type: "ReLU"
-  relu_param {
-     engine: CUDNN
-  }
 }
 layer {
   name: "res2a_branch2b"
@@ -339,7 +321,6 @@ layer {
     bias_filler { type: "constant" value: 0 }    
     dilation: 1    
     group: 4
-    engine: CUDNN      
   }
 }
 layer {
@@ -374,7 +355,6 @@ layer {
     }  
     moving_average_fraction: 0.99
     eps: 0.0001    
-    engine: CUDNN    
   }
 }
 layer {
@@ -382,9 +362,6 @@ layer {
   bottom: "res2a_branch2b/bn"
   top: "res2a_branch2b/bn"
   type: "ReLU"
-  relu_param {
-     engine: CUDNN
-  }
 }
 layer {
   name: "res3a_branch2a"
@@ -403,7 +380,6 @@ layer {
     bias_filler { type: "constant" value: 0 }    
     dilation: 1    
     group: 1 #4
-    engine: CUDNN      
   }
 }
 layer {
@@ -438,7 +414,6 @@ layer {
     }  
     moving_average_fraction: 0.99
     eps: 0.0001    
-    engine: CUDNN    
   }
 }
 layer {
@@ -446,9 +421,6 @@ layer {
   bottom: "res3a_branch2a/bn"
   top: "res3a_branch2a/bn"
   type: "ReLU"
-  relu_param {
-     engine: CUDNN
-  }
 }
 layer {
   name: "res3a_branch2b"
@@ -467,7 +439,6 @@ layer {
     bias_filler { type: "constant" value: 0 }    
     dilation: 1    
     group: 4
-    engine: CUDNN      
   }
 }
 layer {
@@ -502,7 +473,6 @@ layer {
     }  
     moving_average_fraction: 0.99
     eps: 0.0001    
-    engine: CUDNN    
   }
 }
 layer {
@@ -510,9 +480,6 @@ layer {
   bottom: "res3a_branch2b/bn"
   top: "res3a_branch2b/bn"
   type: "ReLU"
-  relu_param {
-     engine: CUDNN
-  }
 }
 layer {
   name: "res4a_branch2a"
@@ -531,7 +498,6 @@ layer {
     bias_filler { type: "constant" value: 0 }    
     dilation: 1    
     group: 1 #4
-    engine: CUDNN      
   }
 }
 layer {
@@ -566,7 +532,6 @@ layer {
     }  
     moving_average_fraction: 0.99
     eps: 0.0001    
-    engine: CUDNN    
   }
 }
 layer {
@@ -574,9 +539,6 @@ layer {
   bottom: "res4a_branch2a/bn"
   top: "res4a_branch2a/bn"
   type: "ReLU"
-  relu_param {
-     engine: CUDNN
-  }
 }
 layer {
   name: "res4a_branch2b"
@@ -595,7 +557,6 @@ layer {
     bias_filler { type: "constant" value: 0 }    
     dilation: 1    
     group: 4
-    engine: CUDNN      
   }
 }
 layer {
@@ -630,7 +591,6 @@ layer {
     }  
     moving_average_fraction: 0.99
     eps: 0.0001    
-    engine: CUDNN    
   }
 }
 layer {
@@ -638,9 +598,6 @@ layer {
   bottom: "res4a_branch2b/bn"
   top: "res4a_branch2b/bn"
   type: "ReLU"
-  relu_param {
-     engine: CUDNN
-  }
 }
 layer {
   name: "res5a_branch2a"
@@ -659,7 +616,6 @@ layer {
     bias_filler { type: "constant" value: 0 }    
     dilation: 1    
     group: 1 #4
-    engine: CUDNN      
   }
 }
 layer {
@@ -694,7 +650,6 @@ layer {
     }  
     moving_average_fraction: 0.99
     eps: 0.0001    
-    engine: CUDNN    
   }
 }
 layer {
@@ -702,9 +657,6 @@ layer {
   bottom: "res5a_branch2a/bn"
   top: "res5a_branch2a/bn"
   type: "ReLU"
-  relu_param {
-     engine: CUDNN
-  }
 }
 layer {
   name: "res5a_branch2b"
@@ -723,7 +675,6 @@ layer {
     bias_filler { type: "constant" value: 0 }    
     dilation: 2    
     group: 4
-    engine: CAFFE      
   }
 }
 layer {
@@ -758,7 +709,6 @@ layer {
     }  
     moving_average_fraction: 0.99
     eps: 0.0001    
-    engine: CUDNN    
   }
 }
 layer {
@@ -766,9 +716,6 @@ layer {
   bottom: "res5a_branch2b/bn"
   top: "res5a_branch2b/bn"
   type: "ReLU"
-  relu_param {
-     engine: CUDNN
-  }
 }
 
 #------------------------------------------------------
@@ -789,8 +736,7 @@ layer {
     weight_filler { type: "msra" std: 0.010 }
     bias_filler { type: "constant" value: 0 } 
     dilation: 4
-    group: 2
-    engine: CAFFE    
+    group: 2 
   }  
 }
 layer {
@@ -825,17 +771,13 @@ layer {
       }
       moving_average_fraction: 0.99
       eps: 0.0001        
-      engine: CUDNN
     }
 }
 layer {
   name: "out5a_relu"
   type: "ReLU"
   bottom: "out5a/bn"
-  top: "out5a/bn"
-  relu_param {
-      engine: CUDNN      
-  }     
+  top: "out5a/bn"  
 }
 layer {
   name: "out5_up2"
@@ -874,7 +816,6 @@ layer {
     bias_filler { type: "constant" value: 0 } 
     dilation: 1
     group: 2
-    engine: CUDNN    
   }  
 }
 layer {
@@ -909,7 +850,6 @@ layer {
       }
       moving_average_fraction: 0.99
       eps: 0.0001        
-      engine: CUDNN
     }
 }
 layer {
@@ -917,9 +857,6 @@ layer {
   type: "ReLU"
   bottom: "out3a/bn"
   top: "out3a/bn"
-  relu_param {
-      engine: CUDNN      
-  }     
 }
 layer {
 	name: "out3_out5_combined"
@@ -948,7 +885,6 @@ layer {
     bias_filler { type: "constant" value: 0 }  
     dilation: 1
     group: 1     
-    engine: CUDNN    
   }  
 }
 
@@ -984,7 +920,6 @@ layer {
       }
       moving_average_fraction: 0.99
       eps: 0.0001       
-      engine: CUDNN
     }
 }
 
@@ -993,9 +928,6 @@ layer {
   type: "ReLU"
   bottom: "ctx_conv1/bn"
   top: "ctx_conv1/bn"
-  relu_param {
-     engine: CUDNN
-  }  
 }
 
 layer {
@@ -1013,8 +945,7 @@ layer {
     weight_filler { type: "msra" std: 0.010 }
     bias_filler { type: "constant" value: 0 } 
     dilation: 4
-    group: 1 
-    engine: CAFFE       
+    group: 1     
   } 
 }
 
@@ -1046,7 +977,6 @@ layer {
       }
       moving_average_fraction: 0.99
       eps: 0.0001       
-      engine: CUDNN
     }
 }
 
@@ -1054,10 +984,7 @@ layer {
   name: "ctx_relu2"
   type: "ReLU"
   bottom: "ctx_conv2/bn"
-  top: "ctx_conv2/bn"
-  relu_param {
-     engine: CUDNN
-  }     
+  top: "ctx_conv2/bn" 
 }
 
 layer {
@@ -1075,8 +1002,7 @@ layer {
     weight_filler { type: "msra" std: 0.010 }
     bias_filler { type: "constant" value: 0 } 
     dilation: 4
-    group: 1 
-    engine: CAFFE       
+    group: 1      
   }
 }
 
@@ -1112,7 +1038,6 @@ layer {
       }
       moving_average_fraction: 0.99
       eps: 0.0001       
-      engine: CUDNN
     }
 }
 
@@ -1122,9 +1047,6 @@ layer {
   type: "ReLU"
   bottom: "ctx_conv3/bn"
   top: "ctx_conv3/bn"
-  relu_param {
-     engine: CUDNN
-  }  
 }
 
 layer {
@@ -1142,8 +1064,7 @@ layer {
     weight_filler { type: "msra" std: 0.010 }
     bias_filler { type: "constant" value: 0 } 
     dilation: 4
-    group: 1     
-    engine: CAFFE       
+    group: 1        
   }  
 }
 
@@ -1179,7 +1100,6 @@ layer {
       }
       moving_average_fraction: 0.99
       eps: 0.0001       
-      engine: CUDNN
     }
 }
 
@@ -1187,10 +1107,7 @@ layer {
   name: "ctx_conv4_relu"
   type: "ReLU"
   bottom: "ctx_conv4/bn"
-  top: "ctx_conv4/bn"
-  relu_param {
-     engine: CUDNN
-  }  
+  top: "ctx_conv4/bn"  
 }
 
 layer {
@@ -1209,7 +1126,6 @@ layer {
     bias_filler { type: "constant" value: 0 }   
     dilation: 1   
     group: 1      
-    engine: CUDNN       
   }   
 }
 
@@ -1217,10 +1133,7 @@ layer {
   name: "ctx_final_relu"
   type: "ReLU"
   bottom: "ctx_final"
-  top: "ctx_final"
-  relu_param {
-     engine: CUDNN
-  }      
+  top: "ctx_final"     
 }
 
 #--------------------------------------------

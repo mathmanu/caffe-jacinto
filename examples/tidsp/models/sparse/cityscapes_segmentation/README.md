@@ -1,29 +1,66 @@
-# Sparse, Quantized CNN training for classification
+# Sparse, Quantized CNN training for segmentation
 
-In this section, cifar10 dataset is used as an example to explain the training porcedure. This is  a toy example to do the flow fluisgn of the entire training procedure. No inference script is provided to test the resulting model.
+In this section, cifar10 dataset is used as an example to explain the training procedure. An inference script is also provided to test the resultant model on your images or video.
 
 First, open a bash prompt and set CAFFE_HOME to the location where Caffe-jacinto is placed. For example:
 CAFFE_HOME=~/work/caffe-jacinto
 
 ### Dataset preparation
-Change directory to your caffe-jacinto folder.
+The details about how to obtain the [Cityscapes Dataset](https://www.cityscapes-dataset.com/) can be seen from their website.
+
+Change directory.
 * cd $CAFFE_HOME/examples/tidsp
 
-Fetch the cifar10 dataset by executing:
-* ./tools/get_cifar10.sh
-
-Create LMDB folders for the cifar10 dataset by executing:
-* ./tools/create_cifar10.sh
+Before training, ceate list files needed to train on cityscapes dataset.
+* Open the file /tiolls/create_cityscapes_lists.sh and change the DATASETPATH to the location where you have downloaded the dataset. Under this folder, the gtFine and leftImg8bit folders of Cityscapes should be present.
+* Then execute ./tools/create_cityscapes_lists.sh
 
 ### Execution
+* Open the file train_cityscapes_segmentation.sh  and look at the gpu variable. If you have more than one NVIDIA CUDA supported GPUs modify this field to reflect it so that teh training will complete faster.
 
-Execute the script:
-* train_cifar10_classification.sh
+* Execute the script: train_cityscapes_segmentation.sh
 
-This script will perform all the stages required to generate a sparse, quantized CNN model. The quantized model will be placed in $CAFFE_HOME/examples/tidsp/final.
+* This script will perform all the stages required to generate a sparse, quantized CNN model. The following quantized prototxt and model files will be placed in $CAFFE_HOME/examples/tidsp/final:
+jacintonet11+seg10_train_L1_nobn_quant_final_iter_4000.prototxt
+jacintonet11+seg10_train_L1_nobn_quant_final_iter_4000.caffemodel
+
+### Inference using the trained model
+* Copy the file jacintonet11+seg10_train_L1_nobn_quant_final_iter_4000.prototxt into jacintonet11+seg10_train_L1_nobn_quant_final_iter_4000_deploy.prototxt
+
+* Remove everything before the "data_bias" layer and add the following:
+name: "ConvNet-11(8)"
+input: "data"
+input_shape {
+  dim: 1
+  dim: 3
+  dim: 512
+  dim: 1024
+}
+
+* Remove everthing after the layer "out_deconv_final_up8" and add the following:
+layer {
+  name: "prob"
+  type: "Softmax"
+  bottom: "out_deconv_final_up8"
+  top: "prob"
+}
+layer {
+  name: "argMaxOut"
+  type: "ArgMax"
+  bottom: "out_deconv_final_up8"
+  top: "argMaxOut"
+  argmax_param {
+    axis: 1
+  }
+}
+
+* Open the file infer_cityscapes_segmentation.sh and set the correct paths to model, weights, input and output
+
+* Run the file infer_cityscapes_segmentation.sh
+This will create the output images or video in the location corresponding to the output paramter mentioned in the script.
 
 ## Additional details (Optional)
-In the folder "$CAFFE_HOME/examples/tidsp/models/sparse/cifar10_classification" there are several prototxt files. These files are used to perform various stages of sparse and quantized training.
+In the folder "$CAFFE_HOME/examples/tidsp/models/sparse/cityscapes_segmentation" there are several prototxt files. These files are used to perform various stages of sparse and quantized training.
 
 This section explaines some of the additional options added to caffe solver and layer parameters. It also explains the various stages of the entire training process.
 
@@ -31,7 +68,7 @@ This section explaines some of the additional options added to caffe solver and 
 Pre-training is done using the prototxt jacintonet11_bn_train_L2.prototxt. As the name indicates, this stage uses L2 regularized training.
 
 ### Stage 2: L1-Regularized training
-Done using the prototxt jacintonet11_bn_train_L1.prototxt. As the name indicates, this stage uses L1 regularized training. L1 regularization will induce several small coefficients (weights). The following options used in the corresponding prototxt are important:  
+Done using the prototxt jacintonet11_bn_train_L1.prototxt. As the name indicates, this stage uses L1 regularized training. L1 regularization will indue several small coefficients (weights). The following options used in the corresponding prototxt are important:  
 
 * display_sparsity: 1000
 Display the fraction of sparsity achieved in each layer.

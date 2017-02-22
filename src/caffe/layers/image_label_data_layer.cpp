@@ -15,7 +15,13 @@
 #include "caffe/util/math_functions.hpp"
 #include "caffe/util/rng.hpp"
 
+#ifdef USE_OPENCV
+#include <opencv2/core/core.hpp>
+#include <opencv2/highgui/highgui.hpp>
+#include <opencv2/highgui/highgui_c.h>
 #include <opencv2/imgproc/imgproc.hpp>
+#endif  // USE_OPENCV
+
 #include "caffe/util/parallel.hpp"
 
 namespace {
@@ -131,6 +137,38 @@ void ImageLabelDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bott
 
   while (in_label >> filename) {
     label_lines_.push_back(filename);
+  }
+
+  vector<bool> ignore_file(image_lines_.size(), false);
+  auto check_image_file_func = [&](int i) {
+	  cv::Mat check_img = cv::imread(image_lines_[i]);
+	  cv::Mat check_lbl = cv::imread(label_lines_[i]);
+	  if(!check_img.data) {
+		  LOG(INFO) << "Could not open file " << image_lines_[i] << " - ignoring it";
+		  ignore_file[i] = true;
+	  }
+	  if(!check_lbl.data) {
+		  LOG(INFO) << "Could not open file " << label_lines_[i] << " - ignoring it";
+		  ignore_file[i] = true;
+	  }
+  };
+
+  if(this->layer_param_.image_label_data_param().check_image_files()) {
+	  LOG(INFO) << "Checking image files for errors";
+	  if(this->layer_param_.image_label_data_param().threads() != 1) {
+		  ParallelFor(0, image_lines_.size(), check_image_file_func);
+	  } else {
+		  for(int i=image_lines_.size()-1; i>=0; i--) {
+			  check_image_file_func(i);
+		  }
+	  }
+
+	  for(int i=image_lines_.size()-1; i>=0; i--) {
+		  if(ignore_file[i]) {
+			  image_lines_.erase(image_lines_.begin()+i);
+			  label_lines_.erase(label_lines_.begin()+i);
+		  }
+	  }
   }
 
   if (this->layer_param_.image_label_data_param().shuffle()) {

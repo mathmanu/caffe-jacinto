@@ -49,7 +49,7 @@ layer {
     mean_value: 128
   }
   data_param {
-    source: "/data/ssd/datasets/object-detect/other/cifar10/lmdb/cifar10_train_lmdb"
+    source: "./data/cifar10_train_lmdb"
     batch_size: 64
     backend: LMDB
   }
@@ -70,7 +70,7 @@ layer {
     mean_value: 128
   }
   data_param {
-    source: "/data/ssd/datasets/object-detect/other/cifar10/lmdb/cifar10_test_lmdb"
+    source: "./data/cifar10_test_lmdb"
     batch_size: 64
     backend: LMDB
   }
@@ -102,9 +102,6 @@ layer {
   bottom: "conv1a"
   top: "conv1a"
   type: "ReLU"
-  relu_param {
-     engine: CUDNN
-  }
 }
 
 layer {
@@ -133,9 +130,6 @@ layer {
   bottom: "conv1b"
   top: "conv1b"
   type: "ReLU"
-  relu_param {
-     engine: CUDNN
-  }
 }
 layer {
   name: "res2a_branch2a"
@@ -163,9 +157,6 @@ layer {
   bottom: "res2a_branch2a"
   top: "res2a_branch2a"
   type: "ReLU"
-  relu_param {
-     engine: CUDNN
-  }
 }
 layer {
   name: "res2a_branch2b"
@@ -193,9 +184,6 @@ layer {
   bottom: "res2a_branch2b"
   top: "res2a_branch2b"
   type: "ReLU"
-  relu_param {
-     engine: CUDNN
-  }
 }
 layer {
   name: "res3a_branch2a"
@@ -223,9 +211,6 @@ layer {
   bottom: "res3a_branch2a"
   top: "res3a_branch2a"
   type: "ReLU"
-  relu_param {
-     engine: CUDNN
-  }
 }
 layer {
   name: "res3a_branch2b"
@@ -253,9 +238,6 @@ layer {
   bottom: "res3a_branch2b"
   top: "res3a_branch2b"
   type: "ReLU"
-  relu_param {
-     engine: CUDNN
-  }
 }
 layer {
   name: "res4a_branch2a"
@@ -283,9 +265,6 @@ layer {
   bottom: "res4a_branch2a"
   top: "res4a_branch2a"
   type: "ReLU"
-  relu_param {
-     engine: CUDNN
-  }
 }
 layer {
   name: "res4a_branch2b"
@@ -313,9 +292,6 @@ layer {
   bottom: "res4a_branch2b"
   top: "res4a_branch2b"
   type: "ReLU"
-  relu_param {
-     engine: CUDNN
-  }
 }
 layer {
   name: "res5a_branch2a"
@@ -343,9 +319,6 @@ layer {
   bottom: "res5a_branch2a"
   top: "res5a_branch2a"
   type: "ReLU"
-  relu_param {
-     engine: CUDNN
-  }
 }
 layer {
   name: "res5a_branch2b"
@@ -373,9 +346,6 @@ layer {
   bottom: "res5a_branch2b"
   top: "res5a_branch2b"
   type: "ReLU"
-  relu_param {
-     engine: CUDNN
-  }
 }
 layer {
   name: "pool5"

@@ -1123,6 +1123,8 @@ message ImageLabelDataParameter {
   optional uint32 threads = 16 [default = 0];
   optional uint32 size_min = 17 [default = 0];  
   optional uint32 size_max = 18 [default = 0]; 
+  
+  optional bool check_image_files = 19 [default = false];
 }
 
 

@@ -393,6 +393,14 @@ void P2PSync<Dtype>::divide_batch_size(NetParameter* net) {
             batch);
       }
     }
+    if (net->layer(i).has_image_label_data_param()) {
+      if (net->layer(i).image_label_data_param().has_batch_size()) {
+        uint32_t total = net->layer(i).image_label_data_param().batch_size();
+        uint32_t batch = total / solver_count;
+        CHECK(batch * solver_count == total) << m;
+        net->mutable_layer(i)->mutable_image_label_data_param()->set_batch_size(batch);
+      }
+    }
   }
 }
 

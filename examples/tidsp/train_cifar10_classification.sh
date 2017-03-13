@@ -5,8 +5,8 @@ function pause(){
 }
 
 #-------------------------------------------------------
-rm training/*.caffemodel training/*.prototxt training/*.solverstate training/*.txt
-rm final/*.caffemodel final/*.prototxt final/*.solverstate final/*.txt
+#rm training/*.caffemodel training/*.prototxt training/*.solverstate training/*.txt
+#rm final/*.caffemodel final/*.prototxt final/*.solverstate final/*.txt
 #-------------------------------------------------------
 
 #-------------------------------------------------------
@@ -17,7 +17,7 @@ echo Logging output to "$LOG"
 
 #-------------------------------------------------------
 caffe=../../build/tools/caffe.bin
-gpu="1,0" #"0"
+gpu="0" #"1,0" #"0"
 #-------------------------------------------------------
 
 #L2 regularized training
@@ -29,7 +29,7 @@ $caffe train --solver="models/sparse/cifar10_classification/jacintonet11_bn_trai
 pause 'Finished L1 training. Press [Enter] to continue...'
 
 #Threshold step - force a fixed fraction of sparsity - OPTIONAL
-$caffe threshold --threshold_fraction_low 0.40 --threshold_fraction_mid 0.80 --threshold_fraction_high 0.80 --threshold_value_max 0.1 --threshold_value_maxratio 0.05 --threshold_step_factor 1e-6 --model="models/sparse/cifar10_classification/jacintonet11_bn_deploy.prototxt" --gpu=1,0 --weights="training/train_L1_jacintonet11_bn_iter_32000.caffemodel" --output="training/threshold_jacintonet11_bn_iter_32000.caffemodel"
+$caffe threshold --threshold_fraction_low 0.40 --threshold_fraction_mid 0.80 --threshold_fraction_high 0.80 --threshold_value_max 0.2 --threshold_value_maxratio 0.2 --threshold_step_factor 1e-6 --model="models/sparse/cifar10_classification/jacintonet11_bn_deploy.prototxt" --gpu=$gpu --weights="training/train_L1_jacintonet11_bn_iter_32000.caffemodel" --output="training/threshold_jacintonet11_bn_iter_32000.caffemodel"
 pause 'Finished thresholding. Press [Enter] to continue...'
 
 #Sparse finetuning

@@ -16,8 +16,8 @@ resize="1024 512"
 #input="input/stuttgart_00_000000_000001_leftImg8bit.png"
 #output=output/output.png
 
-input="input/stuttgart_00"
-output="output/stuttgart_00"
+input="input/sample"
+output="output/sample"
 
 #input="input/stuttgart_00.mp4"
 #output="output/stuttgart_00.mp4"

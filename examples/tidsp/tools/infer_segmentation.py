@@ -127,7 +127,10 @@ def infer_image_folder(args, net):
     print('Getting list of images...', end='')
     image_search = os.path.join(args.input, args.search)
     input_indices = glob.glob(image_search) 
-    input_indices = input_indices[1:args.num_images]
+    numFrames = min(len(input_indices), args.num_images)    
+    input_indices = input_indices[:numFrames]
+    input_indices.sort()
+    print('running inference for ', len(input_indices), ' images...');
     for input_name in input_indices:
         print(input_name, end=' ')   
         sys.stdout.flush()         
@@ -166,7 +169,11 @@ def main():
     if args.palette:
         print('Creating palette')
         exec('palette='+args.palette)
-        args.palette = np.array(palette)
+        args.palette = np.zeros((256,3))
+        for i, p in enumerate(palette):
+        	args.palette[i,0] = p[0]
+        	args.palette[i,1] = p[1]
+        	args.palette[i,2] = p[2]
         args.palette = args.palette[...,::-1] #RGB->BGR, since palette is expected to be given in RGB format
     
     if args.crop and int(args.crop[0]) != 0:

@@ -1,113 +1,92 @@
 # Sparse, Quantized CNN training for segmentation
 
-In this section, cifar10 dataset is used as an example to explain the training procedure. An inference script is also provided to test the resultant model on your images or video.
+### Pre-requisites
+It is assumed here, that all the pre-requisites required for running Caffe-jacinto are met.
 
-First, open a bash prompt and set CAFFE_HOME to the location where Caffe-jacinto is placed. For example:
+Open a bash terminal and set CAFFE_HOME to the location where Caffe-jacinto is placed. For example:
 CAFFE_HOME=~/work/caffe-jacinto
 
 ### Dataset preparation
-The details about how to obtain the [Cityscapes Dataset](https://www.cityscapes-dataset.com/) can be seen from their website.
+The details about how to obtain the [Cityscapes Dataset](https://www.cityscapes-dataset.com/) can be seen from their website. Download and unzip gtFine and leftImg8bit as sub-directories into a suitable folder.
 
-Change directory.
+Change directory to the tidsp folder. All the remaining scripts are to be executed from this folder.
 * cd $CAFFE_HOME/examples/tidsp
 
-Before training, ceate list files needed to train on cityscapes dataset.
-* Open the file /tiolls/create_cityscapes_lists.sh and change the DATASETPATH to the location where you have downloaded the dataset. Under this folder, the gtFine and leftImg8bit folders of Cityscapes should be present.
-* Then execute ./tools/create_cityscapes_lists.sh
+Before training, create list files needed to train on cityscapes dataset.
+* Open the file ./tools/create_cityscapes_lists.sh (eg. vi ./tools/create_cityscapes_lists.sh) and change the DATASETPATH to the location where you have downloaded the dataset. Under this folder, the gtFine and leftImg8bit folders of Cityscapes should be present.
+* Then execute ./tools/create_cityscapes_lists.sh. This script creates the image and label lists used for training. It also does label transformation. 
+* We have chosen a smaller set of 5-classes for training. 32 classes of cityscapes are converted into 5-classes - so the trained model will learn to segment 5-classes (background, road, person, road signs, vehicle). 
+* Note: The number of classes and class mappings can be easily changed in this script. The network model prototxt may also need to be changed if the number of classes chosen is more than the output channels in the model.
+* Note: this 5-class training is different from the typical [19-class training done for cityscapes](https://github.com/mcordts/cityscapesScripts) and reported on the benchmark website. 
+
 
 ### Execution
-* Open the file train_cityscapes_segmentation.sh  and look at the gpu variable. If you have more than one NVIDIA CUDA supported GPUs modify this field to reflect it so that teh training will complete faster.
+* Open the file train_cityscapes_segmentation.sh  and look at the gpu variable. If you have more than one NVIDIA CUDA supported GPUs, modify this field to reflect it so that the training will complete faster.
 
-* Execute the script: train_cityscapes_segmentation.sh
+* Execute the training by running the training script: ./train_cityscapes_segmentation.sh. 
 
-* This script will perform all the stages required to generate a sparse, quantized CNN model. The following quantized prototxt and model files will be placed in $CAFFE_HOME/examples/tidsp/final:
+* The training will perform all the stages required to generate a sparse, quantized CNN model. 
+
+* The training takes around 22 hours, when using one NVIDIA GTX 1080 GPU.
+
+* After the training, The following quantized prototxt and model files will be placed in $CAFFE_HOME/examples/tidsp/final:
 jacintonet11+seg10_train_L1_nobn_quant_final_iter_4000.prototxt
 jacintonet11+seg10_train_L1_nobn_quant_final_iter_4000.caffemodel
 
+### Results
+
+The validation accuracy is printed in the training log. Following is what we got for the 5-class (background, road, person, road signs, vehicle) training.
+
+
+|Configuration                         |Pixel Accuracy  |Mean IOU  |
+|--------------------------------------|----------------|----------|
+|Initial L2 regularized training       |95.28           |77.83     |
+|L1 regularized fine tuning             |<b>95.53        |<b>78.87  |
+|Sparse fine tuned(80% zero coefficients), batch norm optimized |95.48 |77.83 |
+|Sparse(80%), Quantized(8-bit dynamic fixed point)|<b>95.46        |<b>76.55  |
+|<b>Overall impact due to sparse+quant |<b>-0.07        |<b>-2.32  |
+
+* 80% sparsity (i.e. zero coefficients in convolution weights) implies that the complexity of inference can be potentially reduced by 5x - by using a suitable sparse convolution implementation.
+
+* It is possible to change the value of sparsity applied - see the training script for more details.
+
 ### Inference using the trained model
-* Copy the file jacintonet11+seg10_train_L1_nobn_quant_final_iter_4000.prototxt into jacintonet11+seg10_train_L1_nobn_quant_final_iter_4000_deploy.prototxt
+* This section explains how the trained model can be used for inference on a PC using Caffe-jacinto.
 
-* Remove everything before the "data_bias" layer and add the following:
-name: "ConvNet-11(8)"
-input: "data"
-input_shape {
-  dim: 1
-  dim: 3
-  dim: 512
-  dim: 1024
-}
+* Copy the file jacintonet11+seg10_train_L1_nobn_quant_final_iter_4000.prototxt into jacintonet11+seg10_train_L1_nobn_quant_final_iter_4000_deploy.prototxt (we will call this as the "deploy  prototxt").  
 
-* Remove everthing after the layer "out_deconv_final_up8" and add the following:
-layer {
-  name: "prob"
-  type: "Softmax"
-  bottom: "out_deconv_final_up8"
-  top: "prob"
-}
-layer {
-  name: "argMaxOut"
-  type: "ArgMax"
-  bottom: "out_deconv_final_up8"
-  top: "argMaxOut"
-  argmax_param {
-    axis: 1
-  }
-}
+* We will also call jacintonet11+seg10_train_L1_nobn_quant_final_iter_4000.caffemodel as the "deploy caffemodel".
 
-* Open the file infer_cityscapes_segmentation.sh and set the correct paths to model, weights, input and output
+* Remove everything before the "data_bias" layer and add the following, in the deploy  prototxt:  
+name: "ConvNet-11(8)"  
+input: "data"  
+input_shape {  
+  dim: 1  
+  dim: 3  
+  dim: 512  
+  dim: 1024  
+}  
+
+* Remove everything after the layer "out_deconv_final_up8" and add the following, in the deploy  prototxt:  
+layer {  
+  name: "prob"  
+  type: "Softmax"  
+  bottom: "out_deconv_final_up8"  
+  top: "prob"  
+}  
+layer {  
+  name: "argMaxOut"  
+  type: "ArgMax"  
+  bottom: "out_deconv_final_up8"  
+  top: "argMaxOut"  
+  argmax_param {  
+    axis: 1  
+  }  
+}  
+
+* Open the file infer_cityscapes_segmentation.sh and set the correct paths to model (should point to deploy  prototxt), weights (should point to the deploy caffemodel).
+
+* In the same file, correct the paths of input (an mp4 video file or a folder containing images) and output (an mp4 name or a folder name)
 
 * Run the file infer_cityscapes_segmentation.sh
-This will create the output images or video in the location corresponding to the output paramter mentioned in the script.
-
-## Additional details (Optional)
-In the folder "$CAFFE_HOME/examples/tidsp/models/sparse/cityscapes_segmentation" there are several prototxt files. These files are used to perform various stages of sparse and quantized training.
-
-This section explaines some of the additional options added to caffe solver and layer parameters. It also explains the various stages of the entire training process.
-
-### Stage 1: Pre-training
-Pre-training is done using the prototxt jacintonet11_bn_train_L2.prototxt. As the name indicates, this stage uses L2 regularized training.
-
-### Stage 2: L1-Regularized training
-Done using the prototxt jacintonet11_bn_train_L1.prototxt. As the name indicates, this stage uses L1 regularized training. L1 regularization will indue several small coefficients (weights). The following options used in the corresponding prototxt are important:  
-
-* display_sparsity: 1000
-Display the fraction of sparsity achieved in each layer.
-
-* threshold_weights: true
-Whether to threshold the small weights to zero or not.
-
-* sparsity_threshold: 1e-4
-Value below which the weights will be set to zero.
-
-* sparsity_target: 0.80
-Once this much sparsity is reached, the learning rate of that layer will be reduced - so that the sprasity remains at that level.
-
-* sparsity_lr_mult: 0.01
-Once sparsity target is reached for a layer, the lr_mult of that layer will be set to this value (typically a very low value) So that further adjustment will be minimized.
-
-### Stage 3: Thresholding
-Thresholding is performed by specifying threshold option to the caffe executable. We can also specify the fraction fo sparsity that we need. The threshold step will look at the caffemodel provided layer by layer try to zero out as many coefficients as specified in the options.
-
-### Stage 4: Sparse finetuning
-Sparse finetuning stage takes the thresholded model and tries to recover the quality that was lost during thresholding. 
-
-* weight_connect_mode: WEIGHT_DISCONNECTED_ELTWISE
-The coefficients that are already zered out (in the previous step) will be retained as zeros during this finetuning  process.
-
-### Stage 5: Batch Norm Optimization
-Embedded implementations need not actually implement batch norm that comes next to a convolution layer. Batch Norm optimization stage merges the batch norm coefficeints into the convolution layers. Subsequent training or testing stages need not use batch norm layers. It is performed by specifying optimize option to the caffe executable.
-
-### Stage 6: Quantization
-The quantization stage uses the following additional options.
-
-* snapshot_log: true
-Write prototxts containing important information used for quantization. For example, this output prototxt containes quantization bitwidths and shifts for each layer.
-
-* insert_quantization_param: true
-Automatically insert quantization related parameters into the layer parameters.
-
-* quantization_start_iter: 2000
-The iteration at which the quantization starts. The iterations before this will be used to collect statistics required for quantization.
-
-* weight_connect_mode: WEIGHT_DISCONNECTED_ELTWISE
-The coefficients that are already zered out (in the previous step) will be retained as zeros during this finetuning  process.
+This will create the output images or video in the location corresponding to the output parameter mentioned in the script.

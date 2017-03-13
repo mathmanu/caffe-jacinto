@@ -1,39 +1,45 @@
 # Caffe-jacinto
-Caffe-jacinto is a fork of [NVIDIA/caffe](https://github.com/NVIDIA/caffe) that enables training of sparse, quantized CNN models.
+###### Caffe-jacinto - embedded deep learning framework
 
-After cloning the source code, switch to the branch caffe-0.15, if you are not on it already.
+Caffe-jacinto is a fork of [NVIDIA/caffe](https://github.com/NVIDIA/caffe), which in-turn is derived from [BVLC/Caffe](https://github.com/BVLC/caffe). The modifications in this fork enable training of sparse, quantized CNN models - resulting in low complexity models that can be used in embedded platforms.
 
-The procedure for installation and usage of Caffe-jacinto is quite similar to [NVIDIA/Caffe](https://github.com/NVIDIA/caffe), which in-turn is derived from [BVLC/Caffe](https://github.com/BVLC/caffe). Please see the tutorial documentations in their websites before proceeding further, if you are not familiar with Caffe.
+For example, the semantic segmentation example (see below) shows how to train a model that is nearly 80% sparse (only 20% non-zero coefficients) and 8-bit quantized. An inference engine designed to efficiently take advantage of sparsity can run up to <b>5x faster</b> by using such a model. Since 8-bit multiplier is sufficient (instead of floating point), the speedup can be even higher on some platforms.
 
-In summary, if you have all the per-requisites installed, you can go to the caffe-jacinto folder and execute the following:
-* make 
- * Instead, you can also do "make -j50" to speed up the compilaiton
-* make pycaffe
- * To compile the python bindings
+### Installation
+* After cloning the source code, switch to the branch caffe-0.15, if it is not checked out already.
+-- *git checkout caffe-0.15*
+
+* Please see the [installation instructions](INSTALL.md) for installing the dependencies and building the code. 
 
 ### Features
 
-New layers have been added to help train for semantic segmentation. Several new options have also been added in solver and layer parameters to support sparsity and quantization. These options will be explained with examples for training.
+New layers and options have been added to support sparsity and quantization. A brief explanation is given in this section, but more details can be found by [clicking here](FEATURES.md).
+
+Note that Caffe-jacinto does not directly support any embedded/low-power device. But the models trained by it can be used for fast inference on such a device due to the sparsity and quantization.
+
+###### Additional layers
+* ImageLabelData and IOUAccuracy layers have been added to train for semantic segmentation.
 
 ###### Sparsity
-* Measuring sparsity in convolution layers even while training is in progress. 
-* Zeroing out of small coefficients during training, similar to caffe-scnn [paper](https://arxiv.org/abs/1608.03665), [code](https://github.com/wenwei202/caffe/tree/scnn)
-* Thresholding tool to zero-out some convolution weights in each layer to attain a certain sparsity in each layer.
+* Measuring sparsity in convolution layers while training is in progress. 
+* Thresholding tool to zero-out some convolution weights in each layer to attain certain sparsity in each layer.
+* Sparse training methods: zeroing out of small coefficients during training, or fine tuning without updating the zero coefficients - similar to caffe-scnn [paper](https://arxiv.org/abs/1608.03665), [code](https://github.com/wenwei202/caffe/tree/scnn)
 
 ###### Quantization
 * Collecting statistics (range of weights) to enable quantization
-* Dynamic -8bit fixed point quantization, improved from Ristretto [paper](https://arxiv.org/abs/1605.06402), [code](https://github.com/pmgysel/caffe)
+* Dynamic -8 bit fixed point quantization, improved from Ristretto [paper](https://arxiv.org/abs/1605.06402), [code](https://github.com/pmgysel/caffe)
+
+###### Absorbing Batch Normalization into convolution weights
+* A tool is provided to absorb batch norm values into convolution weights. This may help to speedup inference. This will also help if Batch Norm layers are not supported in an embedded implementation.
 
 ### Examples
-###### Classification:<br>
-* [Train sparse, quantized CNN on cifar10 dataset](examples/tidsp/models/sparse/cifar10_classification/README.md): Training scripts and example models that demonstrate training with sparsification and quantization for classification. Note that this is just a toy example and no inference script is provided to test teh final model.
+###### Semantic segmentation:
+* Note that ImageNet training (see below) is recommended before doing this segmentation training to create the pre-trained weights. The segmentation training will read the ImageNet trained caffemodel for doing the fine tuning on segmentation. However it is possible to directly do segmentation training without ImageNet training, but the quality might be inferior.
+* [Train sparse, quantized CNN for semantic segmentation](examples/tidsp/models/sparse/cityscapes_segmentation/README.md) on the cityscapes dataset. Inference script is also provided to test out the final model.
 
-* [Training on LSVRC ImageNet dataset](examples/tidsp/models/sparse/imagenet_classification/README.md).
-
-###### Semantic segmentation:<br>
-* New layers, training scripts and examples are provided for semanitc segmentaiton.
-* [Train sparse, quantized CNN for segmentation](examples/tidsp/models/sparse/imagenet_segmentation/README.md): Train sparse, quantized CNN on the cityscapes dataset. 
-* Note that ImageNet training is must be done before doing this segmentation training to create the pre-trained weights.
+###### Classification:
+* [Training on ILSVRC ImageNet dataset](examples/tidsp/models/sparse/imagenet_classification/README.md). The 1000 class ImageNet trained weights is useful for fine tuning other tasks.
+* [Train sparse, quantized CNN on cifar10 dataset](examples/tidsp/models/sparse/cifar10_classification/README.md) for classification. Note that this is just a toy example and no inference script is provided to test the final model.
 
 <br>
 The following sections are kept as it is from the original Caffe.

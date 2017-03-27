@@ -64,7 +64,7 @@ DataReader::Body::Body(const LayerParameter& param)
     : param_(param),
       new_queue_pairs_(), 
       num_skips_(0) {
-  num_skips_ = 1000;//std::min((int)(param_.data_param().batch_size()), 3);
+  num_skips_ = param.data_param().shuffle_skip_max();
   StartInternalThread();
 }
 

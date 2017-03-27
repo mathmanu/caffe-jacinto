@@ -915,6 +915,7 @@ message DataParameter {
   optional uint32 rand_skip = 7 [default = 0];
   // The shuffle variable is for the data layier to access random data point (for shuffling data when you read it!!). The random point would be set as urand(0, length of data).
   optional bool shuffle = 12 [default = false];
+  optional int32 shuffle_skip_max = 13 [default = 1000];
   optional DB backend = 8 [default = LEVELDB];
   // DEPRECATED. See TransformationParameter. For data pre-processing, we can do
   // simple scaling and subtracting the data mean, if provided. Note that the

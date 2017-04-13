@@ -402,10 +402,10 @@ void caffe_gpu_powx<double>(const int N, const double* a,
 
 DEFINE_AND_INSTANTIATE_GPU_UNARY_FUNC(sign, y[index] = (Dtype(0) < x[index]) - (x[index] < Dtype(0)));
 DEFINE_AND_INSTANTIATE_GPU_UNARY_FUNC(sgnbit, y[index] = signbit(x[index]));
-DEFINE_AND_INSTANTIATE_GPU_2NARY_FUNC(if_zerout, threshold, y[index] = ((x[index] < Dtype(threshold) && x[index] > Dtype(-threshold) ) ? 1 : 0) );
-DEFINE_AND_INSTANTIATE_GPU_2NARY_FUNC(if_nonzerout, threshold, y[index] = ((x[index] >= Dtype(threshold) || x[index] <= Dtype(-threshold) ) ? 1 : 0) )
+DEFINE_AND_INSTANTIATE_GPU_2NARY_FUNC(if_zerout, threshold, y[index] = ((x[index] <= Dtype(threshold) && x[index] >= Dtype(-threshold) ) ? 1 : 0) );
+DEFINE_AND_INSTANTIATE_GPU_2NARY_FUNC(if_nonzerout, threshold, y[index] = ((x[index] > Dtype(threshold) || x[index] < Dtype(-threshold) ) ? 1 : 0) )
 DEFINE_AND_INSTANTIATE_GPU_UNARY_FUNC(eltwise_multi, y[index] = y[index]*x[index] )
-DEFINE_AND_INSTANTIATE_GPU_2NARY_FUNC(zerout, threshold, y[index] = ((x[index] < Dtype(threshold) && x[index] > Dtype(-threshold) ) ? 0 : x[index]) );
+DEFINE_AND_INSTANTIATE_GPU_2NARY_FUNC(zerout, threshold, y[index] = ((x[index] <= Dtype(threshold) && x[index] >= Dtype(-threshold) ) ? 0 : x[index]) );
 
 void caffe_gpu_rng_uniform(const int n, unsigned int* r) {
   CURAND_CHECK(curandGenerate(Caffe::curand_generator(), r, n));
@@ -530,7 +530,7 @@ struct CheckZeroFunctor {
   CheckZeroFunctor(const Dtype threshold) : threshold(threshold) {
   }
   __host__ __device__ bool operator()(const Dtype& x) {
-    return (x<(threshold) && x>(-threshold));
+    return (x<=(threshold) && x>=(-threshold));
   }
   const Dtype threshold;
 };

@@ -123,12 +123,12 @@ inline int8_t caffe_sign(Dtype val) {
 }
 template<typename Dtype>
 inline int8_t caffe_if_zerout(Dtype val, Dtype threshold) {
-	if(val<threshold && val>(-threshold)) return 1;
+	if(val<=threshold && val>=(-threshold)) return 1;
 	else return 0;
 }
 template<typename Dtype>
 inline int8_t caffe_if_nonzerout(Dtype val, Dtype threshold) {
-	if(val>=threshold || val<=(-threshold)) return 1;
+	if(val>threshold || val<(-threshold)) return 1;
 	else return 0;
 }
 // The following two macros are modifications of DEFINE_VSL_UNARY_FUNC
@@ -159,7 +159,7 @@ DEFINE_CAFFE_CPU_UNARY_FUNC(sign, y[i] = caffe_sign<Dtype>(x[i]));
 DEFINE_CAFFE_CPU_2NARY_FUNC(if_zerout, threshold, y[i] = caffe_if_zerout<Dtype>(x[i], threshold));
 DEFINE_CAFFE_CPU_2NARY_FUNC(if_nonzerout, threshold, y[i] = caffe_if_nonzerout<Dtype>(x[i], threshold));
 DEFINE_CAFFE_CPU_UNARY_FUNC(eltwise_multi, y[i] = y[i]*x[i]);
-DEFINE_CAFFE_CPU_2NARY_FUNC(zerout, threshold, y[i] = ((x[i] < Dtype(threshold) && x[i] > Dtype(-threshold) ) ? 0 : x[i]) );
+DEFINE_CAFFE_CPU_2NARY_FUNC(zerout, threshold, y[i] = ((x[i] <= Dtype(threshold) && x[i] >= Dtype(-threshold) ) ? 0 : x[i]) );
 
 
 // This returns a nonzero value if the input has its sign bit set.

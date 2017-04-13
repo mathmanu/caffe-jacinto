@@ -1790,7 +1790,7 @@ void Net<Dtype>::ThresholdNet(float threshold_fraction_low, float threshold_frac
     }
   }
 
-  this->DisplaySparsity(1e-10);
+  this->DisplaySparsity(0.0);
 }
 
 template <typename Dtype>

@@ -235,7 +235,7 @@ void Solver<Dtype>::FinishQuantization(shared_ptr<Net<Dtype> >& net) {
 template<typename Dtype>
 void Solver<Dtype>::SetWeightConnectivity() {
   bool threshold_weights = this->param().threshold_weights();
-  if (param_.weight_connect_mode() != caffe::WEIGHT_CONNECTED && param_.sparsity_threshold() != 0) {
+  if (param_.weight_connect_mode() != caffe::WEIGHT_CONNECTED) {
     net_->SetWeightConnectivity(param_.weight_connect_mode(), param_.sparsity_threshold(), threshold_weights);
   }
 }
@@ -329,6 +329,14 @@ void Solver<Dtype>::Step(int iters) {
       callbacks_[i]->syncCommStream();
     }
 
+    /*
+    if(param_.display_sparsity() > 0 && (iter_ % param_.display_sparsity()) == 0) {
+      if(Caffe::root_solver()) {
+        LOG(INFO) << "Sparsity before update:";
+        net_->DisplaySparsity(0.0);
+      }
+    }*/
+
     ApplyUpdate();
 
     if(param_.insert_quantization_param()) {
@@ -337,7 +345,8 @@ void Solver<Dtype>::Step(int iters) {
 
     if(param_.display_sparsity() > 0 && (iter_ % param_.display_sparsity()) == 0) {
       if(Caffe::root_solver()) {
-        net_->DisplaySparsity(1e-10);
+        LOG(INFO) << "Sparsity after update:";
+        net_->DisplaySparsity(0.0);
       }
     }
 

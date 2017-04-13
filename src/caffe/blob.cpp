@@ -364,7 +364,7 @@ int Blob<Dtype>::count_zero(const Dtype threshold) const {
 		const Dtype* data = this->cpu_data();
 		int zero_num = 0;
 		for (int i = 0; i < this->count(); i++) {
-			if (std::fabs(data[i]) < threshold) {
+			if (std::fabs(data[i]) <= threshold) {
 				zero_num++;
 			}
 		}

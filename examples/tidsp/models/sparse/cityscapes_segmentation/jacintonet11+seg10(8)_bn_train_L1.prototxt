@@ -25,7 +25,7 @@ random_seed: 33
 #ignore_mismatching_blobs: true
 
 display_sparsity: 1000
-sparsity_threshold: 1e-4
+#sparsity_threshold: 1e-4
 #threshold_weights: true
 #weight_connect_mode: WEIGHT_DISCONNECTED_ELTWISE
 

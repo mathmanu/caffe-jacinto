@@ -5,8 +5,8 @@ function pause(){
 }
 
 #-------------------------------------------------------
-rm training/*.caffemodel training/*.prototxt training/*.solverstate training/*.txt
-rm final/*.caffemodel final/*.prototxt final/*.solverstate final/*.txt
+#rm training/*.caffemodel training/*.prototxt training/*.solverstate training/*.txt
+#rm final/*.caffemodel final/*.prototxt final/*.solverstate final/*.txt
 #-------------------------------------------------------
 
 #-------------------------------------------------------
@@ -21,7 +21,8 @@ caffe=../../build/tools/caffe.bin
 
 #L2 regularized training
 
-$caffe train --solver="models/sparse/imagenet_classification/jacintonet11(1000)_bn_train_L2.prototxt" --gpu=1,0
+#$caffe train --solver="models/sparse/imagenet_classification/jacintonet11(1000)_bn_train_L2.prototxt" --gpu=1,0
+$caffe train --solver="models/sparse/imagenet_classification/jacintonet11(1000)_bn_maxpool_train_L2.prototxt" --gpu=0 --weights="/data/mmcodec_video2_tier3/users/manu/experiments/object/classification/2017.02/imagenet_jacintonet11(60.77%)/jacintonet11_bn_iter_320000.caffemodel"
 
 pause 'Finished L2 training. Press [Enter] to continue...'
 

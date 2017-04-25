@@ -30,18 +30,17 @@ https://github.com/amd/OpenCL-caffe/wiki/Instructions-to-create-ImageNet-2012-da
 
 ### Results 
 
-###### Validation accuracy and complexity (GigaMACS for one 224x224 image)
+###### Validation accuracy and complexity 
+Complexity is reported in GigaMACS for one image crop. Size of the crop is 224x224 for all networks except AlexNet. AlexNet uses 227x227.
 
 As can be seen below, JacintoNet11 provides better accuracy compared to BVLC-AlexNet at lower complexity. It also has lower complexity compared to ResNet10.
 
-|Configuration      |Top-1 accuracy   | Top-5 accuracy |Complexity for 1000 classes|Complexity for 10 classes*|
-|-------------------|-----------------|----------------|---------------------------|-------------------------|
-|<b>JacintoNet11    |<b>60.77         |<b>83.20        |<b>0.632                   |<b>0.408                 |
-|ResNet10 [1]       |63.9             |85.2            |1.12                      |0.902                    |
-|BVLC AlexNet [2]   |57.1             |80.2            |0.687                      |0.683                    |
+|Configuration      |Top-1 accuracy   | Top-5 accuracy |Complexity for 1000 classes|
+|-------------------|-----------------|----------------|---------------------------|
+|<b>JacintoNet11    |<b>60.77         |<b>83.20        |<b>0.410                   |
+|ResNet10 [1]       |63.9             |85.2            |0.910                      |
+|BVLC AlexNet [2]   |57.1             |80.2            |0.687                      |
 
-
-*Note: Complexity for 10 classes is just for analysis - obtained by changing the last fully connected (or convolution, when FC is not thre) layer to have 10 outputs.
 
 [1] "ImageNet pre-trained models with batch normalization", https://arxiv.org/pdf/1612.01452.pdf, https://github.com/cvjena/cnn-models <br>
 [2] "BVLC/caffe/models/bvlc_alexnet" https://github.com/BVLC/caffe/tree/master/models/bvlc_alexnet

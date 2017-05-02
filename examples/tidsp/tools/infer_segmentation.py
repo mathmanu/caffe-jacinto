@@ -51,14 +51,14 @@ def crop_color_image2(color_image, crop_size):  #size in (height, width)
     image_size = color_image.shape
     extra_h = (image_size[0] - crop_size[0])//2 if image_size[0] > crop_size[0] else 0
     extra_w = (image_size[1] - crop_size[1]) // 2 if image_size[1] > crop_size[1] else 0
-    out_image = color_image[0:(0+crop_size[0]), 0:(0+crop_size[1]), :]
+    out_image = color_image[extra_h:(extra_h+crop_size[0]), extra_w:(extra_w+crop_size[1]), :]
     return out_image
 
 def crop_gray_image2(color_image, crop_size):   #size in (height, width)
     image_size = color_image.shape
     extra_h = (image_size[0] - crop_size[0])//2 if image_size[0] > crop_size[0] else 0
     extra_w = (image_size[1] - crop_size[1])//2 if image_size[1] > crop_size[1] else 0
-    out_image = color_image[0:(0+crop_size[0]), 0:(0+crop_size[1])]
+    out_image = color_image[extra_h:(extra_h+crop_size[0]), extra_w:(extra_w+crop_size[1])]
     return out_image
     
 def chroma_blend(image, color):
@@ -82,8 +82,8 @@ def resize_image(color_image, size): #size in (height, width)
 def infer_blob(args, net, input_bgr):
     image_size = input_bgr.shape  
     if args.crop:
-	print('Croping to ' + str(args.crop))
-	input_bgr = crop_color_image2(input_bgr, (args.crop[1], args.crop[0]))
+        print('Croping to ' + str(args.crop))
+        input_bgr = crop_color_image2(input_bgr, (args.crop[1], args.crop[0]))
 
     if args.resize:
 	print('Resizing to ' + str(args.resize))

@@ -152,7 +152,7 @@ def infer_image_folder(args, net):
         print(input_name, end=' ')   
         sys.stdout.flush()         
         input_blob = cv2.imread(input_name)  
-        output_blob = infer_blob(args, net, input_blob)  
+        output_blob, _ = infer_blob(args, net, input_blob)  
         output_name = os.path.join(args.output, os.path.basename(input_name));
         cv2.imwrite(output_name, output_blob)        
     return

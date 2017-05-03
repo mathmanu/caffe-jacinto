@@ -17,9 +17,11 @@ import math
 
 def get_arguments():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--input', type=str, required=True, help='Path to image folder')
+    parser.add_argument('--input', type=str, required=True, help='Path to image folder, video or list txt file')
+    parser.add_argument('--label', type=str, default=None, help='Path to label folder, video or list txt file')    
+    parser.add_argument('--num_classes', type=int, default=None, help='Number of classes')    
     parser.add_argument('--search', type=str, default='*.png', help='Wildcard. eg. train/*/*.png')
-    parser.add_argument('--output', type=str, default='output', help='Path to output folder')  
+    parser.add_argument('--output', type=str, default=None, help='Path to output folder')  
     parser.add_argument('--num_images', type=int, default=0, help='Max num images to process')            
     parser.add_argument('--model', type=str, default='', help='Path to Model prototxt')  
     parser.add_argument('--weights', type=str, default='', help='Path to pre-trained folder')      
@@ -30,22 +32,34 @@ def get_arguments():
     return parser.parse_args()
 
     
-def create_output(args):
+def check_paths(args):
     ext = os.path.splitext(args.output)[1]
     if (ext == '.mp4' or ext == '.MP4'):
         output_type = 'video'
     elif (ext == '.png' or ext == '.jpg' or ext == '.jpeg' or ext == '.PNG' or ext == '.JPG' or ext == '.JPEG'):
         output_type = 'image'
+    elif (ext == '.txt'):
+        output_type = 'list'        
     else:
         output_type = 'folder'    
-                        
-    if os.path.exists(args.output) and os.path.isdir(args.output):
+                 
+    ext = os.path.splitext(args.input)[1]
+    if (ext == '.mp4' or ext == '.MP4'):
+        input_type = 'video'
+    elif (ext == '.png' or ext == '.jpg' or ext == '.jpeg' or ext == '.PNG' or ext == '.JPG' or ext == '.JPEG'):
+        input_type = 'image'
+    elif (ext == '.txt'):
+        input_type = 'list'          
+    else:
+        input_type = 'folder'  
+                                
+    if args.output and os.path.exists(args.output) and os.path.isdir(args.output):
         shutil.rmtree(args.output)            
 
-    if output_type == 'folder':
+    if args.output and output_type == 'folder':
         os.mkdir(args.output)
         
-    return output_type
+    return input_type, output_type
 
 def crop_color_image2(color_image, crop_size):  #size in (height, width)
     image_size = color_image.shape
@@ -79,16 +93,20 @@ def resize_image(color_image, size): #size in (height, width)
     im = np.array(im, dtype=np.uint8)
     return im
 
-def infer_blob(args, net, input_bgr):
+def infer_blob(args, net, input_bgr, input_label=None):
     image_size = input_bgr.shape  
     if args.crop:
         print('Croping to ' + str(args.crop))
         input_bgr = crop_color_image2(input_bgr, (args.crop[1], args.crop[0]))
+        if input_label is not None:
+          input_label = crop_color_image2(input_label, (args.crop[1], args.crop[0]))
 
     if args.resize:
 	print('Resizing to ' + str(args.resize))
         input_bgr = resize_image(input_bgr, (args.resize[1], args.resize[0]))
-
+        if input_label is not None:
+          input_label = resize_image(input_label, (args.resize[1], args.resize[0]))  
+                
     input_blob = input_bgr.transpose((2, 0, 1))    #Interleaved to planar
     input_blob = input_blob[np.newaxis, ...]
     if net.blobs['data'].data.shape != input_blob.shape:
@@ -113,7 +131,7 @@ def infer_blob(args, net, input_bgr):
         prediction_size = (prediction.shape[0], prediction.shape[1])
         output_image = prediction.ravel().reshape(prediction_size)
         output_image = crop_gray_image2(output_image, image_size)
-    return output_image
+    return output_image, input_label
  
                                
 def infer_image_file(args, net):
@@ -122,8 +140,7 @@ def infer_image_file(args, net):
     cv2.imwrite(args.output, output_blob)
     return
             
-def infer_image_folder(args, net):
-    image_indices = []    
+def infer_image_folder(args, net):  
     print('Getting list of images...', end='')
     image_search = os.path.join(args.input, args.search)
     input_indices = glob.glob(image_search) 
@@ -140,6 +157,88 @@ def infer_image_folder(args, net):
         cv2.imwrite(output_name, output_blob)        
     return
     
+def eval_blob(args, net, input_blob, label_blob, confusion_matrix):
+    output_blob, label_blob = infer_blob(args, net, input_blob, label_blob)
+    for r in range(output_blob.shape[0]):
+      for c in range(output_blob.shape[1]):
+        gt_label = label_blob[r][c][0]
+        det_label = output_blob[r][c]
+        det_label = min(det_label, args.num_classes)
+        if gt_label != 255:
+          confusion_matrix[gt_label][det_label] += 1
+    return output_blob, confusion_matrix
+    
+    
+def compute_accuracy(args, confusion_matrix):
+    tp = np.zeros(args.num_classes)
+    population = np.zeros(args.num_classes)
+    det = np.zeros(args.num_classes)
+    iou = np.zeros(args.num_classes)
+        
+    for r in range(args.num_classes):
+      for c in range(args.num_classes):   
+         population[r] += confusion_matrix[r][c]
+         det[c] += confusion_matrix[r][c]   
+         if r == c:
+           tp[r] = confusion_matrix[r][c]
+           
+    tp_total = 0
+    population_total = 0           
+    for cls in range(args.num_classes):
+      intersection = tp[cls]
+      union = population[cls] + det[cls] - tp[cls]
+      iou[cls] = (intersection / union) if union else 0
+      tp_total += tp[cls]
+      population_total += population[cls]
+      
+    accuracy = tp_total / population_total
+    mean_iou = np.sum(iou) / args.num_classes
+    return accuracy, mean_iou, iou
+      
+          
+def infer_image_list(args, net):
+    input_indices = []
+    label_indices = []  
+    print('Getting list of images...', end='')
+    with open(args.input) as image_list_file:
+      for img_name in image_list_file:
+        input_indices.extend([img_name.strip()])
+        
+    if args.label:
+      with open(args.label) as label_list_file:
+        for label_name in label_list_file:
+          label_indices.extend([label_name.strip()])
+          
+    if args.num_images:
+      input_indices = input_indices[0:min(len(input_indices),args.num_images)]   
+      label_indices = label_indices[0:min(len(label_indices),args.num_images)]  
+                    
+    print('running inference for ', len(input_indices), ' images...');
+    if not label_indices:
+      for input_name in input_indices:
+        print(input_name, end=' ')   
+        sys.stdout.flush()         
+        input_blob = cv2.imread(input_name)  
+        output_blob = infer_blob(args, net, input_blob)  
+        output_name = os.path.join(args.output, os.path.basename(input_name));
+        cv2.imwrite(output_name, output_blob)     
+    else:
+      confusion_matrix = np.zeros((args.num_classes, args.num_classes+1))
+      for (input_name, label_name) in zip(input_indices, label_indices):
+        print((input_name, label_name), end=' ')   
+        sys.stdout.flush()         
+        input_blob = cv2.imread(input_name)  
+        label_blob = cv2.imread(label_name) 
+        output_blob, confusion_matrix = eval_blob(args, net, input_blob, label_blob, confusion_matrix)  
+        if args.output:
+          output_name = os.path.join(args.output, os.path.basename(input_name));
+          cv2.imwrite(output_name, output_blob) 
+          
+      accuracy, mean_iou, iou = compute_accuracy(args, confusion_matrix)   
+      print('accuracy={}, mean_iou={}, iou={}'.format(accuracy, mean_iou, iou))
+      
+    return
+        
 def infer_video(args, net):
     videoIpHandle = imageio.get_reader(args.input, 'ffmpeg')
     fps = math.ceil(videoIpHandle.get_meta_data()['fps'])
@@ -186,24 +285,31 @@ def main():
     else:
         args.resize = None
 
-    output_type = create_output(args)
+    input_type, output_type = check_paths(args)
     
+    if args.label and args.blend:
+      raise ValueError('When doing evaluation by specifying --label, --blend should not be used')
+          
     caffe.set_mode_gpu()
     caffe.set_device(0)
     
     net = caffe.Net(args.model, args.weights, caffe.TEST)
             
-    if output_type == 'image':
+    if input_type == 'image':
         print('Infering Images')
         infer_image_file(args, net)        
-    elif output_type == 'folder':
+    elif input_type == 'folder':
         print('Infering Folder')    
         infer_image_folder(args, net)
-    elif output_type == 'video':
+    elif input_type == 'video':
         print('Infering Video')      
-        infer_video(args, net)     
+        infer_video(args, net)   
+    elif input_type == 'list':
+        print('Infering list')      
+        infer_image_list(args, net)             
     else:   
         print('Incorrect options')
+    
 
 if __name__ == "__main__":
     main()

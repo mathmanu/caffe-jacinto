@@ -13,18 +13,18 @@ crop="1024 512"
 
 resize=0 #"1024 512"
 
-#input="input/stuttgart_00_000000_000001_leftImg8bit.png"
-#output=output/output.png
 
-input="input/sample"
+#------------------------------------------------------
+#Infer and write chroma blended visualization
+#input="input/sample"
+#output="output/sample"
+#./tools/infer_segmentation.py --blend --crop $crop --resize $resize --model $model --weights $weights --input $input --output $output --palette $palette --num_images $num_images
+#------------------------------------------------------
+#Accuracy measurement
+input="data/val-image-list.txt"
+label="data/val-label-list.txt"
 output="output/sample"
-
-#input="input/stuttgart_00.mp4"
-#output="output/stuttgart_00.mp4"
-#------------------------------------------------------
-
-#------------------------------------------------------
-#Actual command
-./tools/infer_segmentation.py --blend --crop $crop --resize $resize --model $model --weights $weights --input $input --output $output --palette $palette --num_images $num_images
+num_classes=5
+./tools/infer_segmentation.py --crop $crop --resize $resize --model $model --weights $weights --input $input --label $label --num_classes=$num_classes --output $output --palette $palette --num_images=$num_images
 #------------------------------------------------------
 

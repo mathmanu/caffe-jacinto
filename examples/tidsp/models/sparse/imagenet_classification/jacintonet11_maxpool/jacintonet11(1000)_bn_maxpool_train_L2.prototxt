@@ -20,13 +20,16 @@ snapshot_prefix: "training/imagenet_jacintonet11_bn_maxpool_L2"
 solver_mode: GPU
 random_seed: 33
 
-#ignore_mismatching_blobs: true
-
 
 #Net parameters
 net_param {
 
 name: "JacintoNet-11-MaxPool(1000)"
+
+#default_forward_type:  FLOAT
+#default_backward_type: FLOAT
+#default_forward_math:  FLOAT
+#default_backward_math: FLOAT
 
 layer {
   name: "data"
@@ -43,7 +46,7 @@ layer {
   }
   data_param {
     source: "./data/ilsvrc12_train_lmdb"
-    batch_size: 128 #BATCH SIZE - LARGER is USUALLY BETTER
+    batch_size: 128
     backend: LMDB
   }
 }
@@ -63,7 +66,7 @@ layer {
   }
   data_param {
     source: "./data/ilsvrc12_val_lmdb"
-    batch_size: 128 #BATCH SIZE - LARGER is USUALLY BETTER
+    batch_size: 128
     backend: LMDB
   }
 }
@@ -81,7 +84,7 @@ layer {
     pad: 2
     stride: 2
     bias_term: true
-    weight_filler { type: "msra" std: 0.010 }
+    weight_filler { type: "msra" }
     bias_filler { type: "constant" value: 0 }    
     dilation: 1    
     group: 1
@@ -92,33 +95,10 @@ layer {
   bottom: "conv1a"
   top: "conv1a/bn"
   type: "BatchNorm"
-  param { #scale
-    lr_mult: 1
-    decay_mult: 1
-  }
-  param { #shift/bias
-   lr_mult: 1
-    decay_mult: 1
-  } 
-  param { #global mean
-    lr_mult: 0
-    decay_mult: 0
-  }
-  param { #global var
-   lr_mult: 0
-    decay_mult: 0
-  }     
   batch_norm_param {
-    scale_filler {
-      type: "constant"
-      value: 1
-    }
-    bias_filler {
-      type: "constant"
-      value: 0
-    }  
     moving_average_fraction: 0.99
-    eps: 0.0001    
+    eps: 0.0001 
+    scale_bias: false   
   }
 }
 layer {
@@ -140,7 +120,7 @@ layer {
     pad: 1
     stride: 1
     bias_term: true
-    weight_filler { type: "msra" std: 0.010 }
+    weight_filler { type: "msra" }
     bias_filler { type: "constant" value: 0 }    
     dilation: 1    
     group: 4 #1
@@ -151,33 +131,10 @@ layer {
   bottom: "conv1b"
   top: "conv1b/bn"
   type: "BatchNorm"
-  param { #scale
-    lr_mult: 1
-    decay_mult: 1
-  }
-  param { #shift/bias
-   lr_mult: 1
-    decay_mult: 1
-  } 
-  param { #global mean
-    lr_mult: 0
-    decay_mult: 0
-  }
-  param { #global var
-   lr_mult: 0
-    decay_mult: 0
-  }     
   batch_norm_param {
-    scale_filler {
-      type: "constant"
-      value: 1
-    }
-    bias_filler {
-      type: "constant"
-      value: 0
-    }  
     moving_average_fraction: 0.99
-    eps: 0.0001    
+    eps: 0.0001 
+    scale_bias: false   
   }
 }
 layer {
@@ -210,7 +167,7 @@ layer {
     pad: 1
     stride: 1
     bias_term: true
-    weight_filler { type: "msra" std: 0.010 }
+    weight_filler { type: "msra" }
     bias_filler { type: "constant" value: 0 }    
     dilation: 1    
     group: 1 #4
@@ -221,33 +178,10 @@ layer {
   bottom: "res2a_branch2a"
   top: "res2a_branch2a/bn"
   type: "BatchNorm"
-  param { #scale
-    lr_mult: 1
-    decay_mult: 1
-  }
-  param { #shift/bias
-   lr_mult: 1
-    decay_mult: 1
-  } 
-  param { #global mean
-    lr_mult: 0
-    decay_mult: 0
-  }
-  param { #global var
-   lr_mult: 0
-    decay_mult: 0
-  }     
   batch_norm_param {
-    scale_filler {
-      type: "constant"
-      value: 1
-    }
-    bias_filler {
-      type: "constant"
-      value: 0
-    }  
     moving_average_fraction: 0.99
-    eps: 0.0001    
+    eps: 0.0001 
+    scale_bias: false     
   }
 }
 layer {
@@ -269,7 +203,7 @@ layer {
     pad: 1
     stride: 1
     bias_term: true
-    weight_filler { type: "msra" std: 0.010 }
+    weight_filler { type: "msra" }
     bias_filler { type: "constant" value: 0 }    
     dilation: 1    
     group: 4
@@ -280,33 +214,10 @@ layer {
   bottom: "res2a_branch2b"
   top: "res2a_branch2b/bn"
   type: "BatchNorm"
-  param { #scale
-    lr_mult: 1
-    decay_mult: 1
-  }
-  param { #shift/bias
-   lr_mult: 1
-    decay_mult: 1
-  } 
-  param { #global mean
-    lr_mult: 0
-    decay_mult: 0
-  }
-  param { #global var
-   lr_mult: 0
-    decay_mult: 0
-  }     
   batch_norm_param {
-    scale_filler {
-      type: "constant"
-      value: 1
-    }
-    bias_filler {
-      type: "constant"
-      value: 0
-    }  
     moving_average_fraction: 0.99
-    eps: 0.0001    
+    eps: 0.0001 
+    scale_bias: false       
   }
 }
 layer {
@@ -339,7 +250,7 @@ layer {
     pad: 1
     stride: 1
     bias_term: true
-    weight_filler { type: "msra" std: 0.010 }
+    weight_filler { type: "msra" }
     bias_filler { type: "constant" value: 0 }    
     dilation: 1    
     group: 1 #4
@@ -350,33 +261,10 @@ layer {
   bottom: "res3a_branch2a"
   top: "res3a_branch2a/bn"
   type: "BatchNorm"
-  param { #scale
-    lr_mult: 1
-    decay_mult: 1
-  }
-  param { #shift/bias
-   lr_mult: 1
-    decay_mult: 1
-  } 
-  param { #global mean
-    lr_mult: 0
-    decay_mult: 0
-  }
-  param { #global var
-   lr_mult: 0
-    decay_mult: 0
-  }     
   batch_norm_param {
-    scale_filler {
-      type: "constant"
-      value: 1
-    }
-    bias_filler {
-      type: "constant"
-      value: 0
-    }  
     moving_average_fraction: 0.99
-    eps: 0.0001    
+    eps: 0.0001 
+    scale_bias: false       
   }
 }
 layer {
@@ -398,7 +286,7 @@ layer {
     pad: 1
     stride: 1
     bias_term: true
-    weight_filler { type: "msra" std: 0.010 }
+    weight_filler { type: "msra" }
     bias_filler { type: "constant" value: 0 }    
     dilation: 1    
     group: 4
@@ -409,33 +297,10 @@ layer {
   bottom: "res3a_branch2b"
   top: "res3a_branch2b/bn"
   type: "BatchNorm"
-  param { #scale
-    lr_mult: 1
-    decay_mult: 1
-  }
-  param { #shift/bias
-   lr_mult: 1
-    decay_mult: 1
-  } 
-  param { #global mean
-    lr_mult: 0
-    decay_mult: 0
-  }
-  param { #global var
-   lr_mult: 0
-    decay_mult: 0
-  }     
   batch_norm_param {
-    scale_filler {
-      type: "constant"
-      value: 1
-    }
-    bias_filler {
-      type: "constant"
-      value: 0
-    }  
     moving_average_fraction: 0.99
-    eps: 0.0001    
+    eps: 0.0001 
+    scale_bias: false     
   }
 }
 layer {
@@ -468,7 +333,7 @@ layer {
     pad: 1
     stride: 1
     bias_term: true
-    weight_filler { type: "msra" std: 0.010 }
+    weight_filler { type: "msra" }
     bias_filler { type: "constant" value: 0 }    
     dilation: 1    
     group: 1 #4
@@ -479,33 +344,10 @@ layer {
   bottom: "res4a_branch2a"
   top: "res4a_branch2a/bn"
   type: "BatchNorm"
-  param { #scale
-    lr_mult: 1
-    decay_mult: 1
-  }
-  param { #shift/bias
-   lr_mult: 1
-    decay_mult: 1
-  } 
-  param { #global mean
-    lr_mult: 0
-    decay_mult: 0
-  }
-  param { #global var
-   lr_mult: 0
-    decay_mult: 0
-  }     
   batch_norm_param {
-    scale_filler {
-      type: "constant"
-      value: 1
-    }
-    bias_filler {
-      type: "constant"
-      value: 0
-    }  
     moving_average_fraction: 0.99
-    eps: 0.0001    
+    eps: 0.0001 
+    scale_bias: false     
   }
 }
 layer {
@@ -527,7 +369,7 @@ layer {
     pad: 1
     stride: 1
     bias_term: true
-    weight_filler { type: "msra" std: 0.010 }
+    weight_filler { type: "msra" }
     bias_filler { type: "constant" value: 0 }    
     dilation: 1    
     group: 4
@@ -538,33 +380,10 @@ layer {
   bottom: "res4a_branch2b"
   top: "res4a_branch2b/bn"
   type: "BatchNorm"
-  param { #scale
-    lr_mult: 1
-    decay_mult: 1
-  }
-  param { #shift/bias
-   lr_mult: 1
-    decay_mult: 1
-  } 
-  param { #global mean
-    lr_mult: 0
-    decay_mult: 0
-  }
-  param { #global var
-   lr_mult: 0
-    decay_mult: 0
-  }     
   batch_norm_param {
-    scale_filler {
-      type: "constant"
-      value: 1
-    }
-    bias_filler {
-      type: "constant"
-      value: 0
-    }  
     moving_average_fraction: 0.99
-    eps: 0.0001    
+    eps: 0.0001 
+    scale_bias: false     
   }
 }
 layer {
@@ -597,7 +416,7 @@ layer {
     pad: 1
     stride: 1
     bias_term: true
-    weight_filler { type: "msra" std: 0.010 }
+    weight_filler { type: "msra" }
     bias_filler { type: "constant" value: 0 }    
     dilation: 1    
     group: 1 #4
@@ -608,33 +427,10 @@ layer {
   bottom: "res5a_branch2a"
   top: "res5a_branch2a/bn"
   type: "BatchNorm"
-  param { #scale
-    lr_mult: 1
-    decay_mult: 1
-  }
-  param { #shift/bias
-   lr_mult: 1
-    decay_mult: 1
-  } 
-  param { #global mean
-    lr_mult: 0
-    decay_mult: 0
-  }
-  param { #global var
-   lr_mult: 0
-    decay_mult: 0
-  }     
   batch_norm_param {
-    scale_filler {
-      type: "constant"
-      value: 1
-    }
-    bias_filler {
-      type: "constant"
-      value: 0
-    }  
     moving_average_fraction: 0.99
-    eps: 0.0001    
+    eps: 0.0001 
+    scale_bias: false      
   }
 }
 layer {
@@ -656,7 +452,7 @@ layer {
     pad: 1
     stride: 1
     bias_term: true
-    weight_filler { type: "msra" std: 0.010 }
+    weight_filler { type: "msra" }
     bias_filler { type: "constant" value: 0 }    
     dilation: 1    
     group: 4
@@ -667,33 +463,10 @@ layer {
   bottom: "res5a_branch2b"
   top: "res5a_branch2b/bn"
   type: "BatchNorm"
-  param { #scale
-    lr_mult: 1
-    decay_mult: 1
-  }
-  param { #shift/bias
-   lr_mult: 1
-    decay_mult: 1
-  } 
-  param { #global mean
-    lr_mult: 0
-    decay_mult: 0
-  }
-  param { #global var
-   lr_mult: 0
-    decay_mult: 0
-  }     
   batch_norm_param {
-    scale_filler {
-      type: "constant"
-      value: 1
-    }
-    bias_filler {
-      type: "constant"
-      value: 0
-    }  
     moving_average_fraction: 0.99
-    eps: 0.0001    
+    eps: 0.0001 
+    scale_bias: false     
   }
 }
 layer {
@@ -721,7 +494,7 @@ layer {
   param { lr_mult: 2 decay_mult: 0 }
   inner_product_param {
      num_output: 1000
-     weight_filler { type: "msra" std: 0.010 }
+     weight_filler { type: "msra" }
      bias_filler { type: "constant" value: 0 }
   }
 }

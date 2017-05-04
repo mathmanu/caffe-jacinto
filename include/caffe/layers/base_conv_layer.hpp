@@ -24,6 +24,8 @@ class BaseConvolutionLayer : public Layer<Ftype, Btype> {
   virtual void Reshape(const vector<Blob*>& bottom,
       const vector<Blob*>& top);
 
+  virtual void SetSparseMode(SparseMode mode);
+  
   virtual inline int MinBottomBlobs() const { return 1; }
   virtual inline int MinTopBlobs() const { return 1; }
   virtual inline bool EqualNumBottomTopBlobs() const { return true; }

@@ -686,5 +686,46 @@ template void caffe_cpu_eltwise_min<float16>(const int N,
     const float16 alpha, const float16* x, const float16 beta, float16* y);
 #endif
 
+template <typename Dtype>
+Dtype caffe_cpu_max(const int n, const Dtype* x) {
+  Dtype y = std::numeric_limits<Dtype>::lowest();
+  for (int i = 0; i < n; ++i) {
+      y = std::max(y, x[i]);
+  }
+  return y;
+}
+template float caffe_cpu_max<float>(const int n, const float* x);
+template double caffe_cpu_max<double>(const int n, const double* x);
+#ifndef CPU_ONLY
+template float16 caffe_cpu_max<float16>(const int n, const float16* x);
+#endif
+
+template <typename Dtype>
+Dtype caffe_cpu_min(const int n, const Dtype* x) {
+  Dtype y = std::numeric_limits<Dtype>::max();
+  for (int i = 0; i < n; ++i) {
+      y = std::min(y, x[i]);
+  }
+  return y;
+}
+template float caffe_cpu_min<float>(const int n, const float* x);
+template double caffe_cpu_min<double>(const int n, const double* x);
+#ifndef CPU_ONLY
+template float16 caffe_cpu_min<float16>(const int n, const float16* x);
+#endif
+
+template <typename Dtype>
+Dtype caffe_cpu_count_zero(const int n, const Dtype* x, Dtype threshold) {
+  Dtype count = 0;
+  for (int i = 0; i < n; ++i) {
+      count += ((x[i]<=threshold && x[i]>=(-threshold))? 1: 0);
+  }
+  return count;
+}
+template float caffe_cpu_count_zero<float>(const int n, const float* x, float threshold);
+template double caffe_cpu_count_zero<double>(const int n, const double* x, double threshold);
+#ifndef CPU_ONLY
+template float16 caffe_cpu_count_zero<float16>(const int n, const float16* x, float16 threshold);
+#endif
 
 }  // namespace caffe

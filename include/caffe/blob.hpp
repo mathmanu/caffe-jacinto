@@ -82,6 +82,7 @@ class Blob {
   void Swap(Blob& other) noexcept {
     std::swap(data_tensor_, other.data_tensor_);
     std::swap(diff_tensor_, other.diff_tensor_);
+    std::swap(connectivity_, other.connectivity_);	
     std::swap(shape_data_, other.shape_data_);
     std::swap(shape_, other.shape_);
     std::swap(count_, other.count_);
@@ -93,7 +94,8 @@ class Blob {
   Blob(Type data_type, Type diff_type)
       : data_tensor_(make_shared<Tensor>(data_type)),
         diff_tensor_(make_shared<Tensor>(diff_type)),
-        count_(0), last_data_type_(data_type), last_diff_type_(diff_type) {}
+        count_(0), last_data_type_(data_type), last_diff_type_(diff_type),
+		sparse_mode_(SPARSE_NONE) {}
   explicit Blob(Type dtype)
       : Blob(dtype, dtype) {}
 
@@ -590,15 +592,67 @@ class Blob {
   const int* gpu_shape() const;
 #endif
 
+  //For sparse operation
+  inline const shared_ptr<Tensor>& connectivity() const {
+    CHECK(connectivity_);
+    return connectivity_;
+  }
+  
+  void cpu_eltwise_multi(int count, Type dtype, const void* X, void* Y);
+#ifndef CPU_ONLY
+  void gpu_eltwise_multi(int count, Type dtype, const void* X, void* Y);
+#endif
+  
+  float cpu_max(int count, Type dtype, const void* X) const;
+#ifndef CPU_ONLY
+  float gpu_max(int count, Type dtype, const void* X) const;
+#endif
+  float max() const;
+  
+  float cpu_min(int count, Type dtype, const void* X) const;
+#ifndef CPU_ONLY
+  float gpu_min(int count, Type dtype, const void* X) const;
+#endif
+  float min() const;
+    
+  int cpu_count_zero(int count, Type dtype, const void* X, float threshold) const;
+#ifndef CPU_ONLY
+  int gpu_count_zero(int count, Type dtype, const void* X, float threshold) const;
+#endif
+  int count_zero(float threshold) const;
+
+  void cpu_if_nonzero(int count, Type dtype, const void* X, void* Y) const;
+#ifndef CPU_ONLY
+  void gpu_if_nonzero(int count, Type dtype, const void* X, void* Y) const;
+#endif  
+  void SetSparseMode(const SparseMode mode);
+  		
+  void cpu_set(int count, Type dtype, void* X, float val);
+#ifndef CPU_ONLY
+  void gpu_set(int count, Type dtype, void* X, float val);
+#endif
+  void initialize_connectivity(float val = 1.0);
+  	  
+  void cpu_zerout(int count, Type dtype, const void* X, void* Y, float threshold);
+#ifndef CPU_ONLY
+  void gpu_zerout(int count, Type dtype, const void* X, void* Y, float threshold);
+#endif
+  void zerout(float threshold);
+
  protected:
   mutable shared_ptr<Tensor> data_tensor_;
   mutable shared_ptr<Tensor> diff_tensor_;
+    
   shared_ptr<SyncedMemory> shape_data_;
   vector<int> shape_;
   int count_;
   std::mutex reshape_mutex_;
   Type last_data_type_, last_diff_type_; // in case of move
 
+  //For sparse operation  
+  mutable shared_ptr<Tensor> connectivity_;
+  SparseMode sparse_mode_;
+  
   bool is_current_data_valid() const {
     return data_tensor_->is_current_valid();
   }

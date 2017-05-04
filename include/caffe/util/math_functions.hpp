@@ -158,9 +158,23 @@ inline int8_t caffe_sign(Dtype val) {
       operation; \
     } \
   }
-
+#define DEFINE_CAFFE_CPU_2NARY_FUNC(name, operation, threshold) \
+  template<typename Dtype> \
+  void caffe_cpu_##name(const int n, const Dtype* x, Dtype* y, Dtype threshold) { \
+    CHECK_GT(n, 0); CHECK(x); CHECK(y); \
+    for (int i = 0; i < n; ++i) { \
+      operation; \
+    } \
+  }
+  
 // output is 1 for the positives, 0 for zero, and -1 for the negatives
-DEFINE_CAFFE_CPU_UNARY_FUNC(sign, y[i] = caffe_sign<Dtype>(x[i]));
+DEFINE_CAFFE_CPU_UNARY_FUNC(sign,          y[i] = caffe_sign<Dtype>(x[i]));
+DEFINE_CAFFE_CPU_UNARY_FUNC(if_zero,       y[i] = ((x[i] <= Dtype(0) && x[i] >= Dtype(-0) ) ? 1 : 0) );
+DEFINE_CAFFE_CPU_UNARY_FUNC(if_nonzero,    y[i] = ((x[i] > Dtype(0) || x[i] < Dtype(-0) ) ? 1 : 0) );
+DEFINE_CAFFE_CPU_UNARY_FUNC(eltwise_multi, y[i] = (y[i]*x[i]) );
+
+DEFINE_CAFFE_CPU_2NARY_FUNC(zerout,        y[i] = ((x[i] <= Dtype(threshold) && x[i] >= Dtype(-threshold)) ? Dtype(0) : x[i]), threshold );
+
 
 // This returns a nonzero value if the input has its sign bit set.
 // The name sngbit is meant to avoid conflicts with std::signbit in the macro.
@@ -316,6 +330,30 @@ template <typename Dtype>
 void caffe_gpu_eltwise_min(const int n, const Dtype alpha, const Dtype* x,
     const Dtype beta, Dtype* y);
 
+template<typename Dtype>
+void caffe_gpu_eltwise_multi(const int n, const Dtype* x, Dtype* y);
+
+//float16 is too small range for count. so use a int return type always.
+template <typename Dtype>
+int caffe_gpu_count_zero(const int N, const Dtype* x, Dtype threshold);
+
+template <typename Dtype>
+Dtype caffe_gpu_min(const int N, const Dtype* x);
+
+template <typename Dtype>
+Dtype caffe_gpu_max(const int N, const Dtype* x);
+
+template<typename Dtype>
+void caffe_gpu_if_nonzero(const int n, const Dtype* x, Dtype* y);
+
+template<typename Dtype>
+void caffe_gpu_if_zero(const int n, const Dtype* x, Dtype* y);
+
+template <typename Dtype>
+void caffe_gpu_set(const int N, Dtype* x, Dtype value);
+
+template<typename Dtype>
+void caffe_gpu_zerout(const int n, const Dtype* x, Dtype* y, Dtype threshold);
 
 #define DEFINE_AND_INSTANTIATE_GPU_UNARY_FUNC(name, operation) \
 template<typename Dtype> \
@@ -384,6 +422,65 @@ void caffe_gpu_##name<float16>(const int n, const float16* x, float16* y, void* 
   name##_kernel<float16><<<CAFFE_GET_BLOCKS(n), CAFFE_CUDA_NUM_THREADS, 0, stream>>>( \
       n, x, y); \
 }
+
+#define DEFINE_AND_INSTANTIATE_GPU_1NARY_FUNC(name, operation, value) \
+template<typename Dtype> \
+__global__ void name##_kernel(const int n, Dtype* x, Dtype value) { \
+  CUDA_KERNEL_LOOP(index, n) { \
+    operation; \
+  } \
+} \
+template <> \
+void caffe_gpu_##name<float>(const int n, float* x, float value) { \
+  /* NOLINT_NEXT_LINE(whitespace/operators) */ \
+  name##_kernel<float><<<CAFFE_GET_BLOCKS(n), CAFFE_CUDA_NUM_THREADS, 0, \
+    Caffe::thread_stream()>>>\
+      (n, x, value); \
+} \
+template <> \
+void caffe_gpu_##name<double>(const int n, double* x, double value) { \
+  /* NOLINT_NEXT_LINE(whitespace/operators) */ \
+  name##_kernel<double><<<CAFFE_GET_BLOCKS(n), CAFFE_CUDA_NUM_THREADS, 0, \
+    Caffe::thread_stream()>>>\
+      (n, x, value); \
+} \
+template <> \
+void caffe_gpu_##name<float16>(const int n, float16* x, float16 value) { \
+  /* NOLINT_NEXT_LINE(whitespace/operators) */ \
+  name##_kernel<float16><<<CAFFE_GET_BLOCKS(n), CAFFE_CUDA_NUM_THREADS, 0, \
+    Caffe::thread_stream()>>>\
+      (n, x, value); \
+}
+
+#define DEFINE_AND_INSTANTIATE_GPU_X2NARY_FUNC(name, operation, threshold) \
+template<typename Dtype> \
+__global__ void name##_kernel(const int n, const Dtype* x, Dtype* y, Dtype threshold) { \
+  CUDA_KERNEL_LOOP(index, n) { \
+    operation; \
+  } \
+} \
+template <> \
+void caffe_gpu_##name<float>(const int n, const float *x, float *y, float threshold) { \
+  /* NOLINT_NEXT_LINE(whitespace/operators) */ \
+  name##_kernel<float><<<CAFFE_GET_BLOCKS(n), CAFFE_CUDA_NUM_THREADS, 0, \
+    Caffe::thread_stream()>>>\
+      (n, x, y, threshold); \
+} \
+template <> \
+void caffe_gpu_##name<double>(const int n, const double *x, double *y, double threshold) { \
+  /* NOLINT_NEXT_LINE(whitespace/operators) */ \
+  name##_kernel<double><<<CAFFE_GET_BLOCKS(n), CAFFE_CUDA_NUM_THREADS, 0, \
+    Caffe::thread_stream()>>>\
+      (n, x, y, threshold); \
+} \
+template <> \
+void caffe_gpu_##name<float16>(const int n, const float16 *x, float16 *y, float16 threshold) { \
+  /* NOLINT_NEXT_LINE(whitespace/operators) */ \
+  name##_kernel<float16><<<CAFFE_GET_BLOCKS(n), CAFFE_CUDA_NUM_THREADS, 0, \
+    Caffe::thread_stream()>>>\
+      (n, x, y, threshold); \
+}
+
 #endif  // !CPU_ONLY
 
 
@@ -406,6 +503,10 @@ inline void caffe_convert(bool use_gpu, const int n, const T_IN* in, T_OUT* out)
     caffe_cpu_convert(n, in, out);
   }
 }
+
+template <typename Dtype> Dtype caffe_cpu_max(const int n, const Dtype* x);
+template <typename Dtype> Dtype caffe_cpu_min(const int n, const Dtype* x);
+template <typename Dtype> Dtype caffe_cpu_count_zero(const int N, const Dtype* x, Dtype threshold);
 
 }  // namespace caffe
 

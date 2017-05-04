@@ -1102,6 +1102,29 @@ void Net::CopyTrainedLayersFrom(const NetParameter& param) {
   }
 }
 
+int Net::GetSparsity(std::map<std::string, std::pair<int,int> >& sparsity_map){
+  int blob_count = 0;
+  float threshold = 0.0f;
+  sparsity_map.clear();
+  int max_params_to_check = 1;
+  for (int layer_id = 0; layer_id < layers_.size(); ++layer_id) {	
+      const LayerParameter& layer_param = layers_[layer_id]->layer_param();  
+      if(layer_param.type() == "Convolution" || layer_param.type() == "InnerProduct") {
+          int num_params_to_check = std::min<int>(max_params_to_check, layers_[layer_id]->blobs().size());
+		  for (int param_id = 0; param_id < num_params_to_check;++param_id) {
+		    const Blob& blob = *layers_[layer_id]->blobs()[param_id];
+		    const int net_param_id = param_id_vecs_[layer_id][param_id];
+		    const string& blob_name = param_display_names_[net_param_id];
+		    //const Dtype data_abs_val_mean = blob.asum_data() / blob.count();
+		    std::pair<int,int> sp_map = std::make_pair(blob.count_zero(threshold), blob.count());
+		    sparsity_map[layer_names_[layer_id] + "_param_" + blob_name] = sp_map;
+			blob_count++;
+		  }	
+	  }
+  }
+  return blob_count;
+}
+
 void Net::CopyTrainedLayersFrom(const string trained_filename) {
   if (trained_filename.size() >= 3 &&
       trained_filename.compare(trained_filename.size() - 3, 3, ".h5") == 0) {
@@ -1359,5 +1382,85 @@ void Net::InitializeLearnableDiffSpace() {
   }
 }
 #endif
+	
+void Net::ThresholdNet(float threshold_fraction_low, float threshold_fraction_mid, float threshold_fraction_high,
+    float threshold_value_maxratio, float threshold_value_max, float threshold_step_factor) {
+
+  for (int i = 0; i < (layers_.size()-1); i++) {
+    if (layers_[i]->type() == std::string("Convolution")) {
+      LayerBase& conv_layer = *layers_[i];
+      Blob& conv_weights = *conv_layer.blobs()[0];
+      int num_group = layers_[i]->layer_param().convolution_param().group();
+      //int stride = layers_[i]->layer_param().convolution_param().stride_size()>0? layers_[i]->layer_param().convolution_param().stride(0) : 1;
+
+	  int no = (conv_weights.num_axes() == 1)? conv_weights.count() : conv_weights.shape(0);
+	  int ni = ((conv_weights.num_axes() == 1)? conv_weights.count() : conv_weights.shape(1))*num_group;
+	  float count = conv_weights.count();
+	  LOG(WARNING) << layers_[i]->layer_param().name() << " ni=" << ni << " no=" << no;
+
+	  if(ni>=32 || no >= 32) {
+	    float threshold_fraction_selected = ((ni>=256 && no >= 512)? threshold_fraction_high :
+	        ((ni>=32 && no >= 32)? threshold_fraction_mid: threshold_fraction_low));
+	    float selected_threshold = 0;
+	    float max_abs = std::abs(conv_weights.max());
+	    float min_abs = std::abs(conv_weights.min());
+	    float max_abs_value = std::max<float>(max_abs, min_abs);
+	    float step_size = max_abs_value * threshold_step_factor;
+	    float max_threshold_value = std::min<float>(threshold_value_max, max_abs_value*threshold_value_maxratio);
+
+	    //LOG(WARNING) << layers_[i]->layer_param().name() << " MaxAbsWeight=" << max_abs_value;
+	    //LOG(WARNING) << layers_[i]->layer_param().name() << " max_threshold_value=" << max_threshold_value;
+	    //LOG(WARNING) << layers_[i]->layer_param().name() << " step_size=" << step_size;
+
+	    for(float step=0; step<max_abs_value && step<max_threshold_value; step+=step_size) {
+	      float zcount = conv_weights.count_zero((float)step);
+	      float zratio = zcount / count;
+	      //LOG(WARNING) << layers_[i]->layer_param().name() << " Threshold=" << step << " ZeroPercentage=" << zratio*100;
+	      if(zratio <= threshold_fraction_selected) {
+	        selected_threshold = step;
+	      } else {
+	        break;
+	      }
+	    }	
+
+
+        conv_weights.zerout(selected_threshold);
+        float zcount = conv_weights.count_zero(selected_threshold);
+        LOG(WARNING) << layers_[i]->layer_param().name() << " MaxAbsWeight=" << max_abs_value << " MaxThreshold=" << max_threshold_value << " SelectedThreshold=" << selected_threshold << " ZeroPercentage=" << (zcount*100/count);
+      }
+    }
+  }
+
+  this->DisplaySparsity();
+}
+
+void Net::DisplaySparsity() {
+  std::map<std::string, std::pair<int,int> > spasity_map;
+  int blob_count = this->GetSparsity(spasity_map);
+  LOG(INFO) << "Num Params(" << blob_count << "), ";
+  float total_zero_count = 0, total_count = 0;
+  std::stringstream ss;
+  ss << "Convolution and InnerProduct Layers, Sparsity (zero_weights/count): ";
+  for(std::map<std::string, std::pair<int,int> >::iterator
+      iter = spasity_map.begin(); iter != spasity_map.end(); iter++) {
+    std::string param_name = iter->first;
+    float zero_count = iter->second.first;
+    float count = iter->second.second;
+    total_zero_count += zero_count;
+    total_count += count;
+    ss << param_name << "(" << std::setprecision(3) << (zero_count/count) << ") ";
+    //ss << param_name << "(" << zero_count << "/" << count << ") ";
+  }
+  LOG(INFO) << ss.str();
+  LOG(INFO) << "Total Sparsity (zero_weights/count) = "
+      << " (" << total_zero_count << "/" << total_count << ") "
+      << std::setprecision(3) << (total_zero_count/total_count);
+}
+
+void Net::SetSparseMode(SparseMode mode) {
+  for(int layer_id=0; layer_id<layers_.size(); layer_id++) {
+    layers_[layer_id]->SetSparseMode(mode);
+  }
+}
 
 }  // namespace caffe

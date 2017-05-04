@@ -136,6 +136,13 @@ message NetParameter {
   optional int32 reduce_buckets = 18 [default = 6];
 }
 
+// Specifies how to deal with connections whose weights are recovered/initialized as zeros. 
+// Used for fine-tuning
+enum SparseMode {
+  SPARSE_NONE = 0;               //keep connected
+  SPARSE_WEIGHTS = 1;            //disconnect all zero-weight connections
+} 
+
 // NOTE
 // Update the next available ID when you add a new SolverParameter field.
 //
@@ -288,6 +295,9 @@ message SolverParameter {
   optional SolverType solver_type = 30 [default = SGD];
   // Type used for storing weights and history
   optional Type solver_data_type = 44 [default = FLOAT];
+  // Sparsity params
+  optional int32 display_sparsity = 45 [default = 0];
+  optional SparseMode sparse_mode = 46 [default = SPARSE_NONE];  
 }
 
 // A message that stores the solver snapshots
@@ -397,7 +407,7 @@ message LayerParameter {
   //
   // The size must be either 0 or equal to the number of bottoms.
   repeated bool propagate_down = 11;
-
+  optional SparseMode sparse_mode = 12 [default = SPARSE_NONE];
   // Rules controlling whether and when a layer is included in the network,
   // based on the current NetState.  You may specify a non-zero number of rules
   // to include OR exclude, but not both.  If no include or exclude rules are

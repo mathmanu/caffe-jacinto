@@ -9,6 +9,16 @@
 namespace caffe {
 
 template<typename Ftype, typename Btype>
+void BaseConvolutionLayer<Ftype, Btype>::SetSparseMode(SparseMode mode){
+  //disconnect connections
+  if(mode != SPARSE_NONE){
+      this->mutable_layer_param().set_sparse_mode(mode);
+      LOG(INFO)<<"all zero weights of "<<this->layer_param().name()<<" are frozen";
+      this->blobs_[0]->SetSparseMode(mode);
+  }
+}
+
+template<typename Ftype, typename Btype>
 void BaseConvolutionLayer<Ftype, Btype>::LayerSetUp(const vector<Blob*>& bottom,
     const vector<Blob*>& top) {
   // Configure the kernel size, padding, stride, and inputs.

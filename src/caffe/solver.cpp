@@ -185,6 +185,13 @@ void Solver::InitTestNets() {
   }
 }
 
+
+void Solver::SetSparseMode() {
+  if (param_.sparse_mode() != caffe::SPARSE_NONE) {
+    net_->SetSparseMode(param_.sparse_mode());
+  }
+}
+
 void Solver::Step(int iters) {
   const int start_iter = iter_;
   const int stop_iter = iter_ + iters;
@@ -328,6 +335,7 @@ void Solver::Step(int iters) {
       iterations_last_ = iter_;
       iteration_timer_.Start();
     }
+
     // Increment the internal iter_ counter -- its value should always indicate
     // the number of times the weights have been updated.
     ++iter_;
@@ -348,6 +356,13 @@ void Solver::Step(int iters) {
     }
   }
   Finalize();
+  
+  if(param_.display_sparsity() > 0 && (iter_ % param_.display_sparsity()) == 0) {
+    if(Caffe::root_solver()) {
+        LOG(INFO) << "Sparsity after update:";
+        net_->DisplaySparsity();
+    }
+  }  
 }
 
 void Solver::Finalize() {

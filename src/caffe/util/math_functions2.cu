@@ -7,6 +7,14 @@
 #include "caffe/util/gpu_math_functions.cuh"
 #include "caffe/util/math_functions.hpp"
 
+#include <thrust/device_vector.h>
+#include <thrust/functional.h>  // thrust::plus
+#include <thrust/reduce.h>
+
+#include <thrust/extrema.h>
+#include <thrust/pair.h>
+#include <thrust/count.h>
+
 namespace caffe {
 
 
@@ -258,8 +266,7 @@ void caffe_gpu_powx<float16>(const int N, const float16* a,
   CUDA_CHECK(cudaStreamSynchronize(stream));
 }
 
-DEFINE_AND_INSTANTIATE_GPU_UNARY_FUNC_AUX(sign,
-    y[index] = (Dtype(0) < x[index]) - (x[index] < Dtype(0)));
+DEFINE_AND_INSTANTIATE_GPU_UNARY_FUNC_AUX(sign, y[index] = (Dtype(0) < x[index]) - (x[index] < Dtype(0)));
 DEFINE_AND_INSTANTIATE_GPU_UNARY_FUNC(sgnbit, y[index] = signbit(x[index]));
 
 __global__ void popc_kernel(const int n, const float* a,
@@ -513,5 +520,79 @@ void caffe_gpu_eltwise_min<float16>(const int N,
   CUDA_CHECK(cudaStreamSynchronize(stream));
 }
 #endif
+
+//Already defined above
+//DEFINE_AND_INSTANTIATE_GPU_UNARY_FUNC(sign, y[index] = (Dtype(0) < x[index]) - (x[index] < Dtype(0)));
+//DEFINE_AND_INSTANTIATE_GPU_UNARY_FUNC(sgnbit, y[index] = signbit(x[index]));
+
+DEFINE_AND_INSTANTIATE_GPU_UNARY_FUNC(if_zero, y[index] = ((x[index] <= Dtype(0) && x[index] >= Dtype(-0) ) ? 1 : 0) );
+DEFINE_AND_INSTANTIATE_GPU_UNARY_FUNC(if_nonzero, y[index] = ((x[index] > Dtype(0) || x[index] < Dtype(-0) ) ? 1 : 0) )
+DEFINE_AND_INSTANTIATE_GPU_UNARY_FUNC(eltwise_multi, y[index] = y[index]*x[index] )
+
+DEFINE_AND_INSTANTIATE_GPU_1NARY_FUNC(set, x[index] = value, value )
+
+DEFINE_AND_INSTANTIATE_GPU_X2NARY_FUNC(zerout, y[index] = y[index]*x[index], threshold )
+
+template <typename Dtype>
+struct CheckZeroFunctor {
+  CheckZeroFunctor(const Dtype threshold) : threshold(threshold) {
+  }
+  __host__ __device__ bool operator()(const Dtype& x) {
+    return (x<=(threshold) && x>=(-threshold));
+  }
+  const Dtype threshold;
+};
+
+//float16 is too small range for count. so use a int return type always.
+template <typename Dtype>
+int caffe_gpu_count_zero(const int N, const Dtype* x, Dtype threshold) {
+  CheckZeroFunctor<Dtype> check_zero(threshold);
+  thrust::device_ptr<const Dtype> pWrapper(x);
+  int count = thrust::count_if(pWrapper, pWrapper+N, check_zero);
+  return count;
+}
+template<> int caffe_gpu_count_zero<float>(const int N, const float* x, float threshold);
+template<> int caffe_gpu_count_zero<double>(const int N, const double* x, double threshold);
+template<> int caffe_gpu_count_zero<float16>(const int N, const float16* x, float16 threshold);
+
+struct transform_op_float16_to_float {
+  __host__ __device__ float operator()(const float16 v1) {
+    return float(v1);
+  }  
+};
+
+template <typename Dtype>
+Dtype caffe_gpu_min(const int N, const Dtype* x) {
+  thrust::device_ptr<const Dtype> pWrapper(x);
+  const thrust::device_ptr<const Dtype> min_val = thrust::min_element(pWrapper, pWrapper+N);
+  return *min_val;
+}
+template<> float caffe_gpu_min(const int N, const float* x);
+template<> double caffe_gpu_min(const int N, const double* x);
+//Avoid float16 errors, probably because thrust::greater(), thrust::lesser() 
+//are not available for float16: provide a different specializer here
+template<> float16 caffe_gpu_min(const int N, const float16* x){
+  thrust::device_ptr<const float16> pWrapper(x);
+  float min_val = thrust::transform_reduce(pWrapper, pWrapper+N, transform_op_float16_to_float(), 
+    float(std::numeric_limits<float>::max()), thrust::less<float>());
+  return min_val;
+}
+
+template <typename Dtype>
+Dtype caffe_gpu_max(const int N, const Dtype* x) {
+  thrust::device_ptr<const Dtype> pWrapper(x);
+  const thrust::device_ptr<const Dtype> max_val = thrust::max_element(pWrapper, pWrapper+N);
+  return *max_val;
+}
+template<> float caffe_gpu_max(const int N, const float* x);
+template<> double caffe_gpu_max(const int N, const double* x);
+//Avoid float16 errors, probably because thrust::greater(), thrust::lesser() 
+//are not available for float16: provide a different specializer here
+template<> float16 caffe_gpu_max(const int N, const float16* x) {
+  thrust::device_ptr<const float16> pWrapper(x);
+  float max_val = thrust::transform_reduce(pWrapper, pWrapper+N, transform_op_float16_to_float(), 
+    float(std::numeric_limits<float>::lowest()), thrust::greater<float>());
+  return max_val;
+}
 
 }  // namespace caffe

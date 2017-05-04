@@ -94,6 +94,10 @@ class LayerBase {
    * accommodate the bottom blobs.
    */
   virtual void Reshape(const vector<Blob*>& bottom, const vector<Blob*>& top) = 0;
+  /*
+   * typically for convolutional layers, to align nonzero weights together
+   * */
+  virtual void SetSparseMode(SparseMode mode) {}
 
   /**
    * @brief Whether a layer should be shared by multiple nets during data
@@ -124,6 +128,7 @@ class LayerBase {
    * @brief Returns the layer parameter.
    */
   const LayerParameter& layer_param() const { return layer_param_; }
+  LayerParameter& mutable_layer_param() { return layer_param_; }
 
   /**
    * @brief Returns the layer type.

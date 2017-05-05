@@ -41,7 +41,7 @@ layer {
   python_param {
     module: "jacintopy.layers.ImageDataset"
     layer: "ImageDataset"
-    param_str: "{\'source_type\': \'LMDB\', \'batch_size\': 128, \'source\': \'/data/ssd/datasets/object-detect/other/ilsvrc/2012/lmdb/size256/ilsvrc12_train_lmdb\', \'prefetch\': False, \'fetch_type\': \'RANDOM\', \'resize\': \'(256, 256)\', \'crop\': \'(224, 224)\', \'compressed\': True}"
+    param_str: "{\'source_type\': \'LMDB\', \'batch_size\': 128, \'source\': \'/data/ssd/datasets/object-detect/other/ilsvrc/2012/lmdb/size256/ilsvrc12_train_lmdb\', \'prefetch\': True, \'fetch_type\': \'RANDOM\', \'resize\': \'(256, 256)\', \'crop\': \'(224, 224)\', \'compressed\': True}"
   }
 }
 
@@ -54,7 +54,7 @@ layer {
   python_param {
     module: "jacintopy.layers.ImageDataset"
     layer: "ImageDataset"
-    param_str: "{\'source_type\': \'LMDB\', \'batch_size\': 128, \'source\': \'/data/ssd/datasets/object-detect/other/ilsvrc/2012/lmdb/size256/ilsvrc12_val_lmdb\', \'prefetch\': False, \'fetch_type\': \'RANDOM\', \'resize\': \'(256, 256)\', \'crop\': \'(224, 224)\', \'compressed\': True}"
+    param_str: "{\'source_type\': \'LMDB\', \'batch_size\': 128, \'source\': \'/data/ssd/datasets/object-detect/other/ilsvrc/2012/lmdb/size256/ilsvrc12_val_lmdb\', \'prefetch\': True, \'fetch_type\': \'RANDOM\', \'resize\': \'(256, 256)\', \'crop\': \'(224, 224)\', \'compressed\': True}"
   }
 }
 

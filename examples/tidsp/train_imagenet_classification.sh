@@ -21,7 +21,7 @@ caffe=../../build/tools/caffe.bin
 
 #L2 regularized training
 
-$caffe train --solver="models/sparse/imagenet_classification/jacintonet11_maxpool/jacintonet11(1000)_bn_maxpool_train_L2.prototxt" --gpu=0 
+$caffe train --solver="models/sparse/imagenet_classification/jacintonet11_maxpool/jacintonet11(1000)_bn_maxpool_train_L2_pylayers.prototxt" --gpu=1,0 
 
 pause 'Finished L2 training. Press [Enter] to continue...'
 

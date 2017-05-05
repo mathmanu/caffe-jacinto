@@ -31,45 +31,33 @@ name: "JacintoNet-11-MaxPool(1000)"
 #default_forward_math:  FLOAT
 #default_backward_math: FLOAT
 
+
 layer {
   name: "data"
-  type: "Data"
+  type: "Python"
   top: "data"
   top: "label"
   include {  phase: TRAIN  }
-  transform_param {
-    crop_size: 224
-    mirror: true
-    mean_value: 128
-    mean_value: 128
-    mean_value: 128
-  }
-  data_param {
-    source: "./data/ilsvrc12_train_lmdb"
-    batch_size: 128
-    backend: LMDB
+  python_param {
+    module: "jacintopy.layers.ImageDataset"
+    layer: "ImageDataset"
+    param_str: "{\'source_type\': \'LMDB\', \'batch_size\': 128, \'source\': \'/data/ssd/datasets/object-detect/other/ilsvrc/2012/lmdb/size256/ilsvrc12_train_lmdb\', \'prefetch\': False, \'fetch_type\': \'RANDOM\', \'resize\': \'(256, 256)\', \'crop\': \'(224, 224)\', \'compressed\': True}"
   }
 }
 
 layer {
   name: "data"
-  type: "Data"
+  type: "Python"
   top: "data"
   top: "label"
   include {  phase: TEST  }
-  transform_param {
-    crop_size: 224
-    mirror: false       
-    mean_value: 128
-    mean_value: 128
-    mean_value: 128
-  }
-  data_param {
-    source: "./data/ilsvrc12_val_lmdb"
-    batch_size: 128
-    backend: LMDB
+  python_param {
+    module: "jacintopy.layers.ImageDataset"
+    layer: "ImageDataset"
+    param_str: "{\'source_type\': \'LMDB\', \'batch_size\': 128, \'source\': \'/data/ssd/datasets/object-detect/other/ilsvrc/2012/lmdb/size256/ilsvrc12_val_lmdb\', \'prefetch\': False, \'fetch_type\': \'RANDOM\', \'resize\': \'(256, 256)\', \'crop\': \'(224, 224)\', \'compressed\': True}"
   }
 }
+
 
 layer {
   name: "conv1a"

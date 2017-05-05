@@ -3,11 +3,47 @@ from PIL import Image
 from cStringIO import StringIO
 import caffe
 import yaml
+from multiprocessing import (Process, Pipe)
+import atexit
 from LMDBReader import LMDBReader
 
 class ImageDataset(caffe.Layer):
   def setup(self, bottom, top):
-    self._layer_params = yaml.load(self.param_str)
+    self._param_str = self.param_str
+    self._conn, conn = Pipe()
+    self._prefetcher = ImagePrefetcher(conn, self._param_str)
+    self._prefetcher.start()
+    def cleanup():
+      self._prefetcher.terminate()
+      self._prefetcher.join() 
+      self._conn.close()     
+    atexit.register(cleanup)
+    self.reshape(bottom, top)
+    
+  def forward(self, bottom, top):
+    blob = self._conn.recv()
+    for i in range(len(blob)):
+      top[i].reshape(*(blob[i].shape))
+      top[i].data[...] = blob[i].astype(np.float32, copy=False)
+    return
+
+  def backward(self, bottom, top):
+    pass
+  
+  def reshape(self, bottom, top):
+    blob = self._conn.recv()
+    for i in range(len(blob)):
+      top[i].reshape(*(blob[i].shape))
+    return
+      
+
+    
+class ImagePrefetcher(Process):
+  def __init__(self, conn, param_str):
+    super(ImagePrefetcher, self).__init__()
+    self._conn = conn
+    self._param_str = param_str
+    self._layer_params = yaml.load(self._param_str)
     self._source = self._layer_params.get('source')
     self._source_type = self._layer_params.get('source_type')
     self._batch_size = self._layer_params.get('batch_size')
@@ -17,6 +53,10 @@ class ImageDataset(caffe.Layer):
     self._crop = self._layer_params.get('crop'); exec('self._crop='+self._crop);   
     self._compressed = self._layer_params.get('compressed')          
     self._reader = LMDBReader(self._source)
+    return 
+      
+  def type(self):
+    return 'ImagePrefetcher'
     
   def decode_image_str(self,image_data):
     if self._compressed:
@@ -45,25 +85,8 @@ class ImageDataset(caffe.Layer):
     label_batch = np.array(label_batch).reshape(self._batch_size, 1, 1, 1)
     batch = [image_batch, label_batch]
     return batch
-        
-  def forward(self, bottom, top):
-    blob = self.next()
-    for i in range(len(blob)):
-      top[i].reshape(*(blob[i].shape))
-      top[i].data[...] = blob[i].astype(np.float32, copy=False)
-    return
-
-  def backward(self, bottom, top):
-    pass
-  
-  def reshape(self, bottom, top):
-    blob = self.next()
-    for i in range(len(blob)):
-      top[i].reshape(*(blob[i].shape))
-    return
-      
-
     
-        
-    
-
+  def run(self):
+    while True:
+      batch = self.next()
+      self._conn.send(batch)

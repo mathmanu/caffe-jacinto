@@ -551,9 +551,12 @@ int caffe_gpu_count_zero(const int N, const Dtype* x, Dtype threshold) {
   int count = thrust::count_if(pWrapper, pWrapper+N, check_zero);
   return count;
 }
-template<> int caffe_gpu_count_zero<float>(const int N, const float* x, float threshold);
-template<> int caffe_gpu_count_zero<double>(const int N, const double* x, double threshold);
-template<> int caffe_gpu_count_zero<float16>(const int N, const float16* x, float16 threshold);
+template
+int caffe_gpu_count_zero<float>(const int N, const float* x, float threshold);
+template
+int caffe_gpu_count_zero<double>(const int N, const double* x, double threshold);
+template
+int caffe_gpu_count_zero<float16>(const int N, const float16* x, float16 threshold);
 
 struct transform_op_float16_to_float {
   __host__ __device__ float operator()(const float16 v1) {
@@ -567,11 +570,14 @@ Dtype caffe_gpu_min(const int N, const Dtype* x) {
   const thrust::device_ptr<const Dtype> min_val = thrust::min_element(pWrapper, pWrapper+N);
   return *min_val;
 }
-template<> float caffe_gpu_min(const int N, const float* x);
-template<> double caffe_gpu_min(const int N, const double* x);
+template
+float caffe_gpu_min(const int N, const float* x);
+template
+double caffe_gpu_min(const int N, const double* x);
 //Avoid float16 errors, probably because thrust::greater(), thrust::lesser() 
 //are not available for float16: provide a different specializer here
-template<> float16 caffe_gpu_min(const int N, const float16* x){
+template<>
+float16 caffe_gpu_min(const int N, const float16* x){
   thrust::device_ptr<const float16> pWrapper(x);
   float min_val = thrust::transform_reduce(pWrapper, pWrapper+N, transform_op_float16_to_float(), 
     float(std::numeric_limits<float>::max()), thrust::less<float>());
@@ -584,11 +590,14 @@ Dtype caffe_gpu_max(const int N, const Dtype* x) {
   const thrust::device_ptr<const Dtype> max_val = thrust::max_element(pWrapper, pWrapper+N);
   return *max_val;
 }
-template<> float caffe_gpu_max(const int N, const float* x);
-template<> double caffe_gpu_max(const int N, const double* x);
+template
+float caffe_gpu_max(const int N, const float* x);
+template
+double caffe_gpu_max(const int N, const double* x);
 //Avoid float16 errors, probably because thrust::greater(), thrust::lesser() 
 //are not available for float16: provide a different specializer here
-template<> float16 caffe_gpu_max(const int N, const float16* x) {
+template<> 
+float16 caffe_gpu_max(const int N, const float16* x) {
   thrust::device_ptr<const float16> pWrapper(x);
   float max_val = thrust::transform_reduce(pWrapper, pWrapper+N, transform_op_float16_to_float(), 
     float(std::numeric_limits<float>::lowest()), thrust::greater<float>());

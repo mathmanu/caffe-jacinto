@@ -93,7 +93,7 @@ layer {
 layer {
   name: "conv1a/bn"
   bottom: "conv1a"
-  top: "conv1a/bn"
+  top: "conv1a"
   type: "BatchNorm"
   batch_norm_param {
     moving_average_fraction: 0.99
@@ -103,13 +103,13 @@ layer {
 }
 layer {
   name: "conv1a/relu"
-  bottom: "conv1a/bn"
-  top: "conv1a/bn"
+  bottom: "conv1a"
+  top: "conv1a"
   type: "ReLU"
 }
 layer {
   name: "conv1b"
-  bottom: "conv1a/bn"
+  bottom: "conv1a"
   top: "conv1b"
   type: "Convolution"
   param { lr_mult: 1 decay_mult: 1 }
@@ -129,7 +129,7 @@ layer {
 layer {
   name: "conv1b/bn"
   bottom: "conv1b"
-  top: "conv1b/bn"
+  top: "conv1b"
   type: "BatchNorm"
   batch_norm_param {
     moving_average_fraction: 0.99
@@ -140,14 +140,14 @@ layer {
 
 layer {
   name: "conv1b/relu"
-  bottom: "conv1b/bn"
-  top: "conv1b/bn"
+  bottom: "conv1b"
+  top: "conv1b"
   type: "ReLU"
 }
 layer {
   name: "pool1"
   type: "Pooling"
-  bottom: "conv1b/bn"
+  bottom: "conv1b"
   top: "pool1a"
   pooling_param {
     pool: MAX
@@ -177,7 +177,7 @@ layer {
 layer {
   name: "res2a_branch2a/bn"
   bottom: "res2a_branch2a"
-  top: "res2a_branch2a/bn"
+  top: "res2a_branch2a"
   type: "BatchNorm"
   batch_norm_param {
     moving_average_fraction: 0.99
@@ -188,13 +188,13 @@ layer {
 
 layer {
   name: "res2a_branch2a/relu"
-  bottom: "res2a_branch2a/bn"
-  top: "res2a_branch2a/bn"
+  bottom: "res2a_branch2a"
+  top: "res2a_branch2a"
   type: "ReLU"
 }
 layer {
   name: "res2a_branch2b"
-  bottom: "res2a_branch2a/bn"
+  bottom: "res2a_branch2a"
   top: "res2a_branch2b"
   type: "Convolution"
   param { lr_mult: 1 decay_mult: 1 }
@@ -214,7 +214,7 @@ layer {
 layer {
   name: "res2a_branch2b/bn"
   bottom: "res2a_branch2b"
-  top: "res2a_branch2b/bn"
+  top: "res2a_branch2b"
   type: "BatchNorm"
   batch_norm_param {
     moving_average_fraction: 0.99
@@ -225,14 +225,14 @@ layer {
 
 layer {
   name: "res2a_branch2b/relu"
-  bottom: "res2a_branch2b/bn"
-  top: "res2a_branch2b/bn"
+  bottom: "res2a_branch2b"
+  top: "res2a_branch2b"
   type: "ReLU"
 }
 layer {
   name: "pool2"
   type: "Pooling"
-  bottom: "res2a_branch2b/bn"
+  bottom: "res2a_branch2b"
   top: "pool2a"
   pooling_param {
     pool: MAX
@@ -262,7 +262,7 @@ layer {
 layer {
   name: "res3a_branch2a/bn"
   bottom: "res3a_branch2a"
-  top: "res3a_branch2a/bn"
+  top: "res3a_branch2a"
   type: "BatchNorm"
   batch_norm_param {
     moving_average_fraction: 0.99
@@ -273,13 +273,13 @@ layer {
 
 layer {
   name: "res3a_branch2a/relu"
-  bottom: "res3a_branch2a/bn"
-  top: "res3a_branch2a/bn"
+  bottom: "res3a_branch2a"
+  top: "res3a_branch2a"
   type: "ReLU"
 }
 layer {
   name: "res3a_branch2b"
-  bottom: "res3a_branch2a/bn"
+  bottom: "res3a_branch2a"
   top: "res3a_branch2b"
   type: "Convolution"
   param { lr_mult: 1 decay_mult: 1 }
@@ -299,7 +299,7 @@ layer {
 layer {
   name: "res3a_branch2b/bn"
   bottom: "res3a_branch2b"
-  top: "res3a_branch2b/bn"
+  top: "res3a_branch2b"
   type: "BatchNorm"
   batch_norm_param {
     moving_average_fraction: 0.99
@@ -310,14 +310,14 @@ layer {
 
 layer {
   name: "res3a_branch2b/relu"
-  bottom: "res3a_branch2b/bn"
-  top: "res3a_branch2b/bn"
+  bottom: "res3a_branch2b"
+  top: "res3a_branch2b"
   type: "ReLU"
 }
 layer {
   name: "pool3"
   type: "Pooling"
-  bottom: "res3a_branch2b/bn"
+  bottom: "res3a_branch2b"
   top: "pool3a"
   pooling_param {
     pool: MAX
@@ -347,7 +347,7 @@ layer {
 layer {
   name: "res4a_branch2a/bn"
   bottom: "res4a_branch2a"
-  top: "res4a_branch2a/bn"
+  top: "res4a_branch2a"
   type: "BatchNorm"
   batch_norm_param {
     moving_average_fraction: 0.99
@@ -358,13 +358,13 @@ layer {
 
 layer {
   name: "res4a_branch2a/relu"
-  bottom: "res4a_branch2a/bn"
-  top: "res4a_branch2a/bn"
+  bottom: "res4a_branch2a"
+  top: "res4a_branch2a"
   type: "ReLU"
 }
 layer {
   name: "res4a_branch2b"
-  bottom: "res4a_branch2a/bn"
+  bottom: "res4a_branch2a"
   top: "res4a_branch2b"
   type: "Convolution"
   param { lr_mult: 1 decay_mult: 1 }
@@ -384,7 +384,7 @@ layer {
 layer {
   name: "res4a_branch2b/bn"
   bottom: "res4a_branch2b"
-  top: "res4a_branch2b/bn"
+  top: "res4a_branch2b"
   type: "BatchNorm"
   batch_norm_param {
     moving_average_fraction: 0.99
@@ -395,14 +395,14 @@ layer {
 
 layer {
   name: "res4a_branch2b/relu"
-  bottom: "res4a_branch2b/bn"
-  top: "res4a_branch2b/bn"
+  bottom: "res4a_branch2b"
+  top: "res4a_branch2b"
   type: "ReLU"
 }
 layer {
   name: "pool4"
   type: "Pooling"
-  bottom: "res4a_branch2b/bn"
+  bottom: "res4a_branch2b"
   top: "pool4a"
   pooling_param {
     pool: MAX
@@ -432,7 +432,7 @@ layer {
 layer {
   name: "res5a_branch2a/bn"
   bottom: "res5a_branch2a"
-  top: "res5a_branch2a/bn"
+  top: "res5a_branch2a"
   type: "BatchNorm"
   batch_norm_param {
     moving_average_fraction: 0.99
@@ -443,13 +443,13 @@ layer {
 
 layer {
   name: "res5a_branch2a/relu"
-  bottom: "res5a_branch2a/bn"
-  top: "res5a_branch2a/bn"
+  bottom: "res5a_branch2a"
+  top: "res5a_branch2a"
   type: "ReLU"
 }
 layer {
   name: "res5a_branch2b"
-  bottom: "res5a_branch2a/bn"
+  bottom: "res5a_branch2a"
   top: "res5a_branch2b"
   type: "Convolution"
   param { lr_mult: 1 decay_mult: 1 }
@@ -469,7 +469,7 @@ layer {
 layer {
   name: "res5a_branch2b/bn"
   bottom: "res5a_branch2b"
-  top: "res5a_branch2b/bn"
+  top: "res5a_branch2b"
   type: "BatchNorm"
   batch_norm_param {
     moving_average_fraction: 0.99
@@ -480,13 +480,13 @@ layer {
 
 layer {
   name: "res5a_branch2b/relu"
-  bottom: "res5a_branch2b/bn"
-  top: "res5a_branch2b/bn"
+  bottom: "res5a_branch2b"
+  top: "res5a_branch2b"
   type: "ReLU"
 }
 layer {
   name: "pool5"
-  bottom: "res5a_branch2b/bn"
+  bottom: "res5a_branch2b"
   top: "pool5"
   type: "Pooling"
   pooling_param {

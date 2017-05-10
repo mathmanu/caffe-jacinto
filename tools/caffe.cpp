@@ -37,6 +37,8 @@ DEFINE_string(snapshot, "",
 DEFINE_string(weights, "",
     "Optional; the pretrained weights to initialize finetuning, "
     "separated by ', '. Cannot be set simultaneously with snapshot.");
+DEFINE_string(output, "",
+    "Prefix for output prototxt and caffemodel");
 DEFINE_int32(iterations, 50,
     "The number of iterations to run.");
 DEFINE_string(sigint_effect, "stop",
@@ -45,6 +47,14 @@ DEFINE_string(sigint_effect, "stop",
 DEFINE_string(sighup_effect, "snapshot",
              "Optional; action to take when a SIGHUP signal is received: "
              "snapshot, stop or none.");
+
+DEFINE_double(threshold_fraction_low, 0.40, "Optional: fraction of weights to be zeroed");
+DEFINE_double(threshold_fraction_mid, 0.80, "Optional: fraction of weights to be zeroed");
+DEFINE_double(threshold_fraction_high, 0.90, "Optional: fraction of weights to be zeroed");
+
+DEFINE_double(threshold_value_maxratio, 1e-3, "Optional: determine threshold as a factor of max");
+DEFINE_double(threshold_value_max, 1e-4, "Optional: vlues of weights below which are zeroed");
+DEFINE_double(threshold_step_factor, 1e-8, "Optional: step factor to find the optimal threshold for each layer");
 
 // A simple registry for caffe commands.
 typedef int (*BrewFunction)();
@@ -447,6 +457,133 @@ int time() {
   return 0;
 }
 RegisterBrewFunction(time);
+
+// Quantize a model.
+int quantize() {
+  train();
+  return 0;
+}
+RegisterBrewFunction(quantize);
+
+// Optimize a model.
+int optimize() {
+  CHECK_GT(FLAGS_model.size(), 0) << "Need a model definition to optimize.";
+  CHECK_GT(FLAGS_weights.size(), 0) << "Need model weights to optimize.";
+
+  // Read flags for list of GPUs
+  vector<int> gpus;
+  get_gpus(&gpus);
+  while (gpus.size() > 1) {
+    // Only use one GPU
+    LOG(INFO) << "Not using GPU #" << gpus.back() << " for single-GPU function";
+    gpus.pop_back();
+  }
+#ifndef CPU_ONLY
+  caffe::GPUMemory::Scope gpu_memory_scope(gpus);
+#endif
+
+  // Set mode and device id
+  if (gpus.size() != 0) {
+    LOG(INFO) << "Use GPU with device ID " << gpus[0];
+#ifndef CPU_ONLY
+    cudaDeviceProp device_prop;
+    cudaGetDeviceProperties(&device_prop, gpus[0]);
+    LOG(INFO) << "GPU device name: " << device_prop.name;
+#endif
+    Caffe::SetDevice(gpus[0]);
+    Caffe::set_mode(Caffe::GPU);
+  } else {
+    LOG(INFO) << "Use CPU.";
+    Caffe::set_mode(Caffe::CPU);
+  }
+
+  // Instantiate the caffe net.
+  Net caffe_net(FLAGS_model, caffe::TEST);
+  caffe_net.CopyTrainedLayersFrom(FLAGS_weights);
+
+  LOG(INFO) << "Optimizing Net " << FLAGS_model;
+  //hardcode the data type to float for now
+  caffe_net.OptimizeNet<float>();
+
+  boost::filesystem::path output_path(FLAGS_output);
+  string output_prefix = output_path.parent_path().string() + "/" + output_path.stem().string();
+
+  caffe::NetParameter net_txt;
+  caffe_net.ToProto(&net_txt, false);
+  string model_filename = output_prefix + ".prototxt";
+  LOG(INFO) << "Snapshotting optimized prototxt to file " << model_filename;
+  caffe::WriteProtoToTextFile(net_txt, model_filename);
+
+  caffe::NetParameter net_param;
+  caffe_net.ToProto(&net_param, false);
+  string binary_filename = output_prefix + ".caffemodel";
+  LOG(INFO) << "Snapshotting optimized caffemodel to file " << binary_filename;
+  caffe::WriteProtoToBinaryFile(net_param, binary_filename);
+
+  return 0;
+}
+RegisterBrewFunction(optimize);
+
+
+// Threshold a model.
+int threshold() {
+  CHECK_GT(FLAGS_model.size(), 0) << "Need a model definition to threshold.";
+  CHECK_GT(FLAGS_weights.size(), 0) << "Need model weights to threshold.";
+
+  // Read flags for list of GPUs
+  vector<int> gpus;
+  get_gpus(&gpus);
+  while (gpus.size() > 1) {
+    // Only use one GPU
+    LOG(INFO) << "Not using GPU #" << gpus.back() << " for single-GPU function";
+    gpus.pop_back();
+  }
+#ifndef CPU_ONLY
+  caffe::GPUMemory::Scope gpu_memory_scope(gpus);
+#endif
+
+  // Set mode and device id
+  if (gpus.size() != 0) {
+    LOG(INFO) << "Use GPU with device ID " << gpus[0];
+#ifndef CPU_ONLY
+    cudaDeviceProp device_prop;
+    cudaGetDeviceProperties(&device_prop, gpus[0]);
+    LOG(INFO) << "GPU device name: " << device_prop.name;
+#endif
+    Caffe::SetDevice(gpus[0]);
+    Caffe::set_mode(Caffe::GPU);
+  } else {
+    LOG(INFO) << "Use CPU.";
+    Caffe::set_mode(Caffe::CPU);
+  }
+
+  // Instantiate the caffe net.
+  Net caffe_net(FLAGS_model, caffe::TEST);
+  caffe_net.CopyTrainedLayersFrom(FLAGS_weights);
+
+  LOG(INFO) << "Thresholding Net " << FLAGS_model;
+  caffe_net.ThresholdNet(FLAGS_threshold_fraction_low, FLAGS_threshold_fraction_mid, FLAGS_threshold_fraction_high,
+      FLAGS_threshold_value_maxratio, FLAGS_threshold_value_max, FLAGS_threshold_step_factor);
+
+  boost::filesystem::path output_path(FLAGS_output);
+  string output_prefix = output_path.parent_path().string() + "/" + output_path.stem().string();
+
+  caffe::NetParameter net_txt;
+  caffe_net.ToProto(&net_txt, false);
+  string model_filename = output_prefix + ".prototxt";
+  LOG(INFO) << "Snapshotting thresholded prototxt to file " << model_filename;
+  caffe::WriteProtoToTextFile(net_txt, model_filename);
+
+  caffe::NetParameter net_param;
+  caffe_net.ToProto(&net_param, false);
+  string binary_filename = output_prefix + ".caffemodel";
+  LOG(INFO) << "Snapshotting thresholded caffemodel to file " << binary_filename;
+  caffe::WriteProtoToBinaryFile(net_param, binary_filename);
+
+  return 0;
+}
+RegisterBrewFunction(threshold);
+
 
 int main(int argc, char** argv) {
   // Print output to stderr (while still logging).

@@ -1,3 +1,6 @@
+
+
+
 name: "JacintoNet-11-MaxPool(1000)"
 
 input: "data"
@@ -26,6 +29,7 @@ layer {
   }
 }
 
+
 layer {
   name: "conv1a"
   bottom: "data_bias"
@@ -43,17 +47,6 @@ layer {
     bias_filler { type: "constant" value: 0 }    
     dilation: 1    
     group: 1
-  }
-}
-layer {
-  name: "conv1a/bn"
-  bottom: "conv1a"
-  top: "conv1a"
-  type: "BatchNorm"
-  batch_norm_param {
-    moving_average_fraction: 0.99
-    eps: 0.0001 
-    scale_bias: true   
   }
 }
 layer {
@@ -81,17 +74,6 @@ layer {
     group: 4 #1
   }
 }
-layer {
-  name: "conv1b/bn"
-  bottom: "conv1b"
-  top: "conv1b"
-  type: "BatchNorm"
-  batch_norm_param {
-    moving_average_fraction: 0.99
-    eps: 0.0001 
-    scale_bias: true   
-  }
-}  
 
 layer {
   name: "conv1b/relu"
@@ -130,18 +112,6 @@ layer {
   }
 }
 layer {
-  name: "res2a_branch2a/bn"
-  bottom: "res2a_branch2a"
-  top: "res2a_branch2a"
-  type: "BatchNorm"
-  batch_norm_param {
-    moving_average_fraction: 0.99
-    eps: 0.0001 
-    scale_bias: true   
-  }
-}   
-
-layer {
   name: "res2a_branch2a/relu"
   bottom: "res2a_branch2a"
   top: "res2a_branch2a"
@@ -166,18 +136,6 @@ layer {
     group: 4
   }
 }
-layer {
-  name: "res2a_branch2b/bn"
-  bottom: "res2a_branch2b"
-  top: "res2a_branch2b"
-  type: "BatchNorm"
-  batch_norm_param {
-    moving_average_fraction: 0.99
-    eps: 0.0001 
-    scale_bias: true   
-  }
-}    
-
 layer {
   name: "res2a_branch2b/relu"
   bottom: "res2a_branch2b"
@@ -215,18 +173,6 @@ layer {
   }
 }
 layer {
-  name: "res3a_branch2a/bn"
-  bottom: "res3a_branch2a"
-  top: "res3a_branch2a"
-  type: "BatchNorm"
-  batch_norm_param {
-    moving_average_fraction: 0.99
-    eps: 0.0001 
-    scale_bias: true   
-  }
-}     
-
-layer {
   name: "res3a_branch2a/relu"
   bottom: "res3a_branch2a"
   top: "res3a_branch2a"
@@ -251,18 +197,6 @@ layer {
     group: 4
   }
 }
-layer {
-  name: "res3a_branch2b/bn"
-  bottom: "res3a_branch2b"
-  top: "res3a_branch2b"
-  type: "BatchNorm"
-  batch_norm_param {
-    moving_average_fraction: 0.99
-    eps: 0.0001 
-    scale_bias: true   
-  }
-}  
-
 layer {
   name: "res3a_branch2b/relu"
   bottom: "res3a_branch2b"
@@ -299,17 +233,6 @@ layer {
     group: 1 #4
   }
 }
-layer {
-  name: "res4a_branch2a/bn"
-  bottom: "res4a_branch2a"
-  top: "res4a_branch2a"
-  type: "BatchNorm"
-  batch_norm_param {
-    moving_average_fraction: 0.99
-    eps: 0.0001 
-    scale_bias: true   
-  }
-}    
 
 layer {
   name: "res4a_branch2a/relu"
@@ -336,18 +259,6 @@ layer {
     group: 4
   }
 }
-layer {
-  name: "res4a_branch2b/bn"
-  bottom: "res4a_branch2b"
-  top: "res4a_branch2b"
-  type: "BatchNorm"
-  batch_norm_param {
-    moving_average_fraction: 0.99
-    eps: 0.0001 
-    scale_bias: true   
-  }
-}    
-
 layer {
   name: "res4a_branch2b/relu"
   bottom: "res4a_branch2b"
@@ -385,18 +296,6 @@ layer {
   }
 }
 layer {
-  name: "res5a_branch2a/bn"
-  bottom: "res5a_branch2a"
-  top: "res5a_branch2a"
-  type: "BatchNorm"
-  batch_norm_param {
-    moving_average_fraction: 0.99
-    eps: 0.0001 
-    scale_bias: true   
-  }
-}    
-
-layer {
   name: "res5a_branch2a/relu"
   bottom: "res5a_branch2a"
   top: "res5a_branch2a"
@@ -421,18 +320,6 @@ layer {
     group: 4
   }
 }
-layer {
-  name: "res5a_branch2b/bn"
-  bottom: "res5a_branch2b"
-  top: "res5a_branch2b"
-  type: "BatchNorm"
-  batch_norm_param {
-    moving_average_fraction: 0.99
-    eps: 0.0001 
-    scale_bias: true   
-  }
-}    
-
 layer {
   name: "res5a_branch2b/relu"
   bottom: "res5a_branch2b"

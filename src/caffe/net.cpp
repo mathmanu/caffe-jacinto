@@ -19,6 +19,7 @@
 #include "caffe/util/insert_splits.hpp"
 #include "caffe/util/math_functions.hpp"
 #include "caffe/util/upgrade_proto.hpp"
+#include "caffe/filler.hpp"
 
 #include "caffe/test/test_caffe_main.hpp"
 
@@ -1056,7 +1057,7 @@ void Net::CopyTrainedLayersFrom(const NetParameter& param) {
     DLOG(INFO) << "Copying source layer " << source_layer_name;
     vector<shared_ptr<Blob> >& target_blobs =
         layers_[target_layer_id]->blobs();
-    if (source_layer_type == "BatchNorm") {
+    if (source_layer_type == "BatchNorm" && target_blobs.size() != source_layer.blobs_size()) {
       LOG(WARNING) << "Incompatible number of blobs for layer " << source_layer_name 
 	      << " target(" << target_blobs.size() << ") vs source(" << source_layer.blobs_size() << ")";	
 	} else {	
@@ -1389,6 +1390,162 @@ void Net::InitializeLearnableDiffSpace() {
 }
 #endif
 	
+template <typename Dtype>
+void Net::OptimizeNet() {
+  auto set_blob_data_at = [&](shared_ptr<Blob>& blob, const int n, const int c, const int h, const int w, const Dtype& value) {
+    if(blob != NULL && blob->count() > 0) {
+      Dtype* data = blob->mutable_cpu_data<Dtype>();
+      int idx = blob->offset(n, c, h, w);
+	  data[idx] = value;
+	}
+  };
+  
+  auto set_blob_data_at_chan = [&](shared_ptr<Blob>& blob, const int c, const Dtype& value) {
+    if(blob != NULL && blob->count() > 0) {  
+      Dtype* data = blob->mutable_cpu_data<Dtype>();  
+      int idx = blob->shape().size()>1 && blob->shape(0)==1? blob->offset(0,c,0,0): blob->offset(c);
+	  data[idx] = value;
+	}
+  };
+    
+  bool can_merge_bn = false;
+  for (int i = 0; i < (layers_.size()-1); i++) {
+    if (layers_[i]->type() == std::string("Convolution") &&
+        layers_[i+1]->type() == std::string("BatchNorm")) {
+      can_merge_bn = true;
+    }
+  }
+
+  if(!can_merge_bn) {
+    return;
+  }
+
+  for (int i = 0; i < (layers_.size()-1); i++) {
+    if (layers_[i]->type() == std::string("Convolution")) {
+      LayerBase& conv_layer = *layers_[i];
+      shared_ptr<Blob>& conv_weights = conv_layer.blobs()[0];
+      int channels = (conv_weights->num_axes() == 1)? conv_weights->count() : conv_weights->shape(0);
+      int outputs = channels;
+
+      // Set bias term if it not there, as it is needed when conbining BN
+      if(conv_layer.blobs().size()==1) {
+        bool bias_term = true;
+        conv_layer.mutable_layer_param().mutable_convolution_param()->set_bias_term(bias_term);
+        conv_layer.mutable_layer_param().mutable_convolution_param()->mutable_bias_filler()->set_type("constant");
+        conv_layer.mutable_layer_param().mutable_convolution_param()->mutable_bias_filler()->set_value(0);
+
+        conv_layer.blobs().resize(2);
+        vector<int> bias_shape(bias_term, outputs);
+		//TODO: Revisit if needed
+        conv_layer.blobs()[1]->Reshape(bias_shape);
+        shared_ptr<Filler<Dtype> > bias_filler(GetFiller<Dtype>(
+            conv_layer.layer_param().convolution_param().bias_filler()));
+        bias_filler->Fill(conv_layer.blobs()[1].get());
+      }
+
+      if(layers_[i+1]->type() == std::string("BatchNorm")) {
+        LayerBase& batch_norm_layer = *layers_[i+1];
+        bool scale_bias = layers_[i+1]->layer_param().batch_norm_param().scale_bias();
+
+        shared_ptr<Blob>& batch_norm_scale = batch_norm_layer.blobs()[3];
+        shared_ptr<Blob>& batch_norm_bias = batch_norm_layer.blobs()[4];
+        shared_ptr<Blob>& batch_norm_mean = batch_norm_layer.blobs()[0];
+        shared_ptr<Blob>& batch_norm_var = batch_norm_layer.blobs()[1];
+        Dtype eps = batch_norm_layer.layer_param().batch_norm_param().eps();
+
+        // Absorb the BatchNorm into convolution
+        for(int no=0; no<conv_weights->shape(0); no++) {
+          Dtype var = batch_norm_var->data_at(no) + eps;
+          Dtype stdev_inv = std::pow(var, Dtype(-0.5));
+          Dtype scale = batch_norm_scale->data_at(no);
+          for(int ni=0; ni<conv_weights->shape(1); ni++) {
+            for(int w=0; w<conv_weights->shape(2); w++) {
+              for(int h=0; h<conv_weights->shape(3); h++) {
+                set_blob_data_at(conv_weights, no,ni,w,h, conv_weights->data_at(no,ni,w,h) * stdev_inv * scale); 
+              }
+            }
+          }
+        }
+
+        shared_ptr<Blob>& conv_bias = conv_layer.blobs()[1];
+        for(int no=0; no<channels; no++) {
+          Dtype var = batch_norm_var->data_at(no) + eps;
+          Dtype stdev_inv = std::pow(var, Dtype(-0.5));
+          Dtype scale = scale_bias? batch_norm_scale->data_at(no) : 1.0;
+          Dtype bias = scale_bias? batch_norm_bias->data_at(no) : 0.0;
+          Dtype mean = batch_norm_mean->data_at(no);
+          set_blob_data_at_chan(conv_bias,no, (conv_bias->data_at(no) - mean) * stdev_inv * scale + bias);
+        }
+
+        // Set the batch norm to identity
+        for(int c=0; c<channels; c++) {
+		  if(scale_bias) {
+            set_blob_data_at_chan(batch_norm_scale,c,Dtype(1.0));
+            set_blob_data_at_chan(batch_norm_bias,c,Dtype(0.0));
+		  }
+          set_blob_data_at_chan(batch_norm_mean,c,Dtype(0.0));
+          //Change var so that after adding eps, it becomes 1.0
+          set_blob_data_at_chan(batch_norm_var, c, Dtype(1.0 - eps));
+        }
+      }
+    }
+  }
+
+  //Merge a BatchNorm layer that comes before convolution layer
+  for (int i = 0; i < (layers_.size()-1); i++) {
+    if (layers_[i]->type() == std::string("BatchNorm") && layers_[i+1]->type() == std::string("Convolution")) {
+      LayerBase& batch_norm_layer = *layers_[i];
+      LayerBase& conv_layer = *layers_[i+1];
+      shared_ptr<Blob>& conv_weights = conv_layer.blobs()[0];
+      shared_ptr<Blob>& conv_bias = conv_layer.blobs()[1];
+      int channels = (conv_weights->num_axes() == 1)? conv_weights->count() : conv_weights->shape(0);
+
+      bool scale_bias = layers_[i]->layer_param().batch_norm_param().scale_bias();
+
+      shared_ptr<Blob>& batch_norm_scale = batch_norm_layer.blobs()[3];
+      shared_ptr<Blob>& batch_norm_bias = batch_norm_layer.blobs()[4];
+      shared_ptr<Blob>& batch_norm_mean = batch_norm_layer.blobs()[0];
+      shared_ptr<Blob>& batch_norm_var = batch_norm_layer.blobs()[1];
+
+      Dtype eps = batch_norm_layer.layer_param().batch_norm_param().eps();
+
+      // Absorb the BatchNorm into convolution
+      for(int no=0; no<conv_weights->shape(0); no++) {
+        Dtype var = batch_norm_var->data_at(no) + eps;
+        Dtype stdev_inv = std::pow(var, Dtype(-0.5));
+        Dtype scale = scale_bias? batch_norm_scale->data_at(no) : 1.0;
+        Dtype bias = scale_bias? batch_norm_bias->data_at(no) : 0.0;
+        Dtype mean = batch_norm_mean->data_at(no);
+
+        Dtype weight_sum = 0;
+        for(int ni=0; ni<conv_weights->shape(1); ni++) {
+          for(int w=0; w<conv_weights->shape(2); w++) {
+            for(int h=0; h<conv_weights->shape(3); h++) {
+              weight_sum += conv_weights->data_at(no,ni,w,h);
+              set_blob_data_at(conv_weights,no,ni,w,h, conv_weights->data_at(no,ni,w,h) * stdev_inv * scale);
+            }
+          }
+        }
+        set_blob_data_at_chan(conv_bias,no, conv_bias->data_at(no) + bias * weight_sum - mean * stdev_inv * weight_sum);
+      }
+
+      // Set the batch norm to identity
+      for(int c=0; c<channels; c++) {
+		if(scale_bias) {	  
+          set_blob_data_at_chan(batch_norm_scale,c,Dtype(1.0));
+          set_blob_data_at_chan(batch_norm_bias,c,Dtype(0.0));
+	    }
+        set_blob_data_at_chan(batch_norm_mean,c,Dtype(0.0));
+        //Change var so that after adding eps, it becomes 1.0
+        set_blob_data_at_chan(batch_norm_var,c,Dtype(1.0 - eps));
+      }
+    }
+  }
+
+}
+
+template void Net::OptimizeNet<float>();
+
 void Net::ThresholdNet(float threshold_fraction_low, float threshold_fraction_mid, float threshold_fraction_high,
     float threshold_value_maxratio, float threshold_value_max, float threshold_step_factor) {
 

@@ -16,7 +16,7 @@ weight_decay: 1e-4
 regularization_type: "L2"
 
 snapshot: 10000
-snapshot_prefix: "training/imagenet_jacintonet26x1c1024_bn_sliceproj_maxpool_preact_L2"
+snapshot_prefix: "training/imagenet_jacintonet26x1c1024_64c1x7_bn_sliceproj_maxpool_preact_L2"
 snapshot_after_train: true
 
 solver_mode: GPU

@@ -1,3 +1,6 @@
+
+#Note: NVIDIA/caffe version caffe-0.15 needs different blobs for top and bottom for BatchNorm
+
 #Sover parameters
 test_iter: 200
 test_interval: 2000
@@ -13,18 +16,18 @@ stepvalue: 24000
 max_iter: 32000
 momentum: 0.9
 
-weight_decay: 1e-4
-regularization_type: "L2"
+weight_decay: 1e-5
+regularization_type: "L1"
 
 snapshot: 1000
-snapshot_prefix: "training/jsegnet11+seg10_train_L2_bn_label_weights"
+snapshot_prefix: "training/jsegnet21_maxpool_L1_bn"
 solver_mode: GPU
 random_seed: 33
 
 #snapshot_log: true
 #ignore_mismatching_blobs: true
 
-#display_sparsity: 1000
+display_sparsity: 1000
 #sparsity_threshold: 1e-4
 #threshold_weights: true
 #weight_connect_mode: WEIGHT_DISCONNECTED_ELTWISE
@@ -34,7 +37,7 @@ random_seed: 33
 #Net parameters
 net_param {
 
-name: "ConvNet-11+seg10(8)"
+name: "JSegNet21(8)"
 
 layer {
   name: "data"
@@ -76,7 +79,9 @@ layer {
     scale_max: 1.25    
     
     #Set to 1 to disable multireaded read      
-    #threads: 1           
+    #threads: 1    
+
+    #check_image_files: true       
   }
 }
 
@@ -108,15 +113,17 @@ layer {
       offset: 0
     }
     padding: REFLECT
+
+    #check_image_files: true 
   }
 }
 
 layer {
-  name: "data_bias"
-  bottom: "data"
-  top: "data_bias"
+  name: "data/bias"
   type: "Bias"
-  param { #scale
+  bottom: "data"
+  top: "data/bias"
+  param {
     lr_mult: 0
     decay_mult: 0
   }
@@ -130,7 +137,7 @@ layer {
 
 layer {
   name: "conv1a"
-  bottom: "data_bias"
+  bottom: "data/bias"
   top: "conv1a"
   type: "Convolution"
   param { lr_mult: 1 decay_mult: 1 }
@@ -141,14 +148,14 @@ layer {
     pad: 2
     stride: 2
     bias_term: true
-    weight_filler { type: "msra" std: 0.010 }
+    weight_filler { type: "msra" }
     bias_filler { type: "constant" value: 0 }    
     dilation: 1    
     group: 1
   }
 }
 layer {
-  name: "bn_conv1a"
+  name: "conv1a/bn"
   bottom: "conv1a"
   top: "conv1a/bn"
   type: "BatchNorm"
@@ -182,7 +189,7 @@ layer {
   }
 }
 layer {
-  name: "conv1a_relu"
+  name: "conv1a/relu"
   bottom: "conv1a/bn"
   top: "conv1a/bn"
   type: "ReLU"
@@ -200,14 +207,14 @@ layer {
     pad: 1
     stride: 1
     bias_term: true
-    weight_filler { type: "msra" std: 0.010 }
+    weight_filler { type: "msra" }
     bias_filler { type: "constant" value: 0 }    
     dilation: 1    
     group: 4 #1
   }
 }
 layer {
-  name: "bn_conv1b"
+  name: "conv1b/bn"
   bottom: "conv1b"
   top: "conv1b/bn"
   type: "BatchNorm"
@@ -241,14 +248,25 @@ layer {
   }
 }
 layer {
-  name: "conv1b_relu"
+  name: "conv1b/relu"
   bottom: "conv1b/bn"
   top: "conv1b/bn"
   type: "ReLU"
 }
 layer {
-  name: "res2a_branch2a"
+  name: "pool1"
+  type: "Pooling"
   bottom: "conv1b/bn"
+  top: "pool1"
+  pooling_param {
+    pool: MAX
+    kernel_size: 2
+    stride: 2
+  }
+}
+layer {
+  name: "res2a_branch2a"
+  bottom: "pool1"
   top: "res2a_branch2a"
   type: "Convolution"
   param { lr_mult: 1 decay_mult: 1 }
@@ -257,16 +275,16 @@ layer {
     num_output: 64
     kernel_size: 3
     pad: 1
-    stride: 2
+    stride: 1
     bias_term: true
-    weight_filler { type: "msra" std: 0.010 }
+    weight_filler { type: "msra" }
     bias_filler { type: "constant" value: 0 }    
     dilation: 1    
     group: 1 #4
   }
 }
 layer {
-  name: "bn2a_branch2a"
+  name: "res2a_branch2a/bn"
   bottom: "res2a_branch2a"
   top: "res2a_branch2a/bn"
   type: "BatchNorm"
@@ -300,7 +318,7 @@ layer {
   }
 }
 layer {
-  name: "res2a_branch2a_relu"
+  name: "res2a_branch2a/relu"
   bottom: "res2a_branch2a/bn"
   top: "res2a_branch2a/bn"
   type: "ReLU"
@@ -318,14 +336,14 @@ layer {
     pad: 1
     stride: 1
     bias_term: true
-    weight_filler { type: "msra" std: 0.010 }
+    weight_filler { type: "msra" }
     bias_filler { type: "constant" value: 0 }    
     dilation: 1    
     group: 4
   }
 }
 layer {
-  name: "bn2a_branch2b"
+  name: "res2a_branch2b/bn"
   bottom: "res2a_branch2b"
   top: "res2a_branch2b/bn"
   type: "BatchNorm"
@@ -359,14 +377,25 @@ layer {
   }
 }
 layer {
-  name: "res2a_relu"
+  name: "res2a_branch2b/relu"
   bottom: "res2a_branch2b/bn"
   top: "res2a_branch2b/bn"
   type: "ReLU"
 }
 layer {
-  name: "res3a_branch2a"
+  name: "pool2"
+  type: "Pooling"
   bottom: "res2a_branch2b/bn"
+  top: "pool2"
+  pooling_param {
+    pool: MAX
+    kernel_size: 2
+    stride: 2
+  }
+}
+layer {
+  name: "res3a_branch2a"
+  bottom: "pool2"
   top: "res3a_branch2a"
   type: "Convolution"
   param { lr_mult: 1 decay_mult: 1 }
@@ -375,16 +404,16 @@ layer {
     num_output: 128
     kernel_size: 3
     pad: 1
-    stride: 2
+    stride: 1
     bias_term: true
-    weight_filler { type: "msra" std: 0.010 }
+    weight_filler { type: "msra" }
     bias_filler { type: "constant" value: 0 }    
     dilation: 1    
     group: 1 #4
   }
 }
 layer {
-  name: "bn3a_branch2a"
+  name: "res3a_branch2a/bn"
   bottom: "res3a_branch2a"
   top: "res3a_branch2a/bn"
   type: "BatchNorm"
@@ -418,7 +447,7 @@ layer {
   }
 }
 layer {
-  name: "res3a_branch2a_relu"
+  name: "res3a_branch2a/relu"
   bottom: "res3a_branch2a/bn"
   top: "res3a_branch2a/bn"
   type: "ReLU"
@@ -436,14 +465,14 @@ layer {
     pad: 1
     stride: 1
     bias_term: true
-    weight_filler { type: "msra" std: 0.010 }
+    weight_filler { type: "msra" }
     bias_filler { type: "constant" value: 0 }    
     dilation: 1    
     group: 4
   }
 }
 layer {
-  name: "bn3a_branch2b"
+  name: "res3a_branch2b/bn"
   bottom: "res3a_branch2b"
   top: "res3a_branch2b/bn"
   type: "BatchNorm"
@@ -477,14 +506,25 @@ layer {
   }
 }
 layer {
-  name: "res3a_relu"
+  name: "res3a_branch2b/relu"
   bottom: "res3a_branch2b/bn"
   top: "res3a_branch2b/bn"
   type: "ReLU"
 }
 layer {
-  name: "res4a_branch2a"
+  name: "pool3"
+  type: "Pooling"
   bottom: "res3a_branch2b/bn"
+  top: "pool3"
+  pooling_param {
+    pool: MAX
+    kernel_size: 2
+    stride: 2
+  }
+}
+layer {
+  name: "res4a_branch2a"
+  bottom: "pool3"
   top: "res4a_branch2a"
   type: "Convolution"
   param { lr_mult: 1 decay_mult: 1 }
@@ -493,16 +533,16 @@ layer {
     num_output: 256
     kernel_size: 3
     pad: 1
-    stride: 2
+    stride: 1
     bias_term: true
-    weight_filler { type: "msra" std: 0.010 }
+    weight_filler { type: "msra" }
     bias_filler { type: "constant" value: 0 }    
     dilation: 1    
     group: 1 #4
   }
 }
 layer {
-  name: "bn4a_branch2a"
+  name: "res4a_branch2a/bn"
   bottom: "res4a_branch2a"
   top: "res4a_branch2a/bn"
   type: "BatchNorm"
@@ -536,7 +576,7 @@ layer {
   }
 }
 layer {
-  name: "res4a_branch2a_relu"
+  name: "res4a_branch2a/relu"
   bottom: "res4a_branch2a/bn"
   top: "res4a_branch2a/bn"
   type: "ReLU"
@@ -554,14 +594,14 @@ layer {
     pad: 1
     stride: 1
     bias_term: true
-    weight_filler { type: "msra" std: 0.010 }
+    weight_filler { type: "msra" }
     bias_filler { type: "constant" value: 0 }    
     dilation: 1    
     group: 4
   }
 }
 layer {
-  name: "bn4a_branch2b"
+  name: "res4a_branch2b/bn"
   bottom: "res4a_branch2b"
   top: "res4a_branch2b/bn"
   type: "BatchNorm"
@@ -595,14 +635,25 @@ layer {
   }
 }
 layer {
-  name: "res4a_relu"
+  name: "res4a_branch2b/relu"
   bottom: "res4a_branch2b/bn"
   top: "res4a_branch2b/bn"
   type: "ReLU"
 }
 layer {
-  name: "res5a_branch2a"
+  name: "pool4"
+  type: "Pooling"
   bottom: "res4a_branch2b/bn"
+  top: "pool4"
+  pooling_param {
+    pool: MAX
+    kernel_size: 1 #setting kernel to 1, to disable this max pooling as it may hurt segmentation
+    stride: 1      #setting stride to 1, to increase resolution
+  }
+}
+layer {
+  name: "res5a_branch2a"
+  bottom: "pool4"
   top: "res5a_branch2a"
   type: "Convolution"
   param { lr_mult: 1 decay_mult: 1 }
@@ -610,17 +661,17 @@ layer {
   convolution_param {
     num_output: 512
     kernel_size: 3
-    pad: 1
+    pad: 2
     stride: 1
     bias_term: true
-    weight_filler { type: "msra" std: 0.010 }
+    weight_filler { type: "msra" }
     bias_filler { type: "constant" value: 0 }    
-    dilation: 1    
+    dilation: 2   
     group: 1 #4
   }
 }
 layer {
-  name: "bn5a_branch2a"
+  name: "res5a_branch2a/bn"
   bottom: "res5a_branch2a"
   top: "res5a_branch2a/bn"
   type: "BatchNorm"
@@ -654,7 +705,7 @@ layer {
   }
 }
 layer {
-  name: "res5a_branch2a_relu"
+  name: "res5a_branch2a/relu"
   bottom: "res5a_branch2a/bn"
   top: "res5a_branch2a/bn"
   type: "ReLU"
@@ -672,14 +723,14 @@ layer {
     pad: 2
     stride: 1
     bias_term: true
-    weight_filler { type: "msra" std: 0.010 }
+    weight_filler { type: "msra" }
     bias_filler { type: "constant" value: 0 }    
     dilation: 2    
     group: 4
   }
 }
 layer {
-  name: "bn5a_branch2b"
+  name: "res5a_branch2b/bn"
   bottom: "res5a_branch2b"
   top: "res5a_branch2b/bn"
   type: "BatchNorm"
@@ -713,7 +764,7 @@ layer {
   }
 }
 layer {
-  name: "res5a_relu"
+  name: "res5a_branch2b/relu"
   bottom: "res5a_branch2b/bn"
   top: "res5a_branch2b/bn"
   type: "ReLU"
@@ -743,7 +794,7 @@ layer {
 layer {
 	bottom: "out5a"
 	top: "out5a/bn"
-	name: "bn_out5a"
+	name: "out5a/bn"
 	type: "BatchNorm"
     param { #scale
       lr_mult: 1
@@ -775,16 +826,16 @@ layer {
     }
 }
 layer {
-  name: "out5a_relu"
+  name: "out5a/relu"
   type: "ReLU"
   bottom: "out5a/bn"
   top: "out5a/bn"  
 }
 layer {
-  name: "out5_up2"
+  name: "out5a_up2"
   type: "Deconvolution"
   bottom: "out5a/bn"
-  top: "out5_up2"
+  top: "out5a_up2"
   param {
     lr_mult: 0
     decay_mult: 0
@@ -822,7 +873,7 @@ layer {
 layer {
 	bottom: "out3a"
 	top: "out3a/bn"
-	name: "bn_out3a"
+	name: "out3a/bn"
 	type: "BatchNorm"
     param { #scale
       lr_mult: 1
@@ -854,14 +905,14 @@ layer {
     }
 }
 layer {
-  name: "out3a_relu"
+  name: "out3a/relu"
   type: "ReLU"
   bottom: "out3a/bn"
   top: "out3a/bn"
 }
 layer {
 	name: "out3_out5_combined"
-	bottom: "out5_up2"
+	bottom: "out5a_up2"
 	bottom: "out3a/bn"
 	top: "out3_out5_combined"
 	type: "Eltwise"
@@ -892,7 +943,7 @@ layer {
 layer {
 	bottom: "ctx_conv1"
 	top: "ctx_conv1/bn"
-	name: "bn_ctx_conv1"
+	name: "ctx_conv1/bn"
 	type: "BatchNorm"
     param { #scale
       lr_mult: 1
@@ -925,7 +976,7 @@ layer {
 }
 
 layer {
-  name: "ctx_relu1"
+  name: "ctx_conv1/relu"
   type: "ReLU"
   bottom: "ctx_conv1/bn"
   top: "ctx_conv1/bn"
@@ -953,7 +1004,7 @@ layer {
 layer {
 	bottom: "ctx_conv2"
 	top: "ctx_conv2/bn"
-	name: "bn_ctx_conv2"
+	name: "ctx_conv2/bn"
 	type: "BatchNorm"
     param { #scale
       lr_mult: 1
@@ -982,7 +1033,7 @@ layer {
 }
 
 layer {
-  name: "ctx_relu2"
+  name: "ctx_conv2/relu"
   type: "ReLU"
   bottom: "ctx_conv2/bn"
   top: "ctx_conv2/bn" 
@@ -1010,7 +1061,7 @@ layer {
 layer {
 	bottom: "ctx_conv3"
 	top: "ctx_conv3/bn"
-	name: "bn_ctx_conv3"
+	name: "ctx_conv3/bn"
 	type: "BatchNorm"
     param { #scale
       lr_mult: 1
@@ -1044,7 +1095,7 @@ layer {
 
 
 layer {
-  name: "ctx_relu3"
+  name: "ctx_conv3/relu"
   type: "ReLU"
   bottom: "ctx_conv3/bn"
   top: "ctx_conv3/bn"
@@ -1072,7 +1123,7 @@ layer {
 layer {
 	bottom: "ctx_conv4"
 	top: "ctx_conv4/bn"
-	name: "bn_ctx_conv4"
+	name: "ctx_conv4/bn"
 	type: "BatchNorm"
     param { #scale
       lr_mult: 1
@@ -1105,7 +1156,7 @@ layer {
 }
 
 layer {
-  name: "ctx_conv4_relu"
+  name: "ctx_conv4/relu"
   type: "ReLU"
   bottom: "ctx_conv4/bn"
   top: "ctx_conv4/bn"  
@@ -1131,7 +1182,7 @@ layer {
 }
 
 layer {
-  name: "ctx_final_relu"
+  name: "ctx_final/relu"
   type: "ReLU"
   bottom: "ctx_final"
   top: "ctx_final"     
@@ -1221,7 +1272,7 @@ layer {
 #--------------------------------------------
 layer {
   name: "loss"
-  type: "SoftmaxWithWeightedLoss"
+  type: "SoftmaxWithLoss"
   bottom: "ctx_final_score"
   bottom: "label"
   top: "loss"
@@ -1229,7 +1280,7 @@ layer {
   loss_param {
     ignore_label: 255
     normalization: VALID
-    assign_label_weights: true
+    #assign_label_weights: true
     #num_label_weights: 5
     #bootstrap_prob_threshold: 0.9
     #bootstrap_samples_fraction: 0.01

@@ -271,7 +271,7 @@ layer {
     pad: 1
     stride: 1
     bias_term: true
-    weight_filler { type: "msra" std: 0.010 }
+    weight_filler { type: "msra" }
     bias_filler { type: "constant" value: 0 }    
     dilation: 1    
     group: 4

@@ -37,7 +37,7 @@ quantization_start_iter: 2000
 #Net parameters
 net_param {
 
-name: "JSegNet21(8)"
+name: "JSegNet21-MaxPool-(8)"
 
 layer {
   name: "data"
@@ -282,7 +282,7 @@ layer {
 }
 
 layer {
-  name: "res3a_branch2a_relu"
+  name: "res3a_branch2a/relu"
   bottom: "res3a_branch2a"
   top: "res3a_branch2a"
   type: "ReLU"
@@ -501,7 +501,7 @@ layer {
     kernel_size: 3
     pad: 1
     bias_term: true    
-    weight_filler { type: "msra" std: 0.010 }
+    weight_filler { type: "msra" }
     bias_filler { type: "constant" value: 0 } 
     dilation: 1
     group: 2
@@ -537,7 +537,7 @@ layer {
     pad: 1
     kernel_size: 3
     bias_term: true       
-    weight_filler { type: "msra" std: 0.010 }
+    weight_filler { type: "msra" }
     bias_filler { type: "constant" value: 0 }  
     dilation: 1
     group: 1     
@@ -564,7 +564,7 @@ layer {
     pad: 4
     kernel_size: 3
     bias_term: true       
-    weight_filler { type: "msra" std: 0.010 }
+    weight_filler { type: "msra" }
     bias_filler { type: "constant" value: 0 } 
     dilation: 4
     group: 1     
@@ -591,7 +591,7 @@ layer {
     pad: 4
     kernel_size: 3
     bias_term: true       
-    weight_filler { type: "msra" std: 0.010 }
+    weight_filler { type: "msra" }
     bias_filler { type: "constant" value: 0 } 
     dilation: 4
     group: 1      
@@ -618,7 +618,7 @@ layer {
     pad: 4
     kernel_size: 3
     bias_term: true       
-    weight_filler { type: "msra" std: 0.010 }
+    weight_filler { type: "msra" }
     bias_filler { type: "constant" value: 0 } 
     dilation: 4
     group: 1        
@@ -645,7 +645,7 @@ layer {
     kernel_size: 3
     pad: 1
     bias_term: true       
-    weight_filler { type: "msra" std: 0.010 }
+    weight_filler { type: "msra" }
     bias_filler { type: "constant" value: 0 }   
     dilation: 1   
     group: 1      

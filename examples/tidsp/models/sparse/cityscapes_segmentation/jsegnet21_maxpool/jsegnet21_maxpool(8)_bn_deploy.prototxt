@@ -7,8 +7,8 @@ input: "data"
 input_shape {
   dim: 1
   dim: 3
-  dim: 512
   dim: 1024
+  dim: 2048
 }
 
 layer {
@@ -757,7 +757,7 @@ layer {
     kernel_size: 3
     pad: 1
     bias_term: true    
-    weight_filler { type: "msra" std: 0.010 }
+    weight_filler { type: "msra" }
     bias_filler { type: "constant" value: 0 } 
     dilation: 1
     group: 2
@@ -826,7 +826,7 @@ layer {
     pad: 1
     kernel_size: 3
     bias_term: true       
-    weight_filler { type: "msra" std: 0.010 }
+    weight_filler { type: "msra" }
     bias_filler { type: "constant" value: 0 }  
     dilation: 1
     group: 1     
@@ -836,7 +836,7 @@ layer {
 layer {
 	bottom: "ctx_conv1"
 	top: "ctx_conv1/bn"
-	name: "bn_ctx_conv1"
+	name: "ctx_conv1/bn"
 	type: "BatchNorm"
     param { #scale
       lr_mult: 1
@@ -869,7 +869,7 @@ layer {
 }
 
 layer {
-  name: "ctx_relu1"
+  name: "ctx_conv1/relu"
   type: "ReLU"
   bottom: "ctx_conv1/bn"
   top: "ctx_conv1/bn"
@@ -887,7 +887,7 @@ layer {
     pad: 4
     kernel_size: 3
     bias_term: true       
-    weight_filler { type: "msra" std: 0.010 }
+    weight_filler { type: "msra" }
     bias_filler { type: "constant" value: 0 } 
     dilation: 4
     group: 1     
@@ -897,7 +897,7 @@ layer {
 layer {
 	bottom: "ctx_conv2"
 	top: "ctx_conv2/bn"
-	name: "bn_ctx_conv2"
+	name: "ctx_conv2/bn"
 	type: "BatchNorm"
     param { #scale
       lr_mult: 1
@@ -926,7 +926,7 @@ layer {
 }
 
 layer {
-  name: "ctx_relu2"
+  name: "ctx_conv2/relu"
   type: "ReLU"
   bottom: "ctx_conv2/bn"
   top: "ctx_conv2/bn" 
@@ -944,7 +944,7 @@ layer {
     pad: 4
     kernel_size: 3
     bias_term: true       
-    weight_filler { type: "msra" std: 0.010 }
+    weight_filler { type: "msra" }
     bias_filler { type: "constant" value: 0 } 
     dilation: 4
     group: 1      
@@ -954,7 +954,7 @@ layer {
 layer {
 	bottom: "ctx_conv3"
 	top: "ctx_conv3/bn"
-	name: "bn_ctx_conv3"
+	name: "ctx_conv3/bn"
 	type: "BatchNorm"
     param { #scale
       lr_mult: 1
@@ -988,7 +988,7 @@ layer {
 
 
 layer {
-  name: "ctx_relu3"
+  name: "ctx_conv3/relu"
   type: "ReLU"
   bottom: "ctx_conv3/bn"
   top: "ctx_conv3/bn"
@@ -1006,7 +1006,7 @@ layer {
     pad: 4
     kernel_size: 3
     bias_term: true       
-    weight_filler { type: "msra" std: 0.010 }
+    weight_filler { type: "msra" }
     bias_filler { type: "constant" value: 0 } 
     dilation: 4
     group: 1        
@@ -1016,7 +1016,7 @@ layer {
 layer {
 	bottom: "ctx_conv4"
 	top: "ctx_conv4/bn"
-	name: "bn_ctx_conv4"
+	name: "ctx_conv4/bn"
 	type: "BatchNorm"
     param { #scale
       lr_mult: 1
@@ -1049,7 +1049,7 @@ layer {
 }
 
 layer {
-  name: "ctx_conv4_relu"
+  name: "ctx_conv4/relu"
   type: "ReLU"
   bottom: "ctx_conv4/bn"
   top: "ctx_conv4/bn"  
@@ -1067,7 +1067,7 @@ layer {
     kernel_size: 3
     pad: 1
     bias_term: true       
-    weight_filler { type: "msra" std: 0.010 }
+    weight_filler { type: "msra" }
     bias_filler { type: "constant" value: 0 }   
     dilation: 1   
     group: 1      
@@ -1075,7 +1075,7 @@ layer {
 }
 
 layer {
-  name: "ctx_final_relu"
+  name: "ctx_final/relu"
   type: "ReLU"
   bottom: "ctx_final"
   top: "ctx_final"     

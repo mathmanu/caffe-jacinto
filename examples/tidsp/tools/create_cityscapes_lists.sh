@@ -14,7 +14,7 @@ echo Logging output to "$LOG"
 #-------------------------------------------------------
 export PYTHONPATH=../../../../python:$PYTHONPATH
 export MODIFY_LABEL=1
-export DATASETPATH=/data/hdd/datasets/object-detect/other/cityscapes/data
+export DATASETPATH=/data/ssd/datasets/object-detect/other/cityscapes/data
 #-------------------------------------------------------
 
 #-------------------------------------------------------

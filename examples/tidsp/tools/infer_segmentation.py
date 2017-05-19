@@ -33,16 +33,22 @@ def get_arguments():
 
     
 def check_paths(args):
-    ext = os.path.splitext(args.output)[1]
-    if (ext == '.mp4' or ext == '.MP4'):
+    output_type = None
+    if args.output:
+      ext = os.path.splitext(args.output)[1]
+      if (ext == '.mp4' or ext == '.MP4'):
         output_type = 'video'
-    elif (ext == '.png' or ext == '.jpg' or ext == '.jpeg' or ext == '.PNG' or ext == '.JPG' or ext == '.JPEG'):
+      elif (ext == '.png' or ext == '.jpg' or ext == '.jpeg' or ext == '.PNG' or ext == '.JPG' or ext == '.JPEG'):
         output_type = 'image'
-    elif (ext == '.txt'):
+      elif (ext == '.txt'):
         output_type = 'list'        
-    else:
+      else:
         output_type = 'folder'    
-                 
+      if os.path.exists(args.output) and os.path.isdir(args.output):
+        shutil.rmtree(args.output)            
+      if output_type == 'folder':
+        os.mkdir(args.output)
+                     
     ext = os.path.splitext(args.input)[1]
     if (ext == '.mp4' or ext == '.MP4'):
         input_type = 'video'
@@ -53,12 +59,6 @@ def check_paths(args):
     else:
         input_type = 'folder'  
                                 
-    if args.output and os.path.exists(args.output) and os.path.isdir(args.output):
-        shutil.rmtree(args.output)            
-
-    if args.output and output_type == 'folder':
-        os.mkdir(args.output)
-        
     return input_type, output_type
 
 def crop_color_image2(color_image, crop_size):  #size in (height, width)

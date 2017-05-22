@@ -28,7 +28,8 @@ def get_arguments():
     parser.add_argument('--crop', nargs='+', help='crop-width crop-height')      
     parser.add_argument('--resize', nargs='+', help='resize-width resize-height')   
     parser.add_argument('--blend', action='store_true', help='Do chroma belnding at output for visualization')      
-    parser.add_argument('--palette', type=str, default='', help='Color palette')             
+    parser.add_argument('--palette', type=str, default='', help='Color palette')   
+    parser.add_argument('--batch_size', type=int, default=1, help='Batch of images to process')   
     return parser.parse_args()
 
     
@@ -102,7 +103,7 @@ def infer_blob(args, net, input_bgr, input_label=None):
           input_label = crop_color_image2(input_label, (args.crop[1], args.crop[0]))
 
     if args.resize:
-	print('Resizing to ' + str(args.resize))
+        print('Resizing to ' + str(args.resize))
         input_bgr = resize_image(input_bgr, (args.resize[1], args.resize[0]))
         if input_label is not None:
           input_label = resize_image(input_label, (args.resize[1], args.resize[0]))  
@@ -159,13 +160,28 @@ def infer_image_folder(args, net):
     
 def eval_blob(args, net, input_blob, label_blob, confusion_matrix):
     output_blob, label_blob = infer_blob(args, net, input_blob, label_blob)
-    for r in range(output_blob.shape[0]):
-      for c in range(output_blob.shape[1]):
-        gt_label = label_blob[r][c][0]
-        det_label = output_blob[r][c]
-        det_label = min(det_label, args.num_classes)
-        if gt_label != 255:
-          confusion_matrix[gt_label][det_label] += 1
+    
+    #for r in range(output_blob.shape[0]):
+    #  for c in range(output_blob.shape[1]):
+    #    gt_label = label_blob[r][c][0]
+    #    det_label = output_blob[r][c]
+    #    det_label = min(det_label, args.num_classes)
+    #    if gt_label != 255:
+    #      confusion_matrix[gt_label][det_label] += 1
+
+    if len(label_blob.shape)>2:
+        label_blob = label_blob[:,:,0]        
+    gt_labels = label_blob.ravel()
+    det_labels = output_blob.ravel().clip(0,args.num_classes)
+    gt_labels_valid_ind = np.where(gt_labels != 255)
+    gt_labels_valid = gt_labels[gt_labels_valid_ind]
+    det_labels_valid = det_labels[gt_labels_valid_ind]
+    #print(len(np.where(gt_labels_valid==det_labels_valid)[0]))
+    #confusion_matrix[gt_labels_valid][det_labels_valid] += 1
+    for r in range(confusion_matrix.shape[0]):
+        for c in range(confusion_matrix.shape[1]):
+            confusion_matrix[r,c] += np.sum((gt_labels_valid==r) & (det_labels_valid==c))
+
     return output_blob, confusion_matrix
     
     
@@ -190,7 +206,8 @@ def compute_accuracy(args, confusion_matrix):
       iou[cls] = (intersection / union) if union else 0
       tp_total += tp[cls]
       population_total += population[cls]
-      
+    
+    print('confusion_matrix={}'.format(confusion_matrix))
     accuracy = tp_total / population_total
     mean_iou = np.sum(iou) / args.num_classes
     return accuracy, mean_iou, iou
@@ -224,8 +241,13 @@ def infer_image_list(args, net):
         cv2.imwrite(output_name, output_blob)     
     else:
       confusion_matrix = np.zeros((args.num_classes, args.num_classes+1))
+      total = len(input_indices)
+      count = 0
       for (input_name, label_name) in zip(input_indices, label_indices):
-        print((input_name, label_name), end=' ')   
+        input_name_base = os.path.split(input_name)[-1]
+        label_name_base = os.path.split(label_name)[-1]       
+        progress = count * 100 / total 
+        print((input_name_base, label_name_base, progress))   
         sys.stdout.flush()         
         input_blob = cv2.imread(input_name)  
         label_blob = cv2.imread(label_name) 
@@ -233,6 +255,7 @@ def infer_image_list(args, net):
         if args.output:
           output_name = os.path.join(args.output, os.path.basename(input_name));
           cv2.imwrite(output_name, output_blob) 
+        count += 1
           
       accuracy, mean_iou, iou = compute_accuracy(args, confusion_matrix)   
       print('accuracy={}, mean_iou={}, iou={}'.format(accuracy, mean_iou, iou))

@@ -37,7 +37,7 @@ As can be seen below, JacintoNet11 provides better accuracy compared to BVLC-Ale
 
 |Configuration      |Top-1 accuracy   | Top-5 accuracy |Complexity for 1000 classes|
 |-------------------|-----------------|----------------|---------------------------|
-|<b>JacintoNet11    |<b>60.77         |<b>83.20        |<b>0.410                   |
+|<b>JacintoNet11    |<b>60.91         |<b>83.05        |<b>0.410                   |
 |ResNet10 [1]       |63.9             |85.2            |0.910                      |
 |BVLC AlexNet [2]   |57.1             |80.2            |0.687                      |
 

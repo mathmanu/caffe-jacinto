@@ -108,6 +108,9 @@ layer {
       offset: 0
     }
     padding: REFLECT
+
+    #Set to 1 to disable multireaded read      
+    #threads: 1  
   }
 }
 

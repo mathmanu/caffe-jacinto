@@ -92,12 +92,75 @@ ImageLabelDataLayer<Ftype, Btype>::ImageLabelDataLayer(
     const LayerParameter &param) : BasePrefetchingDataLayer<Ftype, Btype>(param) {
   std::random_device rand_dev;
   rng_ = new std::mt19937(rand_dev());
+  //hangs with multiple threads -> so set the threads to 1
+  this->layer_param_.mutable_data_param()->set_threads(1);
+  this->layer_param_.mutable_data_param()->set_parser_threads(1);  
 }
 
 template<typename Ftype, typename Btype>
 ImageLabelDataLayer<Ftype, Btype>::~ImageLabelDataLayer() {
   this->StopInternalThread();
   delete rng_;
+}
+
+template<typename Ftype, typename Btype>
+void ImageLabelDataLayer<Ftype, Btype>::InternalThreadEntryN(size_t thread_id) {
+#ifndef CPU_ONLY
+  //const bool use_gpu_transform = this->is_gpu_transform();
+#endif
+  static thread_local bool iter0 = this->phase_ == TRAIN;
+  if (iter0 && this->net_inititialized_flag_ != nullptr) {
+    this->net_inititialized_flag_->wait();
+  } else {  // nothing to wait -> initialize and start pumping
+    std::lock_guard<std::mutex> lock(this->mutex_in_);
+    this->InitializePrefetch();
+    start_reading();
+    iter0 = false;
+  }
+  try {
+    while (!this->must_stop(thread_id)) {
+      const size_t qid = this->queue_id(thread_id);
+#ifndef CPU_ONLY
+      shared_ptr<Batch<Ftype>> batch = this->prefetches_free_[qid]->pop();
+
+      CHECK_EQ((size_t) -1, batch->id());
+      load_batch(batch.get(), thread_id, qid);
+      /*if (Caffe::mode() == Caffe::GPU) {
+        if (!use_gpu_transform) {
+          batch->data_.async_gpu_push();
+        }
+        if (this->output_labels_) {
+          batch->label_.async_gpu_push();
+        }
+        CUDA_CHECK(cudaStreamSynchronize(Caffe::th_stream_aux(Caffe::STREAM_ID_ASYNC_PUSH)));
+      }*/
+
+      this->prefetches_full_[qid]->push(batch);
+#else
+      shared_ptr<Batch<Ftype>> batch = this->prefetches_free_[qid]->pop();
+      load_batch(batch.get(), thread_id, qid);
+      this->prefetches_full_[qid]->push(batch);
+#endif
+
+      if (iter0) {
+        if (this->net_iteration0_flag_ != nullptr) {
+          this->net_iteration0_flag_->wait();
+        }
+        std::lock_guard<std::mutex> lock(this->mutex_out_);
+        if (this->net_inititialized_flag_ != nullptr) {
+          this->net_inititialized_flag_ = nullptr;  // no wait on the second round
+          this->InitializePrefetch();
+          start_reading();
+        }
+        //if (this->auto_mode_) {
+        //  break;
+        //}  // manual otherwise, thus keep rolling
+        iter0 = false;
+      }
+    }
+  } catch (boost::thread_interrupted&) {
+     LOG(INFO) << "InternalThreadEntryN was interrupted" << std::endl;
+  }
 }
 
 bool static inline file_exists(const std::string filename) {

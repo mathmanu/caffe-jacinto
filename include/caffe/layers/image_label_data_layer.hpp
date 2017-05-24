@@ -28,6 +28,8 @@ class ImageLabelDataLayer : public BasePrefetchingDataLayer<Ftype, Btype> {
   bool is_gpu_transform() const override { return false; }
 
  protected:
+  void InternalThreadEntryN(size_t thread_id) override;
+  
   void ShuffleImages();
   void SampleScale(cv::Mat *image, cv::Mat *label);
   void ResizeTo(

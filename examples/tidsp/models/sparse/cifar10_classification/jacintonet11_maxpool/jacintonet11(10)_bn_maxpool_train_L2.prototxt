@@ -1,13 +1,16 @@
+
+#Note: NVIDIA/caffe version caffe-0.15 needs different blobs for top and bottom for BatchNorm
+
 #Sover parameters
-test_iter: 1000
-test_interval: 10000
+test_iter: 200
+test_interval: 2000
 test_initialization: true
-display: 100
+display: 1000
 
-base_lr: 0.0 #0.01 #0.1
-iter_size: 2
+base_lr: 0.1
+iter_size: 1
 
-max_iter: 20000 #320000
+max_iter: 32000
 lr_policy: "poly"
 power: 1
 momentum: 0.9
@@ -16,21 +19,16 @@ weight_decay: 1e-4
 regularization_type: "L2"
 
 snapshot: 10000
-snapshot_prefix: "training/imagenet_jacintonet11_bn_maxpool_L2"
-snapshot_after_train: true
-
+snapshot_prefix: "training/cifar10_jacintonet11_bn_maxpool_L2"
 solver_mode: GPU
 random_seed: 33
+
+#ignore_mismatching_blobs: true
 
 #Net parameters
 net_param {
 
-name: "JacintoNet-11-MaxPool(1000)"
-
-#default_forward_type:  FLOAT16
-#default_backward_type: FLOAT16
-#default_forward_math:  FLOAT
-#default_backward_math: FLOAT
+name: "JacintoNet-11-MaxPool(10)"
 
 layer {
   name: "data"
@@ -39,15 +37,15 @@ layer {
   top: "label"
   include {  phase: TRAIN  }
   transform_param {
-    crop_size: 224
+    crop_size: 32
     mirror: true
     mean_value: 128
     mean_value: 128
     mean_value: 128
   }
   data_param {
-    source: "./data/ilsvrc12_train_lmdb"
-    batch_size: 128
+    source: "./data/cifar10_train_lmdb"
+    batch_size: 64
     backend: LMDB
   }
 }
@@ -59,14 +57,14 @@ layer {
   top: "label"
   include {  phase: TEST  }
   transform_param {
-    crop_size: 224
+    crop_size: 32
     mirror: false       
     mean_value: 128
     mean_value: 128
     mean_value: 128
   }
   data_param {
-    source: "./data/ilsvrc12_val_lmdb"
+    source: "./data/cifar10_test_lmdb"
     batch_size: 50
     backend: LMDB
   }
@@ -149,16 +147,16 @@ layer {
   name: "pool1"
   type: "Pooling"
   bottom: "conv1b"
-  top: "pool1a"
+  top: "pool1"
   pooling_param {
     pool: MAX
-    kernel_size: 2
-    stride: 2
+    kernel_size: 1
+    stride: 1
   }
 }
 layer {
   name: "res2a_branch2a"
-  bottom: "pool1a"
+  bottom: "pool1"
   top: "res2a_branch2a"
   type: "Convolution"
   param { lr_mult: 1 decay_mult: 1 }
@@ -234,16 +232,16 @@ layer {
   name: "pool2"
   type: "Pooling"
   bottom: "res2a_branch2b"
-  top: "pool2a"
+  top: "pool2"
   pooling_param {
     pool: MAX
-    kernel_size: 2
-    stride: 2
+    kernel_size: 1
+    stride: 1
   }
 }
 layer {
   name: "res3a_branch2a"
-  bottom: "pool2a"
+  bottom: "pool2"
   top: "res3a_branch2a"
   type: "Convolution"
   param { lr_mult: 1 decay_mult: 1 }
@@ -319,16 +317,16 @@ layer {
   name: "pool3"
   type: "Pooling"
   bottom: "res3a_branch2b"
-  top: "pool3a"
+  top: "pool3"
   pooling_param {
     pool: MAX
-    kernel_size: 2
-    stride: 2
+    kernel_size: 1
+    stride: 1
   }
 }
 layer {
   name: "res4a_branch2a"
-  bottom: "pool3a"
+  bottom: "pool3"
   top: "res4a_branch2a"
   type: "Convolution"
   param { lr_mult: 1 decay_mult: 1 }
@@ -404,16 +402,16 @@ layer {
   name: "pool4"
   type: "Pooling"
   bottom: "res4a_branch2b"
-  top: "pool4a"
+  top: "pool4"
   pooling_param {
     pool: MAX
-    kernel_size: 2
-    stride: 2
+    kernel_size: 1
+    stride: 1
   }
 }
 layer {
   name: "res5a_branch2a"
-  bottom: "pool4a"
+  bottom: "pool4"
   top: "res5a_branch2a"
   type: "Convolution"
   param { lr_mult: 1 decay_mult: 1 }
@@ -485,6 +483,7 @@ layer {
   top: "res5a_branch2b"
   type: "ReLU"
 }
+
 layer {
   name: "pool5"
   bottom: "res5a_branch2b"
@@ -496,14 +495,14 @@ layer {
   }
 }
 layer {
-  name: "fc1000"
+  name: "fc10"
   type: "InnerProduct"
   bottom: "pool5"
-  top: "fc1000"
+  top: "fc10"
   param { lr_mult: 1 decay_mult: 1 }
   param { lr_mult: 2 decay_mult: 0 }
   inner_product_param {
-     num_output: 1000
+     num_output: 10
      weight_filler { type: "msra" }
      bias_filler { type: "constant" value: 0 }
   }
@@ -511,7 +510,7 @@ layer {
 layer {
   name: "loss"
   type: "SoftmaxWithLoss"
-  bottom: "fc1000"
+  bottom: "fc10"
   bottom: "label"
   propagate_down: 1
   propagate_down: 0
@@ -522,7 +521,7 @@ layer {
 layer {
   name: "accuracy"
   type: "Accuracy"
-  bottom: "fc1000"
+  bottom: "fc10"
   bottom: "label"
   top: "accuracy"
   include {
@@ -532,7 +531,7 @@ layer {
 layer {
   name: "accuracy/top-5"
   type: "Accuracy"
-  bottom: "fc1000"
+  bottom: "fc10"
   bottom: "label"
   top: "accuracy/top-5"
   include {

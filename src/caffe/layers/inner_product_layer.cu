@@ -11,6 +11,7 @@ namespace caffe {
 template <typename Ftype, typename Btype>
 void InnerProductLayer<Ftype, Btype>::Forward_gpu(const vector<Blob*>& bottom,
     const vector<Blob*>& top) {
+  this->Quantize_gpu(bottom, top);
   const Ftype* bottom_data = bottom[0]->gpu_data<Ftype>();
   Ftype* top_data = top[0]->mutable_gpu_data<Ftype>();
   const Ftype* weight = this->blobs_[0]->template gpu_data<Ftype>();
@@ -32,6 +33,7 @@ void InnerProductLayer<Ftype, Btype>::Forward_gpu(const vector<Blob*>& bottom,
           bias_multiplier_->template gpu_data<Ftype>(), bias, (Ftype)1., top_data);
     }
   }
+  this->Quantize_gpu(bottom, top);
 }
 
 template <typename Ftype, typename Btype>

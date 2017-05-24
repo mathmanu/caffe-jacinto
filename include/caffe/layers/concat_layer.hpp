@@ -6,6 +6,7 @@
 #include "caffe/blob.hpp"
 #include "caffe/layer.hpp"
 #include "caffe/proto/caffe.pb.h"
+#include "caffe/quantized_layer.hpp"
 
 namespace caffe {
 
@@ -14,10 +15,10 @@ namespace caffe {
  *        or channel dimension, outputting the result.
  */
 template <typename Ftype, typename Btype>
-class ConcatLayer : public Layer<Ftype, Btype> {
+class ConcatLayer : public QuantizedLayer<Ftype, Btype> {
  public:
   explicit ConcatLayer(const LayerParameter& param)
-      : Layer<Ftype, Btype>(param) {}
+      : QuantizedLayer<Ftype, Btype>(param) {}
   virtual void LayerSetUp(const vector<Blob*>& bottom,
       const vector<Blob*>& top);
   virtual void Reshape(const vector<Blob*>& bottom,

@@ -7,6 +7,7 @@
 #include "caffe/layer.hpp"
 #include "caffe/proto/caffe.pb.h"
 #include "caffe/util/im2col.hpp"
+#include "caffe/quantized_layer.hpp"
 
 namespace caffe {
 
@@ -15,10 +16,10 @@ namespace caffe {
  *        ConvolutionLayer and DeconvolutionLayer.
  */
 template <typename Ftype, typename Btype>
-class BaseConvolutionLayer : public Layer<Ftype, Btype> {
+class BaseConvolutionLayer : public QuantizedLayer<Ftype, Btype> {
  public:
   explicit BaseConvolutionLayer(const LayerParameter& param)
-      : Layer<Ftype, Btype>(param) {}
+      : QuantizedLayer<Ftype, Btype>(param) {}
   virtual void LayerSetUp(const vector<Blob*>& bottom,
       const vector<Blob*>& top);
   virtual void Reshape(const vector<Blob*>& bottom,

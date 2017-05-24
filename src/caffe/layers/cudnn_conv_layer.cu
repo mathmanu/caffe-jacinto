@@ -12,6 +12,7 @@ namespace caffe {
 template<typename Ftype, typename Btype>
 void CuDNNConvolutionLayer<Ftype, Btype>::Forward_gpu(const vector<Blob*>& bottom,
     const vector<Blob*>& top) {
+  this->Quantize_gpu(bottom, top);
   const Ftype* weight = this->blobs_[0]->template gpu_data<Ftype>();
   for (int i = 0; i < bottom.size(); ++i) {
     const Ftype* bottom_data = bottom[i]->gpu_data<Ftype>();
@@ -55,6 +56,8 @@ void CuDNNConvolutionLayer<Ftype, Btype>::Forward_gpu(const vector<Blob*>& botto
     // Possibly use faster algorithms by allowing larger workspace.
     use_modest_workspace_ = false;
   }
+  
+  this->Quantize_gpu(bottom, top);    
 }
 
 template <typename Ftype, typename Btype>

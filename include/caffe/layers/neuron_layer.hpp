@@ -6,6 +6,7 @@
 #include "caffe/blob.hpp"
 #include "caffe/layer.hpp"
 #include "caffe/proto/caffe.pb.h"
+#include "caffe/quantized_layer.hpp"
 
 namespace caffe {
 
@@ -16,10 +17,10 @@ namespace caffe {
  *        element.
  */
 template <typename Ftype, typename Btype>
-class NeuronLayer : public Layer<Ftype, Btype> {
+class NeuronLayer : public QuantizedLayer<Ftype, Btype> {
  public:
   explicit NeuronLayer(const LayerParameter& param)
-     : Layer<Ftype, Btype>(param) {}
+     : QuantizedLayer<Ftype, Btype>(param) {}
   virtual void Reshape(const vector<Blob*>& bottom,
       const vector<Blob*>& top);
 

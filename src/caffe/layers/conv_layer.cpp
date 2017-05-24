@@ -24,6 +24,7 @@ void ConvolutionLayer<Ftype, Btype>::compute_output_shape() {
 template <typename Ftype, typename Btype>
 void ConvolutionLayer<Ftype, Btype>::Forward_cpu(const vector<Blob*>& bottom,
       const vector<Blob*>& top) {
+  this->Quantize_cpu(bottom, top);
   const Ftype* weight = this->blobs_[0]->template cpu_data<Ftype>();
   for (int i = 0; i < bottom.size(); ++i) {
     const Ftype* bottom_data = bottom[i]->cpu_data<Ftype>();
@@ -37,6 +38,7 @@ void ConvolutionLayer<Ftype, Btype>::Forward_cpu(const vector<Blob*>& bottom,
       }
     }
   }
+  this->Quantize_cpu(bottom, top);
 }
 
 template <typename Ftype, typename Btype>

@@ -10,7 +10,7 @@ template<typename Ftype, typename Btype>
 void InnerProductLayer<Ftype, Btype>::SetSparseMode(SparseMode mode) {
   //disconnect connections
   if(mode != SPARSE_NONE){
-      this->mutable_layer_param().set_sparse_mode(mode);
+      //this->mutable_layer_param().set_sparse_mode(mode);
       LOG(INFO)<<"all zero weights of "<<this->layer_param().name()<<" are frozen";
       this->blobs_[0]->SetSparseMode(mode);
   }
@@ -92,6 +92,7 @@ InnerProductLayer<Ftype, Btype>::Reshape(const vector<Blob*>& bottom, const vect
 template<typename Ftype, typename Btype>
 void InnerProductLayer<Ftype, Btype>::Forward_cpu(const vector<Blob*>& bottom,
     const vector<Blob*>& top) {
+  this->Quantize_cpu(bottom, top);
   const Ftype* bottom_data = bottom[0]->cpu_data<Ftype>();
   Ftype* top_data = top[0]->mutable_cpu_data<Ftype>();
   const Ftype* weight = this->blobs_[0]->template cpu_data<Ftype>();
@@ -102,6 +103,7 @@ void InnerProductLayer<Ftype, Btype>::Forward_cpu(const vector<Blob*>& bottom,
         bias_multiplier_->template cpu_data<Ftype>(), this->blobs_[1]->template cpu_data<Ftype>(),
         (Ftype) 1., top_data);
   }
+  this->Quantize_cpu(bottom, top);
 }
 
 template<typename Ftype, typename Btype>

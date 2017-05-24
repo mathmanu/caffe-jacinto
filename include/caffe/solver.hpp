@@ -148,6 +148,7 @@ class Solver {
   string SnapshotFilename(const string extension);
   string SnapshotToBinaryProto();
   string SnapshotToHDF5();
+  string SnapshotToProtoLog();
   // The test routine
   bool TestAll(const int iters = 0, bool use_multi_gpu = false);
   bool Test(const int test_net_id = 0, const int iters = 0, bool use_multi_gpu = false);
@@ -164,6 +165,8 @@ class Solver {
     }
   }
 
+  void StartQuantization(shared_ptr<Net >& net);
+  void FinishQuantization(shared_ptr<Net >& net);
   void SetSparseMode();
   
   const SolverParameter param_;

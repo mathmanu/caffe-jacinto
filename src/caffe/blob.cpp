@@ -366,7 +366,7 @@ void Blob::CopyFrom(const Blob& source, bool copy_diff, bool reshape) {
   }
 }
 
-void Blob::FromProto(const BlobProto& proto, bool reshape) {
+void Blob::FromProto(const BlobProto& proto, bool reshape, bool ignore_shape_mismatch) {
   if (reshape) {
     vector<int> shape;
     if (proto.has_num() || proto.has_channels() ||
@@ -385,7 +385,7 @@ void Blob::FromProto(const BlobProto& proto, bool reshape) {
       }
     }
     Reshape(shape);
-  } else {
+  } else if(!ignore_shape_mismatch) {
     CHECK(ShapeEquals(proto)) << "shape mismatch (reshape not set)";
   }
   // copy data
@@ -725,7 +725,7 @@ void Blob::SetSparseMode(const SparseMode mode) {
     
 	initialize_connectivity();  
   
-	if(mode == SPARSE_WEIGHTS){
+	if(mode == SPARSE_UPDATE){
 	    switch (data_mem->head()) {
 	    case SyncedMemory::HEAD_AT_CPU:
 		{

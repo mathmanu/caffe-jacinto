@@ -14,6 +14,7 @@ void CuDNNReLULayer<Ftype, Btype>::Forward_gpu(const vector<Blob*>& bottom,
   if (ReLULayer<Ftype, Btype>::layer_param_.relu_param().negative_slope() != 0) {
     return ReLULayer<Ftype, Btype>::Forward_gpu(bottom, top);
   }
+  this->Quantize_gpu(bottom, top);
   CUDNN_CHECK(cudnnActivationForward(Caffe::cudnn_handle(),
         activ_desc_,
         cudnn::dataType<Ftype>::one,
@@ -21,6 +22,7 @@ void CuDNNReLULayer<Ftype, Btype>::Forward_gpu(const vector<Blob*>& bottom,
         cudnn::dataType<Ftype>::zero,
         fwd_top_desc_, top_data));
   CUDA_CHECK(cudaStreamSynchronize(Caffe::thread_stream()));
+  this->Quantize_gpu(bottom, top);
 }
 
 template <typename Ftype, typename Btype>

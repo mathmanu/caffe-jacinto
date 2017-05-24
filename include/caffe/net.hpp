@@ -123,6 +123,7 @@ class Net {
   void ToProto(NetParameter* param, bool write_diff = false) const;
   /// @brief Writes the net to an HDF5 file.
   void ToHDF5(const string& filename, bool write_diff = false) const;
+  void ToProtoLog(NetLogParameter* param, bool write_diff = false) const;
 
   /// @brief returns the network name.
   const string& name() const { return name_; }
@@ -261,6 +262,40 @@ class Net {
   }
 
   int GetSparsity(std::map<std::string, std::pair<int,int> >& sparsity_map);
+  void ClearQuantizationRangeInLayers();
+  void UpdateQuantizationRangeInLayers();
+  void CopyQuantizationRangeInLayers();
+  void SetTrainQuantizationParamsLayerParams(const int layer_id,
+  	  QuantizationParameter_Precision precision, QuantizationParameter_Rounding rounding_scheme,
+        const int bw_conv, const int bw_fc, const int bw_in, const int bw_out,
+        bool unsigned_check_in, bool unsigned_check_out);
+  void SetTrainQuantizationParamsLayerInput(const int layer_id,
+  	  QuantizationParameter_Precision precision, QuantizationParameter_Rounding rounding_scheme,
+        const int bw_conv, const int bw_fc, const int bw_in, const int bw_out,
+        bool unsigned_check_in, bool unsigned_check_out);
+  void SetTrainQuantizationParamsLayerOutput(const int layer_id,
+  	  QuantizationParameter_Precision precision, QuantizationParameter_Rounding rounding_scheme,
+        const int bw_conv, const int bw_fc, const int bw_in, const int bw_out,
+        bool unsigned_check_in, bool unsigned_check_out);
+  void SetTrainQuantizationParams(QuantizationParameter_Precision precision, QuantizationParameter_Rounding rounding_scheme,
+    const int bw_conv, const int bw_fc, const int bw_in, const int bw_out,
+    bool unsigned_check_in, bool unsigned_check_out,
+    bool quantize_weights, bool quantize_activations);
+  void SetTestQuantizationParams(QuantizationParameter_Precision precision, QuantizationParameter_Rounding rounding_scheme,
+    const int bw_conv, const int bw_fc, const int bw_in, const int bw_out,
+    bool unsigned_check_in, bool unsigned_check_out,
+    bool quantize_weights, bool quantize_activations);
+  void DisplayQuantizationParams(bool quantize_weights, bool quantize_activations);
+  void DisableQuantization(bool quantize_weights, bool quantize_activations);
+  template <typename Dtype> void Convert2FixedPoint_cpu(Dtype* data, const int cnt, const int bw, int fl, bool unsigned_data, bool clip) const;
+  void AddQuantizationParams();
+
+  int EstimateAbsBits(float val);
+  int GetIntegerLengthWeights(const int layer_id, float& min_layer_weights, float& max_layer_weights);
+  int GetIntegerLengthIn(const int layer_id, const int blob_id, bool unsigned_check_in,
+		  bool& unsigned_layer_in, float& min_layer_in, float& max_layer_in);
+  int GetIntegerLengthOut(const int layer_id, bool unsigned_check_out,
+		  bool& unsigned_layer_out, float& min_layer_out, float& max_layer_out);  
   template <typename Dtype> void OptimizeNet();
   void ThresholdNet(float threshold_fraction_low, float threshold_fraction_mid, float threshold_fraction_high,
       float threshold_value_maxratio, float threshold_value, float threshold_step_factor);
@@ -384,6 +419,12 @@ class Net {
   static constexpr int END_OF_ITERATION = -1;
   static constexpr int END_OF_BATCH = -2;
 
+  // Range values
+  vector<vector<float> > max_in_;
+  vector<vector<float> > min_in_;
+  vector<float> max_out_, max_weights_;
+  vector<float> min_out_, min_weights_;
+  
   DISABLE_COPY_MOVE_AND_ASSIGN(Net);
 };
 

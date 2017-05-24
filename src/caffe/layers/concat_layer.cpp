@@ -71,6 +71,7 @@ void ConcatLayer<Ftype, Btype>::Forward_cpu(const vector<Blob*>& bottom,
     }
     offset_concat_axis += bottom_concat_axis;
   }
+  this->Quantize_cpu(bottom, top);
 }
 
 template <typename Ftype, typename Btype>

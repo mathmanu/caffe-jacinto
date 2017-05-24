@@ -47,6 +47,7 @@ void ConcatLayer<Ftype, Btype>::Forward_gpu(const vector<Blob*>& bottom,
         top_concat_axis, bottom_concat_axis, offset_concat_axis, top_data);
     offset_concat_axis += bottom_concat_axis;
   }
+  this->Quantize_gpu(bottom, top);
 }
 
 template <typename Ftype, typename Btype>

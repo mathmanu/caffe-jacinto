@@ -19,6 +19,7 @@
 #include "caffe/util/insert_splits.hpp"
 #include "caffe/util/math_functions.hpp"
 #include "caffe/util/upgrade_proto.hpp"
+#include "caffe/util/format.hpp"
 #include "caffe/filler.hpp"
 
 #include "caffe/test/test_caffe_main.hpp"
@@ -1045,6 +1046,7 @@ void Net::CopyTrainedLayersFrom(const NetParameter& param) {
     const LayerParameter& source_layer = param.layer(i);
     const string& source_layer_name = source_layer.name();
     const string& source_layer_type = source_layer.type();
+    const bool ignore_mismatching_blobs = ((solver_==NULL) || solver_->param().ignore_mismatching_blobs());	
     int target_layer_id = 0;
     while (target_layer_id != layer_names_.size() &&
         layer_names_[target_layer_id] != source_layer_name) {
@@ -1057,7 +1059,7 @@ void Net::CopyTrainedLayersFrom(const NetParameter& param) {
     DLOG(INFO) << "Copying source layer " << source_layer_name;
     vector<shared_ptr<Blob> >& target_blobs =
         layers_[target_layer_id]->blobs();
-    if (source_layer_type == "BatchNorm" && target_blobs.size() != source_layer.blobs_size()) {
+    if (source_layer_type == "BatchNorm" && target_blobs.size() != source_layer.blobs_size() && ignore_mismatching_blobs) {
       LOG(WARNING) << "Incompatible number of blobs for layer " << source_layer_name 
 	      << " target(" << target_blobs.size() << ") vs source(" << source_layer.blobs_size() << ")";	
 	} else {	
@@ -1090,25 +1092,44 @@ void Net::CopyTrainedLayersFrom(const NetParameter& param) {
       }
     } else {
       for (int j = 0; j < num_blobs_to_copy; ++j) {
+	    bool do_copy = true;	  
         if (!target_blobs[j]->ShapeEquals(source_layer.blobs(j))) {
           shared_ptr<Blob> source_blob = Blob::create(target_blobs[j]->data_type(),
               target_blobs[j]->diff_type());
           const bool kReshape = true;
+          LOG(WARNING) << "Copying from " << source_layer_name << " to " <<
+            layers_[target_layer_id]->layer_param().name() <<
+            " target blob " << j;
           source_blob->FromProto(source_layer.blobs(j), kReshape);
-          LOG(FATAL) << "Cannot copy param " << j << " weights from layer '"
-              << source_layer_name << "'; shape mismatch.  Source param shape is "
-              << source_blob->shape_string() << "; target param shape is "
-              << target_blobs[j]->shape_string() << ". "
-              << "To learn this layer's parameters from scratch rather than "
-              << "copying from a saved net, rename the layer.";
+          if(target_blobs[j]->count() != source_blob->count()) {
+            do_copy = false;
+            LOG(WARNING) << "Cannot copy param " << j << " weights from layer '"
+                << source_layer_name << "'; shape mismatch.  Source param shape is "
+                << source_blob->shape_string() << "; target param shape is "
+                << target_blobs[j]->shape_string() << ". "
+                << "To learn this layer's parameters from scratch rather than "
+                << "copying from a saved net, rename the layer.";
+          } else {
+            LOG(WARNING) << "Shape mismatch, param: " << j << " layer: "
+                << source_layer_name << " source: "
+                << source_blob->shape_string() << " target: "
+                << target_blobs[j]->shape_string() << ". ";		
+          }
+
+          if(do_copy) {
+            const bool kReshape = false;
+            target_blobs[j]->FromProto(source_layer.blobs(j), kReshape, ignore_mismatching_blobs);
+          } else if(!ignore_mismatching_blobs) {
+            LOG(WARNING) << "ignore_mismatching_blobs: " << ignore_mismatching_blobs;
+            LOG(FATAL) << "Cannot copy param " << j << " weights from layer '"
+                << source_layer_name << "'; shape mismatch.";
+          }
         }
-        const bool kReshape = false;
-        target_blobs[j]->FromProto(source_layer.blobs(j), kReshape);
       }
     }
   }
+  CopyQuantizationRangeInLayers();    
 }
-
 int Net::GetSparsity(std::map<std::string, std::pair<int,int> >& sparsity_map){
   int blob_count = 0;
   float threshold = 0.0f;
@@ -1204,6 +1225,131 @@ void Net::ToProto(NetParameter* param, bool write_diff) const {
   for (int i = 0; i < layers_.size(); ++i) {
     LayerParameter* layer_param = param->add_layer();
     layers_[i]->ToProto(layer_param, write_diff);
+  }
+}
+
+void Net::ToProtoLog(NetLogParameter* param, bool write_diff) const {
+  param->Clear();
+  param->set_name(name_);
+  // Add bottom and top
+  DLOG(INFO)<< "Serializing " << layers_.size() << " layers";
+  for (int i = 0; i < layers_.size(); ++i) {
+    LayerParameter* layer_param = param->add_layer();
+    // Setting write_blobs to false as blobs will be written separately below
+    layers_[i]->ToProto(layer_param, write_diff);
+
+    if (layers_[i]->layer_param().snapshot_log_weights()) {
+      const vector<shared_ptr<Blob > >& this_blobs = layers_[i]->blobs();
+      for (int blob_id = 0; blob_id < this_blobs.size(); blob_id++) {
+        BlobProtoLog* layer_blob_log = param->add_blob_log();
+        BlobProto *blob_data = layer_blob_log->mutable_blob_data();
+        shared_ptr<Blob> blob_copy = Blob::create(this_blobs[blob_id]->data_type(), 
+		    this_blobs[blob_id]->diff_type());
+        blob_copy->CopyFrom(*this_blobs[blob_id], false, true);
+        string blob_name = layer_names_[i] + " weight:" + caffe::format_int(blob_id);
+        layer_blob_log->set_name(blob_name);
+        if (layers_[i]->layer_param().has_quantization_param()) {
+          const QuantizationParameter& qparam = layers_[i]->layer_param().quantization_param();
+          if (qparam.quantize_layer_weights()) {
+            blob_name += " quantized";
+            layer_blob_log->set_is_quantized(true);
+            layer_blob_log->set_is_unsigned(false);
+            layer_blob_log->set_bw(qparam.bw_weights());
+            layer_blob_log->set_fl(qparam.fl_weights());
+            Convert2FixedPoint_cpu<float>(blob_copy->mutable_cpu_data<float>(), blob_copy->count(), qparam.bw_weights(),
+                qparam.fl_weights(), false, (blob_id == 0));
+          }
+        }
+        blob_copy->ToProto<float>(blob_data, false);
+      }
+    }
+
+    if (layers_[i]->layer_param().snapshot_log_in()) {
+      const vector<Blob*>& this_bottom = this->bottom_vecs_[i];
+      int num_bottom_blobs = this_bottom.size();
+      for (int bottom_id = 0; bottom_id < num_bottom_blobs; bottom_id++) {
+        BlobProtoLog* layer_blob_log = param->add_blob_log();
+        BlobProto *blob_data = layer_blob_log->mutable_blob_data();
+        shared_ptr<Blob> blob_copy = Blob::create(this_bottom[bottom_id]->data_type(), 
+		    this_bottom[bottom_id]->diff_type());
+        blob_copy->CopyFrom(*this_bottom[bottom_id], false, true);
+        std::stringstream ss;
+        ss << "layer:" << layer_names_[i] << ", bottom:" << bottom_id;
+        string blob_name = ss.str();
+        layer_blob_log->set_name(blob_name);
+        if (layers_[i]->layer_param().has_quantization_param()) {
+          const QuantizationParameter& qparam = layers_[i]->layer_param().quantization_param();
+          if (qparam.quantize_layer_in()) {
+            blob_name += " : quantized";
+            layer_blob_log->set_is_quantized(true);
+            bool is_unsigned = qparam.unsigned_layer_in_size()>0 && qparam.unsigned_layer_in(bottom_id);
+            layer_blob_log->set_is_unsigned(is_unsigned);
+            layer_blob_log->set_bw(qparam.bw_layer_in());
+            if(qparam.fl_layer_in_size() > bottom_id) {
+              layer_blob_log->set_fl(qparam.fl_layer_in(bottom_id));
+              Convert2FixedPoint_cpu<float>(blob_copy->mutable_cpu_data<float>(), blob_copy->count(), qparam.bw_layer_in(),
+                  qparam.fl_layer_in(bottom_id), is_unsigned, true);
+            }
+          }
+        }
+        blob_copy->ToProto<float>(blob_data, false);
+      }
+    }
+
+    if (layers_[i]->layer_param().snapshot_log_out()) {
+      const vector<Blob*>& this_top = this->top_vecs_[i];
+      for (int top_id = 0; top_id < this_top.size(); top_id++) {
+        BlobProtoLog* layer_blob_log = param->add_blob_log();
+        BlobProto *blob_data = layer_blob_log->mutable_blob_data();
+        shared_ptr<Blob> blob_copy = Blob::create(this_top[top_id]->data_type(),
+		    this_top[top_id]->diff_type());
+        blob_copy->CopyFrom(*this_top[top_id], false, true);
+        std::stringstream ss;
+        ss << "layer:" << layer_names_[i] << ", top:" << top_id;
+        string blob_name = ss.str();
+        layer_blob_log->set_name(blob_name);
+        if (layers_[i]->layer_param().has_quantization_param()) {
+          const QuantizationParameter& qparam = layers_[i]->layer_param().quantization_param();
+          if (qparam.quantize_layer_out()) {
+            blob_name += " : quantized";
+            layer_blob_log->set_is_quantized(true);
+            layer_blob_log->set_is_unsigned(qparam.unsigned_layer_out());
+            layer_blob_log->set_bw(qparam.bw_layer_out());
+            layer_blob_log->set_fl(qparam.fl_layer_out());
+            Convert2FixedPoint_cpu<float>(blob_copy->mutable_cpu_data<float>(), blob_copy->count(), qparam.bw_layer_out(),
+                qparam.fl_layer_out(), qparam.unsigned_layer_out(), true);
+          }
+        } else if(layers_[i]->layer_param().type() == "ArgMax") {
+          blob_name += " : quantized";
+          layer_blob_log->set_is_quantized(true);
+          layer_blob_log->set_is_unsigned(true);
+          layer_blob_log->set_bw(8);
+          layer_blob_log->set_fl(0);
+          Convert2FixedPoint_cpu<float>(blob_copy->mutable_cpu_data<float>(), blob_copy->count(), 8,
+              0, true, true);
+        }
+
+        blob_copy->ToProto<float>(blob_data, false);
+      }
+    }
+  }
+}
+
+template<typename Dtype>
+void Net::Convert2FixedPoint_cpu(Dtype* data, const int cnt, const int bit_width, int fl, bool unsigned_data, bool clip) const {
+  for (int index = 0; index < cnt; ++index) {
+    data[index] = data[index] * powf(2, fl);
+    // Saturate data
+#if CLIP_QUANT
+      if(clip) {
+          int qrange = unsigned_data? bit_width :  (bit_width - 1);
+          Dtype max_data = +(powf(2, qrange) - 1);
+          Dtype min_data = unsigned_data? 0 : -(powf(2, qrange));
+          data[index] = std::max(std::min(data[index], max_data), min_data);
+      }
+#endif
+    data[index] = round(data[index]);
+    //data[index] = data[index] * pow(2, -fl);
   }
 }
 
@@ -1546,6 +1692,368 @@ void Net::OptimizeNet() {
 
 template void Net::OptimizeNet<float>();
 
+
+void Net::ClearQuantizationRangeInLayers() {
+  max_in_.clear();
+  max_out_.clear();
+  max_weights_.clear();
+
+  min_in_.clear();
+  min_out_.clear();
+  min_weights_.clear();
+}
+
+void Net::CopyQuantizationRangeInLayers() {
+  max_in_.resize(layers_.size());
+  max_out_.resize(layers_.size(), 0);
+  max_weights_.resize(layers_.size(), 0);
+
+  min_in_.resize(layers_.size());
+  min_out_.resize(layers_.size(), 0);
+  min_weights_.resize(layers_.size(), 0);
+
+  for (int layer_id = 0; layer_id < layers_.size(); layer_id++) {
+    min_in_[layer_id].resize(bottom_vecs_[layer_id].size(), 0);
+    max_in_[layer_id].resize(bottom_vecs_[layer_id].size(), 0);
+  }
+
+  for (int layer_id = 0; layer_id < layers_.size(); layer_id++) {
+    if(!layers_[layer_id]->layer_param().has_quantization_param()) {
+      continue;
+    }
+    const QuantizationParameter& source_quantization_param = layers_[layer_id]->layer_param().quantization_param();
+    for(int blob_id = 0; blob_id<min_in_[layer_id].size(); blob_id++) {
+      if(source_quantization_param.min_layer_in_size() > blob_id) {
+        min_in_[layer_id][blob_id] = source_quantization_param.min_layer_in(blob_id);
+      }
+    }
+    for(int blob_id = 0; blob_id<max_in_[layer_id].size(); blob_id++) {
+      if(source_quantization_param.max_layer_in_size() > blob_id) {
+        max_in_[layer_id][blob_id] = source_quantization_param.max_layer_in(blob_id);
+      }
+    }
+
+    min_out_[layer_id] = source_quantization_param.min_layer_out();
+    max_out_[layer_id] = source_quantization_param.max_layer_out();
+
+    min_weights_[layer_id] = source_quantization_param.min_layer_weights();
+    max_weights_[layer_id] = source_quantization_param.max_layer_weights();
+  }
+}
+
+void Net::UpdateQuantizationRangeInLayers() {
+  max_in_.resize(layers_.size());
+  max_out_.resize(layers_.size(), 0);
+  max_weights_.resize(layers_.size(), 0);
+
+  min_in_.resize(layers_.size());
+  min_out_.resize(layers_.size(), 0);
+  min_weights_.resize(layers_.size(), 0);
+
+  for (int layer_id = 0; layer_id < layers_.size(); layer_id++) {
+    min_in_[layer_id].resize(bottom_vecs_[layer_id].size(), 0);
+    max_in_[layer_id].resize(bottom_vecs_[layer_id].size(), 0);
+  }
+
+  // Find maximal values.
+  float alpha = 0.99;
+  float beta = (1.0 - alpha);
+  for (int layer_id = 0; layer_id < layers_.size(); layer_id++) {
+	if(bottom_vecs_[layer_id].size()>0) {
+		for(int blob_id = 0; blob_id<bottom_vecs_[layer_id].size(); blob_id++) {
+		    float min_in = bottom_vecs_[layer_id][blob_id]->min();
+		    float max_in = bottom_vecs_[layer_id][blob_id]->max();
+            min_in_[layer_id][blob_id] = min_in_[layer_id][blob_id] * alpha +  min_in * beta;
+            max_in_[layer_id][blob_id] = max_in_[layer_id][blob_id] * alpha +  max_in * beta;
+		}
+	}
+
+    float min_out = std::numeric_limits<float>::max();
+	float max_out = std::numeric_limits<float>::min();
+	if(top_vecs_[layer_id].size() > 0) {
+		for(int blob_id = 0; blob_id<top_vecs_[layer_id].size(); blob_id++) {
+          min_out = std::min(min_out, top_vecs_[layer_id][blob_id]->min());
+		  max_out = std::max(min_out, top_vecs_[layer_id][blob_id]->max());
+		}
+        min_out_[layer_id] = min_out_[layer_id] * alpha + min_out * beta;
+		max_out_[layer_id] = max_out_[layer_id] * alpha + max_out * beta;
+	}
+
+	//TODO: Set to 1 to consider the weights only, and ignore the bias
+	int max_params_to_consider = 1;//INT_MAX;
+	int num_params = std::min((int)layers_[layer_id]->blobs().size(), max_params_to_consider);
+    float min_weights = std::numeric_limits<float>::max();
+	float max_weights = std::numeric_limits<float>::min();
+	if(num_params > 0) {
+		for(int blob_id = 0; blob_id < num_params; blob_id++) {
+          min_weights = std::min(min_weights, (float)layers_[layer_id]->blobs()[blob_id]->min());
+		  max_weights = std::max(max_weights, (float)layers_[layer_id]->blobs()[blob_id]->max());
+		}
+        min_weights_[layer_id] = min_weights_[layer_id] * alpha + min_weights * beta;
+		max_weights_[layer_id] = max_weights_[layer_id] * alpha + max_weights * beta;
+	}
+  }
+}
+
+void Net::SetTrainQuantizationParamsLayerInput(const int layer_id, QuantizationParameter_Precision precision,
+    QuantizationParameter_Rounding rounding_scheme, const int bw_conv, const int bw_fc, const int bw_in,
+    const int bw_out, bool unsigned_check_in, bool unsigned_check_out) {
+  QuantizationParameter& quantization_param = *layers_[layer_id]->mutable_layer_param().mutable_quantization_param();
+  if(true) { // (quantization_param.quantize_layer_in()) {
+    int num_bottom_vecs = bottom_vecs_[layer_id].size();
+    for(int blob_id = 0; blob_id<num_bottom_vecs; blob_id++) {
+      bool unsigned_layer_in;
+      float min_layer_in, max_layer_in;
+      int len_in = GetIntegerLengthIn(layer_id, blob_id, unsigned_check_in, unsigned_layer_in,
+          min_layer_in, max_layer_in);
+      quantization_param.set_precision(precision);
+      quantization_param.set_rounding_scheme(rounding_scheme);
+      if(quantization_param.fl_layer_in_size() > blob_id) {
+        quantization_param.set_fl_layer_in(blob_id, bw_in - len_in);
+      } else {
+        quantization_param.add_fl_layer_in(bw_in - len_in);
+      }
+      quantization_param.set_bw_layer_in(bw_in);
+
+      if (unsigned_check_in) {
+        if(quantization_param.unsigned_layer_in_size() < num_bottom_vecs) {
+          quantization_param.add_unsigned_layer_in(unsigned_layer_in);
+        } else {
+          quantization_param.set_unsigned_layer_in(blob_id, unsigned_layer_in);
+        }
+      }
+
+      if(quantization_param.min_layer_in_size() < num_bottom_vecs) {
+        quantization_param.add_min_layer_in(min_layer_in);
+      } else {
+        quantization_param.set_min_layer_in(blob_id, min_layer_in);
+      }
+
+      if(quantization_param.max_layer_in_size() < num_bottom_vecs) {
+        quantization_param.add_max_layer_in(max_layer_in);
+      } else {
+        quantization_param.set_max_layer_in(blob_id, max_layer_in);
+      }
+    }
+  }
+}
+
+void Net::SetTrainQuantizationParamsLayerOutput(const int layer_id, QuantizationParameter_Precision precision,
+    QuantizationParameter_Rounding rounding_scheme, const int bw_conv, const int bw_fc, const int bw_in,
+    const int bw_out, bool unsigned_check_in, bool unsigned_check_out) {
+  QuantizationParameter& quantization_param = *layers_[layer_id]->mutable_layer_param().mutable_quantization_param();
+  if(true) { //(quantization_param.quantize_layer_out()) {
+    bool unsigned_layer_out;
+    float min_layer_out, max_layer_out;
+    int len_out = GetIntegerLengthOut(layer_id, unsigned_check_out, unsigned_layer_out,
+        min_layer_out, max_layer_out);
+    quantization_param.set_fl_layer_out(bw_out - len_out);
+    quantization_param.set_bw_layer_out(bw_out);
+    if (unsigned_check_out) {
+      quantization_param.set_unsigned_layer_out(unsigned_layer_out);
+    }
+    quantization_param.set_min_layer_out(min_layer_out);
+    quantization_param.set_max_layer_out(max_layer_out);
+  }
+
+  if(quantization_param.quantize_layer_out()) {
+    int fl_in = 0, fl_weights = 0, fl_out = 0;
+    if(layers_[layer_id]->layer_param().type() == "Convolution" ||
+        layers_[layer_id]->layer_param().type() == "Deconvolution") {
+      fl_in = quantization_param.fl_layer_in(0);
+      fl_weights = quantization_param.fl_weights();
+      fl_out = quantization_param.fl_layer_out();
+    } else if(layer_id>0 && layers_[layer_id]->layer_param().type() == "ReLU" &&
+      layers_[layer_id-1]->layer_param().type() == "Convolution") {
+      if(layers_[layer_id-1]->mutable_layer_param().has_quantization_param()) {
+        QuantizationParameter& quantization_param_prev = *layers_[layer_id-1]->mutable_layer_param().mutable_quantization_param();
+        fl_in = quantization_param_prev.fl_layer_in(0);
+        fl_weights = quantization_param_prev.fl_weights();
+        fl_out = quantization_param.fl_layer_out();
+      } else {
+        LOG(FATAL) << "Couldn't verify quantization params for layers: "
+            << layers_[layer_id-1]->layer_param().name()
+            << " and " << layers_[layer_id]->layer_param().name();
+      }
+    }
+    if((fl_in + fl_weights) < fl_out) {
+      LOG(FATAL) << "Qformat error for layer: "
+          << layers_[layer_id]->layer_param().name() << "  fl_in:" << fl_in << " fl_weights:" << fl_weights
+          << " fl_out:" << fl_out;
+    }
+  }
+}
+
+void Net::SetTrainQuantizationParamsLayerParams(const int layer_id, QuantizationParameter_Precision precision,
+    QuantizationParameter_Rounding rounding_scheme, const int bw_conv, const int bw_fc, const int bw_in,
+    const int bw_out, bool unsigned_check_in, bool unsigned_check_out) {
+  QuantizationParameter& quantization_param = *layers_[layer_id]->mutable_layer_param().mutable_quantization_param();
+  if(layers_[layer_id]->blobs().size() > 0) { // (quantization_param.quantize_layer_weights()) {
+    float min_layer_weights, max_layer_weights;
+    int len_params = GetIntegerLengthWeights(layer_id, min_layer_weights, max_layer_weights);
+    quantization_param.set_precision(precision);
+    quantization_param.set_rounding_scheme(rounding_scheme);
+    quantization_param.set_fl_weights(bw_conv - len_params);
+    quantization_param.set_bw_weights(bw_conv);
+    quantization_param.set_min_layer_weights(min_layer_weights);
+    quantization_param.set_max_layer_weights(max_layer_weights);
+  }
+}
+
+void Net::SetTrainQuantizationParams(QuantizationParameter_Precision precision,
+    QuantizationParameter_Rounding rounding_scheme, const int bw_conv, const int bw_fc, const int bw_in,
+    const int bw_out, bool unsigned_check_in, bool unsigned_check_out,
+    bool quantize_weights, bool quantize_activations) {
+
+  for (int layer_id = 0; layer_id < layers_.size(); layer_id++) {
+    if (layers_[layer_id]->layer_param().has_quantization_param()) {
+      // quantize parameters
+      if(true) { //if (quantize_weights) {
+        SetTrainQuantizationParamsLayerParams(layer_id, precision, rounding_scheme, bw_conv, bw_fc, bw_in, bw_out, unsigned_check_in,
+            unsigned_check_out);
+      }
+
+      // quantize input activations
+      if(true) { //if (quantize_activations) {
+        SetTrainQuantizationParamsLayerInput(layer_id, precision, rounding_scheme, bw_conv, bw_fc, bw_in, bw_out, unsigned_check_in,
+            unsigned_check_out);
+      }
+
+      // quantize output activations
+      if(true) { //if (quantize_activations) {
+        SetTrainQuantizationParamsLayerOutput(layer_id, precision, rounding_scheme, bw_conv, bw_fc, bw_in, bw_out, unsigned_check_in,
+            unsigned_check_out);
+      }
+    }
+  }
+}
+
+void Net::SetTestQuantizationParams(QuantizationParameter_Precision precision,
+    QuantizationParameter_Rounding rounding_scheme, const int bw_conv, const int bw_fc, const int bw_in,
+    const int bw_out, bool unsigned_check_in, bool unsigned_check_out, bool quantize_weights,
+    bool quantize_activations) {
+  for (int layer_id = 0; layer_id < layers_.size(); layer_id++) {
+    if (layers_[layer_id]->layer_param().has_quantization_param()) {
+      QuantizationParameter& quantization_param = *layers_[layer_id]->mutable_layer_param().mutable_quantization_param();
+      quantization_param.set_rounding_scheme(rounding_scheme);
+    }
+  }
+}
+
+void Net::DisplayQuantizationParams(bool quantize_weights, bool quantize_activations) {
+  for (int i = 0; i < layers_.size(); ++i) {
+    if (layers_[i]->layer_param().has_quantization_param()) {
+      // if this is a convolutional layer which should be quantized ...
+      QuantizationParameter& quantization_param = *layers_[i]->mutable_layer_param().mutable_quantization_param();
+      if (quantize_weights && quantization_param.quantize_layer_weights()) {
+        LOG(INFO)<<" Q params:" << i << " Name:" << layers_[i]->layer_param().name() <<
+        " bw_weights:" << quantization_param.bw_weights() <<
+        " fl_weights:" << quantization_param.fl_weights() <<
+        " min_weights:" << quantization_param.min_layer_weights() <<
+        " max_weights:" << quantization_param.max_layer_weights();
+      }
+
+      if (quantize_activations && quantization_param.quantize_layer_in()) {
+        int num_bottom_vecs = bottom_vecs_[i].size();
+        std::stringstream ss;
+        ss << " Q input :" << i << " Name:" << layers_[i]->layer_param().name() <<
+        " bw_in:" << quantization_param.bw_layer_in();
+        for(int blob_id=0; blob_id<std::min<int>(num_bottom_vecs, quantization_param.fl_layer_in_size()); blob_id++) {
+          ss << " fl_in:" << quantization_param.fl_layer_in(blob_id);
+        }
+        for(int blob_id=0; blob_id<std::min<int>(num_bottom_vecs, quantization_param.min_layer_in_size()); blob_id++) {
+          ss << " min_in:" << quantization_param.min_layer_in(blob_id);
+        }
+        for(int blob_id=0; blob_id<std::min<int>(num_bottom_vecs, quantization_param.max_layer_in_size()); blob_id++) {
+          ss << " max_in:" << quantization_param.max_layer_in(blob_id);
+        }
+        for(int blob_id=0; blob_id<std::min<int>(num_bottom_vecs, quantization_param.unsigned_layer_in_size()); blob_id++) {
+          ss << " unsigned_in:" << quantization_param.unsigned_layer_in(blob_id);
+        }
+        LOG(INFO) << ss.str();
+      }
+
+      if (quantize_activations && quantization_param.quantize_layer_out()) {
+        LOG(INFO)<< " Q output:" << i << " Name:" << layers_[i]->layer_param().name() <<
+        " bw_out:" << quantization_param.bw_layer_out() <<
+        " fl_out:" << quantization_param.fl_layer_out() <<
+        " min_out:" << quantization_param.min_layer_out() <<
+        " max_out:" << quantization_param.max_layer_out() <<
+        " unsigned_out:" << quantization_param.unsigned_layer_out();
+      }
+    }
+  }
+}
+
+void Net::DisableQuantization(bool quantize_weights, bool quantize_activations) {
+  for (int i = 0; i < layers_.size(); ++i) {
+    if (layers_[i]->layer_param().has_quantization_param()) {
+      QuantizationParameter& quantization_param = *layers_[i]->mutable_layer_param().mutable_quantization_param();
+      quantization_param.set_precision(QuantizationParameter_Precision_FLOAT);
+    }
+  }
+}
+	  
+void Net::AddQuantizationParams() {
+  for (int layer_id = 0; layer_id < layers_.size(); layer_id++) {
+    if(layers_[layer_id]->layer_param().type() == "Convolution" || layers_[layer_id]->layer_param().type() == "InnerProduct") {
+      QuantizationParameter& quantization_param = *layers_[layer_id]->mutable_layer_param().mutable_quantization_param();
+      quantization_param.set_quantize_layer_weights(true);
+      if((layer_id+1) < layers_.size() && layers_[layer_id+1]->layer_param().type() != "ReLU") {
+        quantization_param.set_quantize_layer_out(true);
+      }
+    } else if(layers_[layer_id]->layer_param().type() == "ReLU" || layers_[layer_id]->layer_param().type() == "Scale" ||
+        layers_[layer_id]->layer_param().type() == "Pooling") {
+      QuantizationParameter& quantization_param = *layers_[layer_id]->mutable_layer_param().mutable_quantization_param();
+      quantization_param.set_quantize_layer_out(true);
+    } else if(layers_[layer_id]->layer_param().type() == "Eltwise") {
+      if((layer_id+1) < layers_.size() && layers_[layer_id+1]->layer_param().type() != "ReLU") {
+        QuantizationParameter& quantization_param = *layers_[layer_id]->mutable_layer_param().mutable_quantization_param();
+        quantization_param.set_quantize_layer_out(true);
+      }
+    } else if(layers_[layer_id]->layer_param().type() == "Concat") {
+      QuantizationParameter& quantization_param = *layers_[layer_id]->mutable_layer_param().mutable_quantization_param();
+      quantization_param.set_quantize_layer_out(true);
+    } if(layers_[layer_id]->layer_param().type() == "Deconvolution") {
+      QuantizationParameter& quantization_param = *layers_[layer_id]->mutable_layer_param().mutable_quantization_param();
+      quantization_param.set_quantize_layer_weights(true);
+      quantization_param.set_quantize_layer_out(true);
+    }
+  }
+}
+
+int Net::EstimateAbsBits(float val) {
+	return ceil(log2(std::fabs(val)));
+}
+
+int Net::GetIntegerLengthWeights(const int layer_id, float& min_layer_weights, float& max_layer_weights) {
+  min_layer_weights = min_weights_[layer_id];
+  max_layer_weights = max_weights_[layer_id];
+  return EstimateAbsBits(max_weights_[layer_id]) + 1;
+}
+
+int Net::GetIntegerLengthIn(const int layer_id, const int blob_id, bool unsigned_check_in,
+		bool& unsigned_layer_in, float& min_layer_in, float& max_layer_in) {
+  min_layer_in = min_in_[layer_id][blob_id];
+  max_layer_in = max_in_[layer_id][blob_id];
+  float max_val_abs = std::max(std::fabs(max_layer_in), std::fabs(min_layer_in));
+  float min_val = min_layer_in;
+  unsigned_layer_in = unsigned_check_in? min_val>=0 : false;
+  return (unsigned_check_in && unsigned_layer_in)?
+		  EstimateAbsBits(max_val_abs) : (EstimateAbsBits(max_val_abs) + 1);
+}
+
+int Net::GetIntegerLengthOut(const int layer_id, bool unsigned_check_out,
+		bool& unsigned_layer_out, float& min_layer_out, float& max_layer_out) {
+  min_layer_out = min_out_[layer_id];
+  max_layer_out = max_out_[layer_id];
+  float max_val_abs = std::max(std::fabs(max_layer_out), std::fabs(min_layer_out));
+  float min_val = min_layer_out;
+  unsigned_layer_out = unsigned_check_out? min_val>=0 : false;
+  return (unsigned_check_out && unsigned_layer_out)?
+		  EstimateAbsBits(max_val_abs) : (EstimateAbsBits(max_val_abs) + 1);
+}
+
 void Net::ThresholdNet(float threshold_fraction_low, float threshold_fraction_mid, float threshold_fraction_high,
     float threshold_value_maxratio, float threshold_value_max, float threshold_step_factor) {
 
@@ -1625,5 +2133,7 @@ void Net::SetSparseMode(SparseMode mode) {
     layers_[layer_id]->SetSparseMode(mode);
   }
 }
+
+template void Net::Convert2FixedPoint_cpu(float* data, const int cnt, const int bw, int fl, bool unsigned_data, bool clip) const;
 
 }  // namespace caffe

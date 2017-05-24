@@ -105,6 +105,9 @@ class DataTransformer {
    */
   void Transform(const vector<cv::Mat>& mat_vector, TBlob<Dtype>* transformed_blob);
 
+  void Transform(const cv::Mat& cv_img, const cv::Mat& cv_label,
+                 TBlob<Dtype>* transformed_image,
+                 TBlob<Dtype>* transformed_label);
   /**
    * @brief Applies the transformation defined in the data layer's
    * transform_param block to a cv::Mat
@@ -138,6 +141,19 @@ class DataTransformer {
 #endif  // USE_OPENCV
 
   /**
+   * @brief Applies the same transformation defined in the data layer's
+   * transform_param block to all the num images in a input_blob.
+   *
+   * @param input_blob
+   *    A Blob containing the data to be transformed. It applies the same
+   *    transformation to all the num images in the blob.
+   * @param transformed_blob
+   *    This is destination blob, it will contain as many images as the
+   *    input blob. It can be part of top blob's data.
+   */
+  void Transform(TBlob<Dtype>* input_blob, TBlob<Dtype>* transformed_blob);
+  
+  /**
    * @brief Infers the shape of transformed_blob will have when
    *    the transformation is applied to the data.
    *
@@ -146,7 +162,18 @@ class DataTransformer {
    */
   vector<int> InferBlobShape(const Datum& datum, bool use_gpu = false);
 
+  /**
+   * @brief Infers the shape of transformed_blob will have when
+   *    the transformation is applied to the data.
+   *    It uses the first element to infer the shape of the blob.
+   *
+   * @param datum_vector
+   *    A vector of Datum containing the data to be transformed.
+   */
+  vector<int> InferBlobShape(const vector<Datum> & datum_vector);
+  
 #ifdef USE_OPENCV
+  vector<int> InferBlobShape(const vector<cv::Mat> & mat_vector);
   /**
    * @brief Infers the shape of transformed_blob will have when
    *    the transformation is applied to the data.

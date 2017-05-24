@@ -12,41 +12,24 @@
 #include "caffe/layer.hpp"
 #include "caffe/layers/base_data_layer.hpp"
 #include "caffe/proto/caffe.pb.h"
-#include "caffe/util/db.hpp"
 
 namespace caffe {
 
 template<typename Ftype, typename Btype>
 class ImageLabelDataLayer : public BasePrefetchingDataLayer<Ftype, Btype> {
  public:
-
   explicit ImageLabelDataLayer(const LayerParameter &param);
-
   virtual ~ImageLabelDataLayer();
+  void DataLayerSetUp(const vector<Blob*> &bottom, const vector<Blob*> &top) override;
 
-  virtual void DataLayerSetUp(const vector<Blob*> &bottom,
-                              const vector<Blob*> &top);
-
-  // DataLayer uses DataReader instead for sharing for parallelism
-  virtual inline bool ShareInParallel() const { return false; }
-
-  virtual inline const char *type() const { return "ImageLabelData"; }
-
-  virtual inline int ExactNumBottomBlobs() const { return 0; }
-
-  virtual inline int ExactNumTopBlobs() const { return -1; }
-
-  virtual inline int MaxTopBlobs() const { return 3; }
-
-  virtual inline int MinTopBlobs() const { return 2; }
+  const char *type() const override { return "ImageLabelData"; }
+  int ExactNumBottomBlobs() const override { return 0; }
+  int ExactNumTopBlobs() const override { return 2; }
+  bool is_gpu_transform() const override { return false; }
 
  protected:
-  shared_ptr<Caffe::RNG> prefetch_rng_;
-
-  virtual void ShuffleImages();
-
-  virtual void SampleScale(cv::Mat *image, cv::Mat *label);
-
+  void ShuffleImages();
+  void SampleScale(cv::Mat *image, cv::Mat *label);
   void ResizeTo(
       const cv::Mat& img,
       cv::Mat* img_temp,
@@ -55,8 +38,12 @@ class ImageLabelDataLayer : public BasePrefetchingDataLayer<Ftype, Btype> {
       const cv::Size& size
   );
 
-  virtual void load_batch(Batch<Ftype>* batch, int thread_id, size_t queue_id) override;
-  void start_reading() override {}
+  void load_batch(Batch<Ftype>* batch, int thread_id, size_t queue_id) override;
+  void start_reading() override {
+    DLOG(INFO) << "[" << this->target_device_ << "] Start Reading.";  
+  }
+  
+  shared_ptr<Caffe::RNG> prefetch_rng_;  
   vector<std::string> image_lines_;
   vector<std::string> label_lines_;
   int lines_id_;

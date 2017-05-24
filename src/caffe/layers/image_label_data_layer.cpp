@@ -1,3 +1,4 @@
+#ifdef USE_OPENCV
 #include <opencv2/core/core.hpp>
 
 #include <algorithm>
@@ -111,9 +112,6 @@ void ImageLabelDataLayer<Ftype, Btype>::DataLayerSetUp(const vector<Blob*>& bott
   string data_dir = data_param.data_dir();
   string image_dir = data_param.image_dir();
   string label_dir = data_param.label_dir();
-
-  //transformed_data_ = Blob::create(top[0]->data_type(), top[0]->diff_type());
-  //transformed_label_ = Blob::create(top[1]->data_type(), top[1]->diff_type());
     
   if (image_dir == "" && label_dir == "" && data_dir != "") {
     image_dir = data_dir;
@@ -403,21 +401,16 @@ template<typename Ftype, typename Btype>
 void ImageLabelDataLayer<Ftype, Btype>::load_batch(Batch<Ftype>* batch, int thread_id, size_t queue_id) {
   CPUTimer batch_timer;
   batch_timer.Start();
-  
-  ImageLabelDataParameter data_param =
-      this->layer_param_.image_label_data_param();
+  CHECK(batch->data_.count());  
+  ImageLabelDataParameter data_param = this->layer_param_.image_label_data_param();
   const int batch_size = data_param.batch_size();
   string data_dir = data_param.data_dir();
-  string image_dir =
-      this->layer_param_.image_label_data_param().image_dir();
-  string label_dir =
-      this->layer_param_.image_label_data_param().label_dir();
-
+  string image_dir = this->layer_param_.image_label_data_param().image_dir();
+  string label_dir = this->layer_param_.image_label_data_param().label_dir();
   if (image_dir == "" && label_dir == "" && data_dir != "") {
     image_dir = data_dir;
     label_dir = data_dir;
   }
-
   int crop_size = -1;
   auto transform_param = this->layer_param_.transform_param();
   if (transform_param.has_crop_size()) {
@@ -439,17 +432,14 @@ void ImageLabelDataLayer<Ftype, Btype>::load_batch(Batch<Ftype>* batch, int thre
   batch->data_.Reshape(top_shape);
 
   CHECK(file_exists(label_dir + label_lines_[lines_id_])) << "Could not load " << label_lines_[lines_id_];
-  cv::Mat cv_label = ReadImageToCVMat(label_dir + label_lines_[lines_id_],
-                                      false);
+  cv::Mat cv_label = ReadImageToCVMat(label_dir + label_lines_[lines_id_], false);
   cv_label = PadImage(cv_label, crop_size);
 
   CHECK(cv_label.data) << "Could not load " << label_lines_[lines_id_];
   vector<int> label_shape = this->data_transformers_[0]->InferBlobShape(cv_label);
-
   this->transformed_label_.Reshape(label_shape);
   
   auto &label_slice = this->layer_param_.image_label_data_param().label_slice();
-
   label_shape[0] = batch_size;
   label_shape[2] = label_slice.dim(0);
   label_shape[3] = label_slice.dim(1);
@@ -499,9 +489,7 @@ void ImageLabelDataLayer<Ftype, Btype>::load_batch(Batch<Ftype>* batch, int thre
       int label_offset = batch->label_.offset(item_id);
       this->transformed_data_.set_cpu_data(prefetch_data + image_offset);
       // this->transformed_label_->set_cpu_data(prefetch_label + label_offset);
-      this->data_transformers_[0]->Transform(cv_img, cv_label,
-                                         &(this->transformed_data_),
-                                         &(this->transformed_label_));
+      this->data_transformers_[0]->Transform(cv_img, cv_label, &(this->transformed_data_), &(this->transformed_label_));
 
       Ftype *label_data = prefetch_label + label_offset;
       const Ftype *t_label_data = this->transformed_label_.cpu_data();
@@ -536,9 +524,9 @@ void ImageLabelDataLayer<Ftype, Btype>::load_batch(Batch<Ftype>* batch, int thre
       CHECK(file_exists(label_dir + label_lines_[lines_id_])) << "Could not load " << label_lines_[lines_id_];
 
       cv::Mat cv_img = ReadImageToCVMat(image_dir + image_lines_[lines_id_]);
-      cv::Mat cv_label = ReadImageToCVMat(label_dir + label_lines_[lines_id_],
-                                          false);
+      cv::Mat cv_label = ReadImageToCVMat(label_dir + label_lines_[lines_id_], false);
       SampleScale(&cv_img, &cv_label);
+	  
       switch (data_param.padding()) {
         case ImageLabelDataParameter_Padding_ZERO:
           cv_img = ExtendLabelMargin(cv_img, label_margin_w_, label_margin_h_, 0);
@@ -557,9 +545,9 @@ void ImageLabelDataLayer<Ftype, Btype>::load_batch(Batch<Ftype>* batch, int thre
       CHECK(cv_img.data) << "Could not load " << image_lines_[lines_id_];
       CHECK(cv_label.data) << "Could not load " << label_lines_[lines_id_];
       read_time += timer.MicroSeconds();
-      timer.Start();
+      
+	  timer.Start();
       // Apply transformations (mirror, crop...) to the image
-
       int image_offset = batch->data_.offset(item_id);
       int label_offset = batch->label_.offset(item_id);
       this->transformed_data_.set_cpu_data(prefetch_data + image_offset);
@@ -567,29 +555,9 @@ void ImageLabelDataLayer<Ftype, Btype>::load_batch(Batch<Ftype>* batch, int thre
       this->data_transformers_[0]->Transform(cv_img, cv_label,
                                          &(this->transformed_data_),
                                          &(this->transformed_label_));
-
       Ftype *label_data = prefetch_label + label_offset;
       const Ftype *t_label_data = this->transformed_label_.cpu_data();
-  //    for (int c = 0; c < label_channel; ++c) {
-  //      t_label_data += this->label_margin_h_ * (label_width + this->label_margin_w_ * 2);
-  //      for (int h = 0; h < label_height; ++h) {
-  //        t_label_data += this->label_margin_w_;
-  //        for (int w = 0; w < label_width; ++w) {
-  //          label_data[w] = t_label_data[w];
-  //        }
-  //        t_label_data += this->label_margin_w_ + label_width;
-  //        label_data += label_width;
-  //      }
-  //      t_label_data += this->label_margin_h_ * (label_width + this->label_margin_w_ * 2);
-  //    }
       GetLabelSlice(t_label_data, crop_size, crop_size, label_slice, label_data);
-  //    CHECK_EQ(t_label_data - this->transformed_label_->cpu_data<Ftype>(),
-  //             this->transformed_label_->count());
-  //    cv::Mat_<Ftype> cropped_label(label_height, label_width,
-  //                                  prefetch_label + label_offset);
-  //    cropped_label = transformed_label(
-  //        cv::Range(label_margin_h_, label_margin_h_ + label_height),
-  //        cv::Range(label_margin_w_, label_margin_w_ + label_width));
       trans_time += timer.MicroSeconds();
 
       // prefetch_label[item_id] = lines_[lines_id_].second;
@@ -611,6 +579,8 @@ void ImageLabelDataLayer<Ftype, Btype>::load_batch(Batch<Ftype>* batch, int thre
 
   batch_timer.Stop();
   DLOG(INFO) << "Prefetch batch: " << batch_timer.MilliSeconds() << " ms.";
+  
+  batch->set_id(this->batch_id(thread_id));  
 }
 
 
@@ -618,3 +588,4 @@ INSTANTIATE_CLASS_FB(ImageLabelDataLayer);
 REGISTER_LAYER_CLASS(ImageLabelData);
 
 }  // namespace caffe
+#endif  // USE_OPENCV

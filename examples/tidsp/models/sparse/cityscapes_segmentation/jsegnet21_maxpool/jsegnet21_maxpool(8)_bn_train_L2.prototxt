@@ -42,7 +42,7 @@ layer {
   top: "label"
   include {  phase: TRAIN  }
   transform_param {
-    crop_size: 512
+    crop_size: 640
     ##mirror: true    
     ##mean_value: 128
     ##mean_value: 128
@@ -56,8 +56,8 @@ layer {
     batch_size: 16
     shuffle: true 
     label_slice {
-      dim: 512
-      dim: 512
+      dim: 640
+      dim: 640
       stride: 1
       stride: 1
       offset: 0
@@ -87,7 +87,7 @@ layer {
   top: "label"
   include {  phase: TEST  }
   transform_param {
-    crop_size: 512
+    crop_size: 640
     mirror: false       
     #mean_value: 128
     #mean_value: 128
@@ -100,8 +100,8 @@ layer {
     batch_size: 4
     shuffle: true
     label_slice {
-      dim: 512
-      dim: 512
+      dim: 640
+      dim: 640
       stride: 1
       stride: 1
       offset: 0

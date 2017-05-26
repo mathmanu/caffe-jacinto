@@ -1,30 +1,27 @@
 #------------------------------------------------------
-#palette used to translate id's to colors
-palette="[[0,0,0],[128,64,128],[220,20,60],[250,170,30],[0,0,142],[0,0,0],[0,0,0],[0,0,0],[0,0,0],[0,0,0],[0,0,0],[0,0,0],[0,0,0],[0,0,0],[0,0,0],[0,0,0],[0,0,0],[0,0,0],[0,0,0]]"
+#palette used to translate id's to colors - for 5 classes
+palette5="[[0,0,0],[128,64,128],[220,20,60],[250,170,30],[0,0,142],[0,0,0],[0,0,0],[0,0,0],[0,0,0],[0,0,0],[0,0,0],[0,0,0],[0,0,0],[0,0,0],[0,0,0],[0,0,0],[0,0,0],[0,0,0],[0,0,0]]"
 
-nw_path="/data/mmcodec_video2_tier3/users/manu/experiments/object/segmentation"
+#first convert from 19 classes for training to cityscapes original labelIds and then apply the pallete
+prediction_dict19="{0:7, 1:8, 2:11, 3:12, 4:13, 5:17, 6:19, 7:20, 8:21, 9:22, 10:23, 11:24, 12:25, 13:26, 14:27, 15:28, 16:31, 17:32, 18:33}" #19:0}"
+palette19="[(  0,  0,  0),(  0,  0,  0),(  0,  0,  0),(  0,  0,  0),(  0,  0,  0),(111, 74,  0),( 81,  0, 81),(128, 64,128),(244, 35,232),(250,170,160),(230,150,140),( 70, 70, 70),(102,102,156),(190,153,153),(180,165,180),(150,100,100),(150,120, 90),(153,153,153),(153,153,153),(250,170, 30),(220,220,  0),(107,142, 35),(152,251,152),( 70,130,180),(220, 20, 60),(255,  0,  0),(  0,  0,142),(  0,  0, 70),(  0, 60,100),(  0,  0, 90),(  0,  0,110),(  0, 80,100),(  0,  0,230),(119, 11, 32),(  0,  0,142)]"
 
-model="$nw_path/2017.04/2017.04.15.jsegnet21.maxpool.(sparse_bugfix).rc13/tiscapes(sparse85)/final/jacintonet11+seg10_train_L1_bn_noquant_optimized_iter_32000.prototxt"
-weights="$nw_path/2017.04/2017.04.15.jsegnet21.maxpool.(sparse_bugfix).rc13/tiscapes(sparse85)/final/jacintonet11+seg10_train_L1_bn_noquant_optimized_iter_32000.caffemodel" 
-
+model="models/sparse/cityscapes_segmentation/jsegnet21_maxpool/jsegnet21_maxpool(8)_bn_deploy.prototxt"
+weights="training/jsegnet21_maxpool_L1_bn_iter_32000.caffemodel"
 num_images=1000
-
-crop="1024 512"
-
-resize=0 #"1024 512"
+crop=0 #"1024 512"
+resize="1024 512"
 
 
 #------------------------------------------------------
 #Infer and write chroma blended visualization
-input="input/lindau_V105"
-output="output/lindau_V105"
-./tools/infer_segmentation.py --blend --crop $crop --resize $resize --model $model --weights $weights --input $input --output $output --palette $palette --num_images $num_images
-#------------------------------------------------------
-#Accuracy measurement
-#input="data/val-image-list.txt"
-#label="data/val-label-list.txt"
+#input="input/sample"
 #output="output/sample"
-#num_classes=5
-#./tools/infer_segmentation.py --crop $crop --resize $resize --model $model --weights $weights --input $input --label $label --num_classes=$num_classes --output $output --palette $palette --num_images=$num_images
-#------------------------------------------------------
+
+input="./data/val-image-list.txt"
+output="output/cityscapes"
+
+./tools/infer_segmentation.py --blend --crop $crop --resize $resize --model $model --weights $weights --input $input --output $output --num_images $num_images --prediction_dict="$prediction_dict19" --blend --palette="$palette19" --resize_back
+
+
 

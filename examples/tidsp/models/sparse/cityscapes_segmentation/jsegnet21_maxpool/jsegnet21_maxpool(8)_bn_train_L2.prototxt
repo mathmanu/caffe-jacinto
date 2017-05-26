@@ -4,9 +4,10 @@
 #Sover parameters
 test_iter: 200
 test_interval: 2000
-test_initialization: true
+test_initialization: false
 display: 100
 
+iter_size: 2
 type: "Adam"
 base_lr: 1e-4
 
@@ -57,7 +58,7 @@ layer {
   image_label_data_param {    
     image_list_path: "data/train-image-list.txt"
     label_list_path: "data/train-label-list.txt"
-    batch_size: 16
+    batch_size: 8
     shuffle: true 
     label_slice {
       dim: 640
@@ -1170,7 +1171,7 @@ layer {
   param { lr_mult: 1 decay_mult: 1.0 }
   param { lr_mult: 2 decay_mult: 0 }    
   convolution_param {
-    num_output: 8
+    num_output: 34
     kernel_size: 3
     pad: 1
     bias_term: true       
@@ -1201,11 +1202,11 @@ layer {
     decay_mult: 0
   }
   convolution_param {
-    num_output: 8
+    num_output: 34
     bias_term: false
     pad: 1
     kernel_size: 4
-    group: 8
+    group: 34
     stride: 2
     weight_filler {
       type: "bilinear"
@@ -1222,11 +1223,11 @@ layer {
     decay_mult: 0
   }
   convolution_param {
-    num_output: 8
+    num_output: 34
     bias_term: false
     pad: 1
     kernel_size: 4
-    group: 8
+    group: 34
     stride: 2
     weight_filler {
       type: "bilinear"
@@ -1243,11 +1244,11 @@ layer {
     decay_mult: 0
   }
   convolution_param {
-    num_output: 8
+    num_output: 34
     bias_term: false
     pad: 1
     kernel_size: 4
-    group: 8
+    group: 34
     stride: 2
     weight_filler {
       type: "bilinear"
@@ -1288,22 +1289,6 @@ layer {
   accuracy_param {
     ignore_label: 255
   }    
-}
-
-layer {
-  name: "iou"
-  type: "IOUAccuracy"
-  bottom: "ctx_final_score"
-  bottom: "label"
-  top: "iou/mean"
-  top: "iou/class"  
-  accuracy_param {
-    ignore_label: 255
-    history_size: 1000
-  }  
-  include {
-    phase: TEST
-  }
 }
 
 layer {

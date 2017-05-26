@@ -30,9 +30,22 @@ def get_arguments():
     parser.add_argument('--blend', action='store_true', help='Do chroma belnding at output for visualization')      
     parser.add_argument('--palette', type=str, default='', help='Color palette')   
     parser.add_argument('--batch_size', type=int, default=1, help='Batch of images to process')   
+    parser.add_argument('--resize_back', action="store_true", help='Upsize back a resized label for evaluation')
+    parser.add_argument('--prediction_dict', type=str, default='', help='Lookup to be applied to prediction to match with gt labels')   
+    parser.add_argument('--ignore_class_dict', type=str, default='', help='Ignore these classes in evaluation')   
     return parser.parse_args()
 
-    
+def create_lut(args):
+    if args.prediction_dict:
+        lut = np.zeros(256, dtype=np.uint8)
+        for k in range(256):
+            lut[k] = k
+        for k in args.prediction_dict.keys():
+            lut[k] = args.prediction_dict[k] 
+        return lut
+    else:
+        return None
+        
 def check_paths(args):
     output_type = None
     if args.output:
@@ -94,24 +107,32 @@ def resize_image(color_image, size): #size in (height, width)
     im = np.array(im, dtype=np.uint8)
     return im
 
+def resize_label(label_image, size): #size in (height, width)
+    im = Image.fromarray(label_image.astype(np.uint8))
+    im = im.resize((size[1], size[0]), Image.NEAREST) #(width, height)
+    im = np.array(im, dtype=np.uint8)
+    return im
+    
 def infer_blob(args, net, input_bgr, input_label=None):
+    input_bgr_orig = np.array(input_bgr, np.uint8)
     image_size = input_bgr.shape  
     if args.crop:
         print('Croping to ' + str(args.crop))
         input_bgr = crop_color_image2(input_bgr, (args.crop[1], args.crop[0]))
-        if input_label is not None:
+        if (input_label is not None):
           input_label = crop_color_image2(input_label, (args.crop[1], args.crop[0]))
 
     if args.resize:
         print('Resizing to ' + str(args.resize))
         input_bgr = resize_image(input_bgr, (args.resize[1], args.resize[0]))
-        if input_label is not None:
-          input_label = resize_image(input_label, (args.resize[1], args.resize[0]))  
+        if (input_label is not None) and (not args.resize_back):
+          input_label = resize_label(input_label, (args.resize[1], args.resize[0]))  
                 
     input_blob = input_bgr.transpose((2, 0, 1))    #Interleaved to planar
     input_blob = input_blob[np.newaxis, ...]
     if net.blobs['data'].data.shape != input_blob.shape:
-        net.blobs['data'].data.reshape(input_blob.shape)
+        #net.blobs['data'].data.reshape(input_blob.shape)
+        raise ValueError("Pleae correct the input size in deploy prototxt to match with the input size given here: "+str(input_blob.shape))
     
     blobs = None #['prob', 'argMaxOut']
     out = net.forward_all(blobs=blobs, **{net.inputs[0]: input_blob})
@@ -123,6 +144,13 @@ def infer_blob(args, net, input_bgr, input_label=None):
         prob = out['prob'][0]
         prediction = np.argmax(prob.transpose([1, 2, 0]), axis=2)
           
+    if args.prediction_dict:
+        prediction = args.prediction_lut[prediction]
+        
+    if args.resize and args.resize_back:
+       prediction = resize_label(prediction, image_size)
+       input_bgr = input_bgr_orig
+                        
     if args.blend:
         prediction_size = (prediction.shape[0], prediction.shape[1], 3)    
         output_image = args.palette[prediction.ravel()].reshape(prediction_size)
@@ -155,12 +183,12 @@ def infer_image_folder(args, net):
         input_blob = cv2.imread(input_name)  
         output_blob, _ = infer_blob(args, net, input_blob)  
         output_name = os.path.join(args.output, os.path.basename(input_name));
-        cv2.imwrite(output_name, output_blob)        
+        cv2.imwrite(output_name, output_blob)
     return
     
 def eval_blob(args, net, input_blob, label_blob, confusion_matrix):
     output_blob, label_blob = infer_blob(args, net, input_blob, label_blob)
-    
+        
     #for r in range(output_blob.shape[0]):
     #  for c in range(output_blob.shape[1]):
     #    gt_label = label_blob[r][c][0]
@@ -209,7 +237,17 @@ def compute_accuracy(args, confusion_matrix):
     
     print('confusion_matrix={}'.format(confusion_matrix))
     accuracy = tp_total / population_total
-    mean_iou = np.sum(iou) / args.num_classes
+    
+    num_selected_classes = 0
+    if args.ignore_class_dict:
+      for cls in list(args.ignore_class_dict.keys()):
+        sum_iou += (iou[cls] if (not args.ignore_class_dict[cls]) else 0)
+        num_selected_classes += (1 if (not args.ignore_class_dict[cls]) else 0)
+    else:
+      sum_iou = np.sum(iou)
+      num_selected_classes = args.num_classes
+      
+    mean_iou = sum_iou / num_selected_classes
     return accuracy, mean_iou, iou
       
           
@@ -231,14 +269,17 @@ def infer_image_list(args, net):
       label_indices = label_indices[0:min(len(label_indices),args.num_images)]  
                     
     print('running inference for ', len(input_indices), ' images...');
+    output_name_list = []
     if not label_indices:
       for input_name in input_indices:
-        print(input_name, end=' ')   
+        print(input_name)   
         sys.stdout.flush()         
         input_blob = cv2.imread(input_name)  
-        output_blob = infer_blob(args, net, input_blob)  
+        output_blob,_ = infer_blob(args, net, input_blob)  
         output_name = os.path.join(args.output, os.path.basename(input_name));
-        cv2.imwrite(output_name, output_blob)     
+        cv2.imwrite(output_name, output_blob) 
+        if args.output:        
+          output_name_list.append(output_name)    
     else:
       confusion_matrix = np.zeros((args.num_classes, args.num_classes+1))
       total = len(input_indices)
@@ -255,11 +296,16 @@ def infer_image_list(args, net):
         if args.output:
           output_name = os.path.join(args.output, os.path.basename(input_name));
           cv2.imwrite(output_name, output_blob) 
+          output_name_list.append(output_name)           
         count += 1
-          
+                  
       accuracy, mean_iou, iou = compute_accuracy(args, confusion_matrix)   
-      print('accuracy={}, mean_iou={}, iou={}'.format(accuracy, mean_iou, iou))
+      print('pixel_accuracy={}, mean_iou={}, iou={}'.format(accuracy, mean_iou, iou))
       
+    if args.output:        
+      with open(os.path.join(args.output,"output_name_list.txt"), "w") as output_name_list_file:
+        print(output_name_list)
+        output_name_list_file.write('\n'.join(str(line) for line in output_name_list))
     return
         
 def infer_video(args, net):
@@ -312,7 +358,19 @@ def main():
     
     if args.label and args.blend:
       raise ValueError('When doing evaluation by specifying --label, --blend should not be used')
-          
+        
+    args.prediction_lut = []  
+    if args.prediction_dict:
+      prediction_dict_string = 'prediction_dict = ' + args.prediction_dict
+      exec(prediction_dict_string)
+      args.prediction_dict = prediction_dict
+      print(args.prediction_dict)    
+      args.prediction_lut = create_lut(args)
+              
+    if args.ignore_class_dict:
+      ignore_class_dict_string = 'ignore_class_dict = ' + args.ignore_class_dict
+      exec(ignore_class_dict)
+                        
     caffe.set_mode_gpu()
     caffe.set_device(0)
     

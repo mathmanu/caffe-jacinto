@@ -1063,7 +1063,7 @@ layer {
   param { lr_mult: 1 decay_mult: 1.0 }
   param { lr_mult: 2 decay_mult: 0 }    
   convolution_param {
-    num_output: 34
+    num_output: 20
     kernel_size: 3
     pad: 1
     bias_term: true       
@@ -1094,11 +1094,11 @@ layer {
     decay_mult: 0
   }
   convolution_param {
-    num_output: 34
+    num_output: 20
     bias_term: false
     pad: 1
     kernel_size: 4
-    group: 34
+    group: 20
     stride: 2
     weight_filler {
       type: "bilinear"
@@ -1115,11 +1115,11 @@ layer {
     decay_mult: 0
   }
   convolution_param {
-    num_output: 34
+    num_output: 20
     bias_term: false
     pad: 1
     kernel_size: 4
-    group: 34
+    group: 20
     stride: 2
     weight_filler {
       type: "bilinear"
@@ -1136,11 +1136,11 @@ layer {
     decay_mult: 0
   }
   convolution_param {
-    num_output: 34
+    num_output: 20
     bias_term: false
     pad: 1
     kernel_size: 4
-    group: 34
+    group: 20
     stride: 2
     weight_filler {
       type: "bilinear"

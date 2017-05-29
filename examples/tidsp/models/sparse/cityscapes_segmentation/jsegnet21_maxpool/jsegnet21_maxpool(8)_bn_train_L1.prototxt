@@ -7,7 +7,6 @@ test_interval: 2000
 test_initialization: true
 display: 100
 
-iter_size: 2
 type: "Adam"
 base_lr: 1e-4
 
@@ -58,7 +57,7 @@ layer {
   image_label_data_param {    
     image_list_path: "data/train-image-list.txt"
     label_list_path: "data/train-label-list.txt"
-    batch_size: 8
+    batch_size: 16
     shuffle: true 
     label_slice {
       dim: 640
@@ -1171,7 +1170,7 @@ layer {
   param { lr_mult: 1 decay_mult: 1.0 }
   param { lr_mult: 2 decay_mult: 0 }    
   convolution_param {
-    num_output: 34
+    num_output: 20
     kernel_size: 3
     pad: 1
     bias_term: true       
@@ -1202,11 +1201,11 @@ layer {
     decay_mult: 0
   }
   convolution_param {
-    num_output: 34
+    num_output: 20
     bias_term: false
     pad: 1
     kernel_size: 4
-    group: 34
+    group: 20
     stride: 2
     weight_filler {
       type: "bilinear"
@@ -1223,11 +1222,11 @@ layer {
     decay_mult: 0
   }
   convolution_param {
-    num_output: 34
+    num_output: 20
     bias_term: false
     pad: 1
     kernel_size: 4
-    group: 34
+    group: 20
     stride: 2
     weight_filler {
       type: "bilinear"
@@ -1244,11 +1243,11 @@ layer {
     decay_mult: 0
   }
   convolution_param {
-    num_output: 34
+    num_output: 20
     bias_term: false
     pad: 1
     kernel_size: 4
-    group: 34
+    group: 20
     stride: 2
     weight_filler {
       type: "bilinear"

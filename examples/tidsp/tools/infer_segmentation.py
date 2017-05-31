@@ -31,17 +31,17 @@ def get_arguments():
     parser.add_argument('--palette', type=str, default='', help='Color palette')   
     parser.add_argument('--batch_size', type=int, default=1, help='Batch of images to process')   
     parser.add_argument('--resize_back', action="store_true", help='Upsize back a resized label for evaluation')
-    parser.add_argument('--prediction_dict', type=str, default='', help='Lookup to be applied to prediction to match with gt labels')   
-    parser.add_argument('--ignore_class_dict', type=str, default='', help='Ignore these classes in evaluation')   
+    parser.add_argument('--label_dict', type=str, default='', help='Lookup to be applied to prediction to match with gt labels')    
+    parser.add_argument('--class_dict', type=str, default='', help='Grouping of classes in evaluation. Also ignored classea')   
     return parser.parse_args()
 
-def create_lut(args):
-    if args.prediction_dict:
+def create_lut(label_dict):
+    if label_dict:
         lut = np.zeros(256, dtype=np.uint8)
         for k in range(256):
             lut[k] = k
-        for k in args.prediction_dict.keys():
-            lut[k] = args.prediction_dict[k] 
+        for k in label_dict.keys():
+            lut[k] = label_dict[k] 
         return lut
     else:
         return None
@@ -144,8 +144,10 @@ def infer_blob(args, net, input_bgr, input_label=None):
         prob = out['prob'][0]
         prediction = np.argmax(prob.transpose([1, 2, 0]), axis=2)
           
-    if args.prediction_dict:
-        prediction = args.prediction_lut[prediction]
+    if args.label_dict:
+        prediction = args.label_lut[prediction]
+        if input_label is not None:
+          input_label = args.label_lut[input_label]
         
     if args.resize and args.resize_back:
        prediction = resize_label(prediction, image_size)
@@ -214,40 +216,59 @@ def eval_blob(args, net, input_blob, label_blob, confusion_matrix):
     
     
 def compute_accuracy(args, confusion_matrix):
-    tp = np.zeros(args.num_classes)
-    population = np.zeros(args.num_classes)
-    det = np.zeros(args.num_classes)
-    iou = np.zeros(args.num_classes)
-        
-    for r in range(args.num_classes):
-      for c in range(args.num_classes):   
-         population[r] += confusion_matrix[r][c]
-         det[c] += confusion_matrix[r][c]   
-         if r == c:
-           tp[r] = confusion_matrix[r][c]
+    if args.class_dict:
+      selected_classes = []
+      for cls in args.class_dict:
+        category = args.class_dict[cls]
+        if category >= 0 and category<255:
+          selected_classes.extend([category])   
+      num_selected_classes = max(selected_classes) + 1
+      print('num_selected_classes={}'.format(num_selected_classes))        
+      tp = np.zeros(num_selected_classes)
+      population = np.zeros(num_selected_classes)
+      det = np.zeros(num_selected_classes)
+      iou = np.zeros(num_selected_classes)
+      for r in range(args.num_classes):
+        for c in range(args.num_classes):   
+          r0 = args.class_dict[r]
+          c0 = args.class_dict[c]        
+          if r0 >= 0 and r0 < 255:
+            population[r0] += confusion_matrix[r][c]
+            if c0 >= 0 and c0 < 255:
+              det[c0] += confusion_matrix[r][c]   
+            if r == c:
+              tp[r0] += confusion_matrix[r][c]    
+    else:
+      num_selected_classes = args.num_classes
+      tp = np.zeros(args.num_classes)
+      population = np.zeros(args.num_classes)
+      det = np.zeros(args.num_classes)
+      iou = np.zeros(args.num_classes)
+      for r in range(args.num_classes):
+        for c in range(args.num_classes):   
+          population[r] += confusion_matrix[r][c]
+          det[c] += confusion_matrix[r][c]   
+          if r == c:
+            tp[r] += confusion_matrix[r][c]
            
     tp_total = 0
     population_total = 0           
-    for cls in range(args.num_classes):
+    for cls in range(num_selected_classes):
       intersection = tp[cls]
       union = population[cls] + det[cls] - tp[cls]
       iou[cls] = (intersection / union) if union else 0
       tp_total += tp[cls]
       population_total += population[cls]
     
-    print('confusion_matrix={}'.format(confusion_matrix))
+    #print('confusion_matrix={}'.format(confusion_matrix))
     accuracy = tp_total / population_total
-    
-    num_selected_classes = 0
-    if args.ignore_class_dict:
-      for cls in list(args.ignore_class_dict.keys()):
-        sum_iou += (iou[cls] if (not args.ignore_class_dict[cls]) else 0)
-        num_selected_classes += (1 if (not args.ignore_class_dict[cls]) else 0)
-    else:
-      sum_iou = np.sum(iou)
-      num_selected_classes = args.num_classes
+     
+    num_nonempty_classes = 0 
+    for pop in population:
+      if pop>0:
+        num_nonempty_classes += 1
       
-    mean_iou = sum_iou / num_selected_classes
+    mean_iou = np.sum(iou) / num_nonempty_classes
     return accuracy, mean_iou, iou
       
           
@@ -300,6 +321,7 @@ def infer_image_list(args, net):
         count += 1
                   
       accuracy, mean_iou, iou = compute_accuracy(args, confusion_matrix)   
+
       print('pixel_accuracy={}, mean_iou={}, iou={}'.format(accuracy, mean_iou, iou))
       
     if args.output:        
@@ -359,17 +381,18 @@ def main():
     if args.label and args.blend:
       raise ValueError('When doing evaluation by specifying --label, --blend should not be used')
         
-    args.prediction_lut = []  
-    if args.prediction_dict:
-      prediction_dict_string = 'prediction_dict = ' + args.prediction_dict
-      exec(prediction_dict_string)
-      args.prediction_dict = prediction_dict
-      print(args.prediction_dict)    
-      args.prediction_lut = create_lut(args)
+    args.label_lut = []  
+    if args.label_dict:
+      label_dict_string = 'label_dict = ' + args.label_dict
+      exec(label_dict_string)
+      args.label_dict = label_dict
+      print(args.label_dict)    
+      args.label_lut = create_lut(args.label_dict)
               
-    if args.ignore_class_dict:
-      ignore_class_dict_string = 'ignore_class_dict = ' + args.ignore_class_dict
-      exec(ignore_class_dict)
+    if args.class_dict:
+      class_dict_string = 'class_dict = ' + args.class_dict
+      exec(class_dict_string)
+      args.class_dict = class_dict
                         
     caffe.set_mode_gpu()
     caffe.set_device(0)

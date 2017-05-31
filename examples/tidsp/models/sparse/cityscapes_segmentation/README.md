@@ -40,11 +40,11 @@ The validation accuracy is printed in the training log. Following is what we got
 
 |Configuration                                    |Pixel Accuracy  |Mean IOU  |
 |-------------------------------------------------|----------------|----------|
-|Initial L2 regularized training                  |95.28           |77.83     |
-|L1 regularized fine tuning                       |95.53           |<b>78.87  |
-|Sparse fine tuned(nearly 80% zero coefficients)  |95.32           |77.22     |
-|Sparse(80%), Quantized(8-bit dynamic fixed point)|95.60           |<b>76.96  |
-|<b>Overall impact due to sparse+quant            |                |<b>-1.91  |
+|Initial L2 regularized training                  |96.20           |83.23     |
+|L1 regularized fine tuning                       |96.32           |<b>83.94  |
+|Sparse fine tuned(nearly 80% zero coefficients)  |96.11           |82.85     |
+|Sparse(80%), Quantized(8-bit dynamic fixed point)|95.91           |<b>82.15  |
+|<b>Overall impact due to sparse+quant            |<b>-0.42        |<b>-1.79  |
 
 * 80% sparsity (i.e. zero coefficients in convolution weights) implies that the complexity of inference can be potentially reduced by 5x - by using a suitable sparse convolution implementation.
 

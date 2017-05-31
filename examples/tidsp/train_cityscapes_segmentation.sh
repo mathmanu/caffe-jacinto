@@ -44,7 +44,7 @@ pause 'Finished L1 training.'
 #------------------------------------------------
 #Threshold step - force a fixed fraction of sparsity - OPTIONAL
 weights="training/jsegnet21_maxpool_L1_bn_iter_32000.caffemodel"
-$caffe threshold --threshold_fraction_low 0.55 --threshold_fraction_mid 0.85 --threshold_fraction_high 0.85 --threshold_value_max 0.2 --threshold_value_maxratio 0.2 --threshold_step_factor 1e-6 --model="models/sparse/cityscapes_segmentation/jsegnet21_maxpool/jsegnet21_maxpool(8)_bn_deploy.prototxt" --gpu=$gpu --weights=$weights --output="training/jsegnet21_maxpool_L1_bn_sparse_iter_32000.caffemodel"
+$caffe threshold --threshold_fraction_low 0.40 --threshold_fraction_mid 0.80 --threshold_fraction_high 0.80 --threshold_value_max 0.2 --threshold_value_maxratio 0.2 --threshold_step_factor 1e-6 --model="models/sparse/cityscapes_segmentation/jsegnet21_maxpool/jsegnet21_maxpool(8)_bn_deploy.prototxt" --gpu=$gpu --weights=$weights --output="training/jsegnet21_maxpool_L1_bn_sparse_iter_32000.caffemodel"
 pause 'Finished thresholding. Press [Enter] to continue...'
 
 #------------------------------------------------

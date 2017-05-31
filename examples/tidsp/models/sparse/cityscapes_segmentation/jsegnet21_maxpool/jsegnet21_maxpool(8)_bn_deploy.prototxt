@@ -705,7 +705,7 @@ layer {
   param { lr_mult: 1 decay_mult: 1.0 }
   param { lr_mult: 2 decay_mult: 0 }    
   convolution_param {
-    num_output: 8
+    num_output: 20
     kernel_size: 3
     pad: 1
     bias_term: true       
@@ -716,17 +716,7 @@ layer {
   }   
 }
 
-layer {
-  name: "ctx_final/bn"
-  bottom: "ctx_final"
-  top: "ctx_final"
-  type: "BatchNorm"
-  batch_norm_param {
-    moving_average_fraction: 0.99
-    eps: 0.0001 
-    scale_bias: true   
-  }
-}
+
 
 layer {
   name: "ctx_final/relu"
@@ -748,11 +738,11 @@ layer {
     decay_mult: 0
   }
   convolution_param {
-    num_output: 8
+    num_output: 20
     bias_term: false
     pad: 1
     kernel_size: 4
-    group: 8
+    group: 20
     stride: 2
     weight_filler {
       type: "bilinear"
@@ -769,11 +759,11 @@ layer {
     decay_mult: 0
   }
   convolution_param {
-    num_output: 8
+    num_output: 20
     bias_term: false
     pad: 1
     kernel_size: 4
-    group: 8
+    group: 20
     stride: 2
     weight_filler {
       type: "bilinear"
@@ -790,11 +780,11 @@ layer {
     decay_mult: 0
   }
   convolution_param {
-    num_output: 8
+    num_output: 20
     bias_term: false
     pad: 1
     kernel_size: 4
-    group: 8
+    group: 20
     stride: 2
     weight_filler {
       type: "bilinear"

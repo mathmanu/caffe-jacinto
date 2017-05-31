@@ -70,7 +70,7 @@ layer {
     #size_min: 512    
     #size_max: 2048   
     
-    #Random scaling before crop    
+    #Random scaling before crop. This will be applied before cropping
     scale_prob: 0.5
     scale_min: 0.75
     scale_max: 1.25    

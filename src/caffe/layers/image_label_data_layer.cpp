@@ -92,9 +92,12 @@ ImageLabelDataLayer<Ftype, Btype>::ImageLabelDataLayer(
     const LayerParameter &param) : BasePrefetchingDataLayer<Ftype, Btype>(param) {
   std::random_device rand_dev;
   rng_ = new std::mt19937(rand_dev());
+  //thread lockup can happen since transformation stage also uses threads
   //hangs with multiple threads -> so set the threads to 1
-  this->layer_param_.mutable_data_param()->set_threads(1);
-  this->layer_param_.mutable_data_param()->set_parser_threads(1);  
+  if(this->layer_param_.image_label_data_param().threads() != 1) {
+    this->layer_param_.mutable_data_param()->set_threads(1);
+    this->layer_param_.mutable_data_param()->set_parser_threads(1);  
+  }
 }
 
 template<typename Ftype, typename Btype>

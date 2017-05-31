@@ -2,8 +2,7 @@
 #palette used to translate id's to colors - for 5 classes
 palette5="[[0,0,0],[128,64,128],[220,20,60],[250,170,30],[0,0,142],[0,0,0],[0,0,0],[0,0,0],[0,0,0],[0,0,0],[0,0,0],[0,0,0],[0,0,0],[0,0,0],[0,0,0],[0,0,0],[0,0,0],[0,0,0],[0,0,0]]"
 
-#first convert from 19 classes for training to cityscapes original labelIds and then apply the pallete
-#prediction_dict_19_to_34="{0:7, 1:8, 2:11, 3:12, 4:13, 5:17, 6:19, 7:20, 8:21, 9:22, 10:23, 11:24, 12:25, 13:26, 14:27, 15:28, 16:31, 17:32, 18:33}" #19:0}"
+#for 19 or 20 classes training of cityscapes, first convert to original labelIds and then apply the pallete
 prediction_dict_20_to_34="{0:7, 1:8, 2:11, 3:12, 4:13, 5:17, 6:19, 7:20, 8:21, 9:22, 10:23, 11:24, 12:25, 13:26, 14:27, 15:28, 16:31, 17:32, 18:33, 19:0}"
 
 #34 class pallette - for visualization
@@ -13,7 +12,7 @@ model="models/sparse/cityscapes_segmentation/jsegnet21_maxpool/jsegnet21_maxpool
 weights="training/jsegnet21_maxpool_L1_bn_iter_32000.caffemodel"
 num_images=1000
 crop=0 #"1024 512"
-resize="1024 512"
+resize=0 #"1024 512"
 
 
 #------------------------------------------------------

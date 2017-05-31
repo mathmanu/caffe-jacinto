@@ -7,8 +7,8 @@ input: "data"
 input_shape {
   dim: 1
   dim: 3
-  dim: 512
   dim: 1024
+  dim: 2048
 }
 
 layer {

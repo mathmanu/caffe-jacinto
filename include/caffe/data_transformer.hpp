@@ -42,12 +42,22 @@ class DataTransformer {
 
 #ifndef CPU_ONLY
   void TransformGPU(int N, int C, int H, int W, size_t sizeof_element, const Dtype* in, Dtype* out,
-      const unsigned int* rands);
+      const unsigned int* rands, bool use_mean = true);
+	  
+  //Used in ImageLabelDataLayer	  
+  void TransformGPU(const TBlob<Dtype>* input_blob,
+      TBlob<Dtype>* transformed_blob, const std::array<unsigned int, 3>& rand, bool use_mean);
 #endif
   void Copy(const Datum& datum, Dtype* data, size_t& out_sizeof_element);
   void Copy(const cv::Mat& datum, Dtype* data);
   void CopyPtrEntry(shared_ptr<Datum> datum, Dtype* transformed_ptr, size_t& out_sizeof_element,
       bool output_labels, Dtype* label);
+
+  //Used in ImageLabelDataLayer
+  void Transform(const TBlob<Dtype>* input_blob,
+      TBlob<Dtype>* transformed_blob, const std::array<unsigned int, 3>& rand, bool use_mean);
+  void TransformCPU(const TBlob<Dtype>* input_blob,
+      TBlob<Dtype>* transformed_blob, const std::array<unsigned int, 3>& rand, bool use_mean);
 
   /**
    * @brief Applies the transformation defined in the data layer's
@@ -139,19 +149,6 @@ class DataTransformer {
   void TransformPtr(const cv::Mat& cv_img, Dtype* transformed_ptr,
       const std::array<unsigned int, 3>& rand);
 #endif  // USE_OPENCV
-
-  /**
-   * @brief Applies the same transformation defined in the data layer's
-   * transform_param block to all the num images in a input_blob.
-   *
-   * @param input_blob
-   *    A Blob containing the data to be transformed. It applies the same
-   *    transformation to all the num images in the blob.
-   * @param transformed_blob
-   *    This is destination blob, it will contain as many images as the
-   *    input blob. It can be part of top blob's data.
-   */
-  void Transform(TBlob<Dtype>* input_blob, TBlob<Dtype>* transformed_blob);
   
   /**
    * @brief Infers the shape of transformed_blob will have when

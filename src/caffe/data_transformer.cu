@@ -190,7 +190,7 @@ template <typename Dtype>
 void DataTransformer<Dtype>::TransformGPU(int N, int C, int H, int W,
     size_t sizeof_element,
     const Dtype *in, Dtype *out,
-    const unsigned int *random_numbers) {
+    const unsigned int *random_numbers, bool use_mean) {
   const int datum_channels = C;
   const int datum_height = H;
   const int datum_width = W;
@@ -198,8 +198,8 @@ void DataTransformer<Dtype>::TransformGPU(int N, int C, int H, int W,
   const int crop_size = param_.crop_size();
   float scale = param_.scale();
   const bool mirror = param_.mirror();
-  const bool has_mean_file = param_.has_mean_file();
-  const bool has_mean_values = mean_values_.size() > 0;
+  const bool has_mean_file = use_mean? param_.has_mean_file() : false;
+  const bool has_mean_values = use_mean? mean_values_.size() > 0 : false;
 
   CHECK_GT(datum_channels, 0);
   CHECK_GE(datum_height, crop_size);
@@ -259,11 +259,12 @@ void DataTransformer<Dtype>::TransformGPU(int N, int C, int H, int W,
   CUDA_CHECK(cudaStreamSynchronize(stream));
 }
 
+
 template void DataTransformer<float>::TransformGPU(int, int, int, int,
-    size_t, const float*, float*, const unsigned int*);
+    size_t, const float*, float*, const unsigned int*, bool mean);
 template void DataTransformer<double>::TransformGPU(int, int, int, int,
-    size_t, const double*, double*, const unsigned int*);
+    size_t, const double*, double*, const unsigned int*, bool mean);
 template void DataTransformer<float16>::TransformGPU(int, int, int, int,
-    size_t, const float16*, float16*, const unsigned int*);
+    size_t, const float16*, float16*, const unsigned int*, bool mean);
 
 }  // namespace caffe

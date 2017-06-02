@@ -106,7 +106,7 @@ DataReader::CursorManager::CursorManager(shared_ptr<db::DB> db, size_t solver_co
     : db_(db), cursor_(db->NewCursor()), solver_count_(solver_count), solver_rank_(solver_rank),
       batch_size_(batch_size), parser_threads_(parser_threads), parser_thread_id_(parser_thread_id),
       rank_cycle_(parser_threads_ * batch_size_), full_cycle_(rank_cycle_ * solver_count_),
-      rec_id_(0UL), rec_end_(0UL) {}
+      rec_id_(0UL), rec_end_(0UL), epoch_(0) {}
 
 DataReader::CursorManager::~CursorManager() {
   cursor_.reset();
@@ -126,7 +126,7 @@ void DataReader::CursorManager::next(Datum* datum) {
     cursor_->Next();
     if (!cursor_->valid()) {
       LOG_IF(INFO, solver_rank_ == 0 && parser_thread_id_ == 0)
-          << "Restarting data pre-fetching";
+          << "Starting prefetch of epoch " << ++epoch_;
       cursor_->SeekToFirst();
     }
   }

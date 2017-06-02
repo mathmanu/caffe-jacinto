@@ -1090,6 +1090,10 @@ message Slice {
 
 
 message ImageLabelDataParameter {
+  enum DB {
+    LEVELDB = 0;
+    LMDB = 1;
+  }
   // Specify the data source.
   optional string image_list_path = 1;
   optional string label_list_path = 2;
@@ -1130,6 +1134,8 @@ message ImageLabelDataParameter {
   optional uint32 size_max = 18 [default = 0]; 
   
   optional bool check_image_files = 19 [default = false];
+  
+  optional DB backend = 20 [default = LEVELDB];  
 }
 
 

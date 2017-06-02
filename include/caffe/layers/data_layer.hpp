@@ -44,9 +44,10 @@ class DataLayer : public BasePrefetchingDataLayer<Ftype, Btype> {
     return this->phase_ == TRAIN ? &layer_inititialized_flag_ : nullptr;
   }
 
- protected:
   void InitializePrefetch() override;
   void load_batch(Batch<Ftype>* batch, int thread_id, size_t queue_id = 0UL) override;
+
+ protected:
   size_t queue_id(size_t thread_id) const override;
 
   void init_offsets();

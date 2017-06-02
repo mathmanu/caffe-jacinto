@@ -15,7 +15,7 @@ def get_arguments():
     parser = argparse.ArgumentParser()
     parser.add_argument('--label', action="store_true", help='Whether the input images are labels')
     parser.add_argument('--list_file', type=str, help='Path to a file containing list of images')
-    parser.add_argument('--image_dir', type=str, required=True, help='Path to image folder')
+    parser.add_argument('--image_dir', type=str, default=None, help='Path to image folder')
     parser.add_argument('--search_string', type=str, default='*.png', help='Wildcard. eg. train/*/*.png')
     parser.add_argument('--output_dir', type=str, default='image-lmdb', help='Path to output folder')    
     parser.add_argument('--label_dict', type=str, default=None, help='Label type translation. eg. {17:0, 19:1}')
@@ -89,7 +89,10 @@ def main():
             f =  f.strip()
             list_ext = os.path.splitext(f)[1]
             search_ext = os.path.splitext(args.search_string)[1]
-            image_path = os.path.join(args.image_dir, f)        
+            if args.image_dir:
+              image_path = os.path.join(args.image_dir, f)     
+            else:
+              image_path = f   
             if not list_ext:
                 image_path = image_path + search_ext
             image_indices.append(image_path)          

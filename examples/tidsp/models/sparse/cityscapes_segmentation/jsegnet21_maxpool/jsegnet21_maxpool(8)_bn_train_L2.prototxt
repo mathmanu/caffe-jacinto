@@ -51,8 +51,8 @@ layer {
     #display: true
   }
   image_label_data_param {    
-    image_list_path: "data/train-image-list.txt"
-    label_list_path: "data/train-label-list.txt"
+    image_list_path: "data/train-image-lmdb"
+    label_list_path: "data/train-label-lmdb"
     batch_size: 16
     shuffle: true 
     label_slice {
@@ -64,7 +64,8 @@ layer {
       offset: 0
     }
     padding: REFLECT
-    
+    backend: LMDB
+        
     #Min and Max sizes. This will be applied before the rest of the processing.
     #Setting both of these may cause distortion of the image. Recommed to set only one of these or a large range.
     #size_min: 512    
@@ -94,8 +95,8 @@ layer {
     #mean_value: 128
   }
   image_label_data_param {    
-    image_list_path: "data/val-image-list.txt"
-    label_list_path: "data/val-label-list.txt"
+    image_list_path: "data/val-image-lmdb"
+    label_list_path: "data/val-label-lmdb"
     
     batch_size: 4
     shuffle: true
@@ -108,6 +109,7 @@ layer {
       offset: 0
     }
     padding: REFLECT
+    backend: LMDB
 
     #Set to 1 to disable multireaded read      
     #threads: 1  

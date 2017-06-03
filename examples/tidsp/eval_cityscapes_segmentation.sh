@@ -46,17 +46,17 @@ class_dict="{0:255, 1:255, 2:255, 3:255, 4:255, 5:255, 6:255, 7:0, 8:1, 9:255, 1
 #class_dict="{0:255, 1:255, 2:255, 3:255, 4:255, 5:255, 6:255, 7:1, 8:1, 9:255, 10:255, 11:2, 12:2, 13:2, 14:255, 15:255, 16:255, 17:3, 18:255, 19:3, 20:3, 21:4, 22:4, 23:5, 24:6, 25:6, 26:7, 27:7, 28:7, 29:255, 30:255, 31:7, 32:7, 33:7, 255:255}"
 
 
-##------------------------------------------------
-##L2 training.
-#val_weights="training/jsegnet21_maxpool_L2_bn_iter_32000.caffemodel"
-#python ./tools/utils/infer_segmentation.py --crop $val_crop --resize $val_resize --model $val_model --weights $val_weights --input $val_input --label $val_label --num_classes=$val_classes --num_images=$num_images --resize_back --label_dict="$label_dict_20_to_34" --class_dict="$class_dict"
-#pause 'Finished L2 eval.'
-
 #------------------------------------------------
-#L1 training.
-val_weights="training/jsegnet21_maxpool_L1_bn_iter_32000.caffemodel"
+#L2 training.
+val_weights="training/jsegnet21_maxpool_L2_bn_iter_32000.caffemodel"
 python ./tools/utils/infer_segmentation.py --crop $val_crop --resize $val_resize --model $val_model --weights $val_weights --input $val_input --label $val_label --num_classes=$val_classes --num_images=$num_images --resize_back --label_dict="$label_dict_20_to_34" --class_dict="$class_dict"
-pause 'Finished L1 eval.'
+pause 'Finished L2 eval.'
+
+##------------------------------------------------
+##L1 training.
+#val_weights="training/jsegnet21_maxpool_L1_bn_iter_32000.caffemodel"
+#python ./tools/utils/infer_segmentation.py --crop $val_crop --resize $val_resize --model $val_model --weights $val_weights --input $val_input --label $val_label --num_classes=$val_classes --num_images=$num_images --resize_back --label_dict="$label_dict_20_to_34" --class_dict="$class_dict"
+#pause 'Finished L1 eval.'
 
 ##------------------------------------------------
 #val_weights="training/jsegnet21_maxpool_L1_bn_finetune_iter_32000.caffemodel"

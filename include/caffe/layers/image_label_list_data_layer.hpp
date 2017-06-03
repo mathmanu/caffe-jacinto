@@ -50,7 +50,6 @@ class ImageLabelListDataLayer : public BasePrefetchingDataLayer<Ftype, Btype> {
   vector<std::string> label_lines_;
   int lines_id_;
 
-  TBlob<Ftype> transformed_data_, transformed_label_;
   int label_margin_h_;
   int label_margin_w_;
 

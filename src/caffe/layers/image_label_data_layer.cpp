@@ -123,6 +123,9 @@ void ImageLabelDataLayer<Ftype, Btype>::load_batch(Batch<Ftype>* batch, int thre
   label_top_vec.push_back(&label);
   label_layer_->Forward(label_bottom_vec, label_top_vec);
   this->data_transformers_[thread_id]->Transform(&label, &batch->label_, rand, false);
+  
+  //Experimental
+  batch->set_id(this->batch_id(thread_id));   
 }
 
 template<typename Ftype, typename Btype>
@@ -182,7 +185,7 @@ void ImageLabelDataLayer<Ftype, Btype>::InternalThreadEntryN(size_t thread_id) {
     }
   } catch (boost::thread_interrupted&) {
      LOG(INFO) << "InternalThreadEntryN was interrupted" << std::endl;
-  }
+  }   
 }
 
 INSTANTIATE_CLASS_FB(ImageLabelDataLayer);

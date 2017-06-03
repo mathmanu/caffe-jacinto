@@ -271,7 +271,7 @@ void ImageLabelListDataLayer<Ftype, Btype>::DataLayerSetUp(const vector<Blob*>& 
 
   // Use data_transformer to infer the expected blob shape from a cv_image.
   vector<int> data_shape = this->data_transformers_[0]->InferBlobShape(cv_img);
-  this->transformed_data_.Reshape(data_shape);
+
   // Reshape prefetch_data and top[0] according to the batch_size.
   const int batch_size = this->layer_param_.image_label_data_param().batch_size();
   CHECK_GT(batch_size, 0) << "Positive batch size required";
@@ -291,7 +291,7 @@ void ImageLabelListDataLayer<Ftype, Btype>::DataLayerSetUp(const vector<Blob*>& 
   label_shape[2] = label_slice.dim(0);
   label_shape[3] = label_slice.dim(1);
   top[1]->Reshape(label_shape);
-
+    
   for (int i = 0; i < this->prefetch_.size(); ++i) {
     this->prefetch_[i]->data_.Reshape(data_shape);
     this->prefetch_[i]->label_.Reshape(label_shape);
@@ -491,8 +491,9 @@ void ImageLabelListDataLayer<Ftype, Btype>::load_batch(Batch<Ftype>* batch, int 
 
   CHECK(cv_img.data) << "Could not load " << image_lines_[lines_id_];
   // Use data_transformer to infer the expected blob shape from a cv_img.
-  vector<int> top_shape = this->data_transformers_[0]->InferBlobShape(cv_img);
-  this->transformed_data_.Reshape(top_shape);
+  vector<int> top_shape = this->data_transformers_[thread_id]->InferBlobShape(cv_img);
+  //this->transformed_data_.Reshape(top_shape);
+  
   // Reshape prefetch_data according to the batch_size.
   top_shape[0] = batch_size;
   batch->data_.Reshape(top_shape);
@@ -502,8 +503,8 @@ void ImageLabelListDataLayer<Ftype, Btype>::load_batch(Batch<Ftype>* batch, int 
   cv_label = PadImage(cv_label, crop_size);
 
   CHECK(cv_label.data) << "Could not load " << label_lines_[lines_id_];
-  vector<int> label_shape = this->data_transformers_[0]->InferBlobShape(cv_label);
-  this->transformed_label_.Reshape(label_shape);
+  vector<int> label_shape = this->data_transformers_[thread_id]->InferBlobShape(cv_label);
+  //this->transformed_label_.Reshape(label_shape);
   
   auto &label_slice = this->layer_param_.image_label_data_param().label_slice();
   label_shape[0] = batch_size;
@@ -549,18 +550,23 @@ void ImageLabelListDataLayer<Ftype, Btype>::load_batch(Batch<Ftype>* batch, int 
       CHECK(cv_img.data) << "Could not load " << image_lines_[line_d];
       CHECK(cv_label.data) << "Could not load " << label_lines_[line_d];
 
-      mtx.lock();
+      //mtx.lock();
       // Apply transformations (mirror, crop...) to the image
       int image_offset = batch->data_.offset(item_id);
       int label_offset = batch->label_.offset(item_id);
-      this->transformed_data_.set_cpu_data(prefetch_data + image_offset);
-      // this->transformed_label_->set_cpu_data(prefetch_label + label_offset);
-      this->data_transformers_[0]->Transform(cv_img, cv_label, &(this->transformed_data_), &(this->transformed_label_));
+	  
+	  TBlob<Ftype> transformed_data, transformed_label;
+	  transformed_data.Reshape(top_shape);	  
+	  transformed_label.Reshape(label_shape);
+	  	  
+      transformed_data.set_cpu_data(prefetch_data + image_offset);	  
+      transformed_label.set_cpu_data(prefetch_label + label_offset);
+      this->data_transformers_[thread_id]->Transform(cv_img, cv_label, &(transformed_data), &(transformed_label));
 
       Ftype *label_data = prefetch_label + label_offset;
-      const Ftype *t_label_data = this->transformed_label_.cpu_data();
+      const Ftype *t_label_data = transformed_label.cpu_data();
       GetLabelSlice(t_label_data, crop_size, crop_size, label_slice, label_data);
-      mtx.unlock();
+      //mtx.unlock();
     };
 
     ParallelFor(0, batch_size, load_batch_parallel_func);
@@ -616,13 +622,19 @@ void ImageLabelListDataLayer<Ftype, Btype>::load_batch(Batch<Ftype>* batch, int 
       // Apply transformations (mirror, crop...) to the image
       int image_offset = batch->data_.offset(item_id);
       int label_offset = batch->label_.offset(item_id);
-      this->transformed_data_.set_cpu_data(prefetch_data + image_offset);
-      // this->transformed_label_->set_cpu_data(prefetch_label + label_offset);
-      this->data_transformers_[0]->Transform(cv_img, cv_label,
-                                         &(this->transformed_data_),
-                                         &(this->transformed_label_));
+	  
+	  TBlob<Ftype> transformed_data, transformed_label;
+	  transformed_data.Reshape(top_shape);	  
+	  transformed_label.Reshape(label_shape);
+	  	  
+      transformed_data.set_cpu_data(prefetch_data + image_offset);	  
+      transformed_label.set_cpu_data(prefetch_label + label_offset);
+	  	  
+      this->data_transformers_[thread_id]->Transform(cv_img, cv_label,
+                                         &(transformed_data),
+                                         &(transformed_label));
       Ftype *label_data = prefetch_label + label_offset;
-      const Ftype *t_label_data = this->transformed_label_.cpu_data();
+      const Ftype *t_label_data = transformed_label.cpu_data();
       GetLabelSlice(t_label_data, crop_size, crop_size, label_slice, label_data);
       trans_time += timer.MicroSeconds();
 

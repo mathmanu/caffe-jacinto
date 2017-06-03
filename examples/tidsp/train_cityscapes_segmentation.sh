@@ -30,7 +30,7 @@ gpu="1,0" #'0'
 
 #------------------------------------------------
 #L2 training.
-weights="$nw_path/classification/2017.05/imagenet_caffe-0.15/jacintonet11_maxpool_(netsurgery-name-change)_(60.91%)/imagenet_jacintonet11_bn_maxpool_L2_iter_160000.caffemodel"
+weights="$nw_path/classification/2017.05/imagenet_caffe-0.16/jacintonet11_maxpool2x2_(netsurgery-from-caffe-0.15)_acc(60.94)/imagenet_jacintonet11_bn_maxpool_L2_iter_160000.caffemodel"
 #weights="training/imagenet_jacintonet11_bn_maxpool_L2_iter_160000.caffemodel"
 $caffe train --solver="models/sparse/cityscapes_segmentation/jsegnet21_maxpool/jsegnet21_maxpool(8)_bn_train_L2.prototxt" --gpu=$gpu --weights=$weights
 pause 'Finished L2 training.'

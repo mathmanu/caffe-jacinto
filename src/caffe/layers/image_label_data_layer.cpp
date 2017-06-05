@@ -29,6 +29,7 @@ ImageLabelDataLayer<Ftype, Btype>::~ImageLabelDataLayer() {
 template<typename Ftype, typename Btype>
 void ImageLabelDataLayer<Ftype, Btype>::LayerSetUp(const vector<Blob*>& bottom,
     const vector<Blob*>& top) {
+  CHECK(false) << "The synchronization between data and label streams is lost";
   CHECK(this->layer_param_.image_label_data_param().has_backend()) << "ImageLabelDataParameter should specify backend";
 
   data_transformer_.reset(new DataTransformer<Ftype>(this->layer_param_.transform_param(), this->phase_));
@@ -37,7 +38,7 @@ void ImageLabelDataLayer<Ftype, Btype>::LayerSetUp(const vector<Blob*>& bottom,
   //Hang is observed when using default number of threads. Limit the number
   bool has_threads = this->layer_param_.image_label_data_param().has_threads();
   int input_threads = this->layer_param_.image_label_data_param().threads();
-  int threads = has_threads? std::min<int>(std::max<int>(input_threads, 1), 4) : 4;
+  int threads = has_threads? std::min<int>(std::max<int>(input_threads, 1), 4) : 2;
   
   LayerParameter data_param(this->layer_param_);
   data_param.mutable_transform_param()->set_crop_size(this->layer_param_.transform_param().crop_size());
@@ -48,13 +49,6 @@ void ImageLabelDataLayer<Ftype, Btype>::LayerSetUp(const vector<Blob*>& bottom,
   data_param.mutable_data_param()->set_parser_threads(threads);
   data_param.mutable_data_param()->set_backend(static_cast<DataParameter_DB>(this->layer_param_.image_label_data_param().backend()));
   
-  data_param.mutable_transform_param()->clear_rand_val();  
-  if(data_transformer_->HasRand()) {
-    data_param.mutable_transform_param()->add_rand_val(-1.0);
-    data_param.mutable_transform_param()->add_rand_val(-1.0);
-    data_param.mutable_transform_param()->add_rand_val(-1.0);	  	  
-  }
-  
   LayerParameter label_param(this->layer_param_);
   label_param.mutable_transform_param()->set_crop_size(this->layer_param_.transform_param().crop_size());
   label_param.mutable_transform_param()->set_mirror(this->layer_param_.transform_param().mirror());
@@ -63,13 +57,6 @@ void ImageLabelDataLayer<Ftype, Btype>::LayerSetUp(const vector<Blob*>& bottom,
   label_param.mutable_data_param()->set_threads(threads);
   label_param.mutable_data_param()->set_parser_threads(threads);
   label_param.mutable_data_param()->set_backend(static_cast<DataParameter_DB>(this->layer_param_.image_label_data_param().backend()));
-  
-  label_param.mutable_transform_param()->clear_rand_val();
-  if(data_transformer_->HasRand()) {
-    label_param.mutable_transform_param()->add_rand_val(-1.0);
-    label_param.mutable_transform_param()->add_rand_val(-1.0);
-    label_param.mutable_transform_param()->add_rand_val(-1.0);	  	  
-  }
   
   //Create the internal layers
   data_layer_.reset(new DataLayer<Ftype, Btype>(data_param));
@@ -113,24 +100,6 @@ void ImageLabelDataLayer<Ftype, Btype>::Reshape(const vector<Blob*>& bottom, con
 template<typename Ftype, typename Btype>
 void ImageLabelDataLayer<Ftype, Btype>::Forward_cpu(const vector<Blob*>& bottom,
     const vector<Blob*>& top) {
-	 	
-  if(data_transformer_->HasRand()) {	
-    CHECK(data_layer_->layer_param().transform_param().rand_val_size() == 3) 
-	  << "Invalid rand_val size in label_param " << data_layer_->layer_param().transform_param().rand_val_size();	
-    CHECK(label_layer_->layer_param().transform_param().rand_val_size() == 3) 
-	  << "Invalid rand_val size in label_param " << label_layer_->layer_param().transform_param().rand_val_size();  
-	
-    unsigned int rand[3];
-    data_transformer_->Fill3Randoms(rand);
-    data_layer_->SetRandVal(rand);
-    label_layer_->SetRandVal(rand);	
-  } else {
-    CHECK(data_layer_->layer_param().transform_param().rand_val_size()==0 && 
-	  label_layer_->layer_param().transform_param().rand_val_size()==0) << "Invalid rand_val size in label_param " 
-	  << data_layer_->layer_param().transform_param().rand_val_size()
-	  << label_layer_->layer_param().transform_param().rand_val_size();
-  }
-  	
   vector<Blob*> data_bottom_vec;
   vector<Blob*> data_top_vec;
   data_top_vec.push_back(top[0]);

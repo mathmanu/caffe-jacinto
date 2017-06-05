@@ -96,7 +96,7 @@ namespace caffe {
     //Hang is observed when using default number of threads. Limit the number
     bool has_threads = this->layer_param_.image_label_data_param().has_threads();
     int input_threads = this->layer_param_.image_label_data_param().threads();
-    int threads = has_threads? std::min<int>(std::max<int>(input_threads, 1), 4) : 4;
+    int threads = has_threads? std::min<int>(std::max<int>(input_threads, 1), 4) : 2;
     this->layer_param_.mutable_data_param()->set_threads(threads);
     this->layer_param_.mutable_data_param()->set_parser_threads(threads);
   }

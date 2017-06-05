@@ -45,9 +45,7 @@ class ImageLabelListDataLayer : public BasePrefetchingDataLayer<Ftype, Btype> {
     DLOG(INFO) << "[" << this->target_device_ << "] Start Reading.";  
   }
   
-  bool ShareInParallel() const override {
-    return false;
-  }
+  bool ShareInParallel() const override { return false; }
 
   vector<shared_ptr<TBlob<Ftype>>> transformed_data_, transformed_label_;
   shared_ptr<Caffe::RNG> prefetch_rng_;  

@@ -34,12 +34,11 @@ class ImageLabelDataLayer : public Layer<Ftype, Btype> {
   void Backward_gpu(const vector<Blob*>& top, const vector<bool>& propagate_down,
       const vector<Blob*>& bottom) override {}
 	  	  
+  bool ShareInParallel() const override { return false; }
+
   shared_ptr<DataLayer<Ftype,Btype>> data_layer_, label_layer_;
   shared_ptr<DataTransformer<Ftype>>  data_transformer_;
   bool needs_rand_;
-  //bool ShareInParallel() const override {
-  //  return false;
-  //}  
 };
 
 

@@ -125,15 +125,39 @@ void DataTransformer<Dtype>::CopyPtrEntry(
 }
 
 template<typename Dtype>
-void DataTransformer<Dtype>::Fill3Randoms(unsigned int *rand) const {
-  rand[0] = rand[1] = rand[2] = 0;
-  if (param_.mirror()) {
-    rand[0] = Rand() + 1;
+void DataTransformer<Dtype>::Fill3Randoms(unsigned int *rand) {
+  mtx_.lock();
+  if(param_.rand_val_size()>=3) {
+    for(int i=0; i<3; i++) {
+	  rand[i] = param_.rand_val(i);
+	}
+  } else {
+    rand[0] = rand[1] = rand[2] = 0;
+    if (param_.mirror()) {
+      rand[0] = Rand() + 1;
+    }
+    if (phase_ == TRAIN && param_.crop_size()) {
+      rand[1] = Rand() + 1;
+      rand[2] = Rand() + 1;
+    }
   }
-  if (phase_ == TRAIN && param_.crop_size()) {
-    rand[1] = Rand() + 1;
-    rand[2] = Rand() + 1;
+  mtx_.unlock();    
+}
+
+
+template<typename Dtype>
+void DataTransformer<Dtype>::SetRandVal(const unsigned int rand[3]) {
+  mtx_.lock();
+  if(param_.rand_val_size()!=3) {
+    param_.clear_rand_val();
+    param_.add_rand_val(-1.0);	
+    param_.add_rand_val(-1.0);	
+    param_.add_rand_val(-1.0);			
   }
+  for(int i=0; i<3; i++) {
+    param_.set_rand_val(i,rand[i]);
+  }
+  mtx_.unlock();  
 }
 
 #ifndef CPU_ONLY

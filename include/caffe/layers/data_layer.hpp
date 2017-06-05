@@ -47,7 +47,13 @@ class DataLayer : public BasePrefetchingDataLayer<Ftype, Btype> {
   void InitializePrefetch() override;
   void load_batch(Batch<Ftype>* batch, int thread_id, size_t queue_id = 0UL) override;
 
- protected:
+  void SetRandVal(unsigned int rand[3]) {
+    for(int i=0; i<this->data_transformers_.size(); i++) {
+	  this->data_transformers_[i]->SetRandVal(rand);
+	}
+  }
+  
+protected:
   size_t queue_id(size_t thread_id) const override;
 
   void init_offsets();

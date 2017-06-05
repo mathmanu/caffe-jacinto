@@ -594,6 +594,7 @@ message TransformationParameter {
   optional bool display = 12 [default = false];
   
   optional int32 num_labels = 16 [default = 0];  
+  repeated float rand_val = 17;
 }
 // Message that stores parameters used to create gridbox ground truth
 message DetectNetGroundTruthParameter {

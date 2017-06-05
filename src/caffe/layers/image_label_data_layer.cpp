@@ -17,30 +17,13 @@
 
 namespace caffe {
 
-
 template <typename Ftype, typename Btype>
 ImageLabelDataLayer<Ftype, Btype>::ImageLabelDataLayer(const LayerParameter& param) :
-  BasePrefetchingDataLayer<Ftype, Btype>(param) {
+  Layer<Ftype, Btype>(param) {
 }
 
 template <typename Ftype, typename Btype>
 ImageLabelDataLayer<Ftype, Btype>::~ImageLabelDataLayer() {
-  this->StopInternalThread();
-}
-
-template<typename Ftype, typename Btype>
-void ImageLabelDataLayer<Ftype, Btype>::InitializePrefetch() {
-  if (layer_inititialized_flag_.is_set()) {
-    return;
-  }
-  data_layer_->InitializePrefetch();
-  label_layer_->InitializePrefetch();
-
-  //enabling this causes a crash!
-  //prefetch may not be required as this doesn't read data directly.
-  //BasePrefetchingDataLayer<Ftype, Btype>::InitializePrefetch();
-
-  layer_inititialized_flag_.set();
 }
 
 template<typename Ftype, typename Btype>
@@ -48,36 +31,49 @@ void ImageLabelDataLayer<Ftype, Btype>::LayerSetUp(const vector<Blob*>& bottom,
     const vector<Blob*>& top) {
   CHECK(this->layer_param_.image_label_data_param().has_backend()) << "ImageLabelDataParameter should specify backend";
 
+  data_transformer_.reset(new DataTransformer<Ftype>(this->layer_param_.transform_param(), this->phase_));
+  data_transformer_->InitRand();
+    
+  //Hang is observed when using default number of threads. Limit the number
+  bool has_threads = this->layer_param_.image_label_data_param().has_threads();
+  int input_threads = this->layer_param_.image_label_data_param().threads();
+  int threads = has_threads? std::min<int>(std::max<int>(input_threads, 1), 4) : 4;
+  
   LayerParameter data_param(this->layer_param_);
-  //data_param.mutable_transform_param()->set_crop_size(this->layer_param_.transform_param().crop_size());
-  //data_param.mutable_transform_param()->set_mirror(this->layer_param_.transform_param().mirror());
+  data_param.mutable_transform_param()->set_crop_size(this->layer_param_.transform_param().crop_size());
+  data_param.mutable_transform_param()->set_mirror(this->layer_param_.transform_param().mirror());
   data_param.mutable_data_param()->set_source(this->layer_param_.image_label_data_param().image_list_path());
   data_param.mutable_data_param()->set_batch_size(this->layer_param_.image_label_data_param().batch_size());
-  if(true/*this->layer_param_.image_label_data_param().has_threads()*/) {
-    data_param.mutable_data_param()->set_threads(1/*this->layer_param_.image_label_data_param().threads()*/);
-    data_param.mutable_data_param()->set_parser_threads(1/*this->layer_param_.data_param().threads()*/);
-  }
+  data_param.mutable_data_param()->set_threads(threads);
+  data_param.mutable_data_param()->set_parser_threads(threads);
   data_param.mutable_data_param()->set_backend(static_cast<DataParameter_DB>(this->layer_param_.image_label_data_param().backend()));
-
+  
+  data_param.mutable_transform_param()->clear_rand_val();  
+  if(data_transformer_->HasRand()) {
+    data_param.mutable_transform_param()->add_rand_val(-1.0);
+    data_param.mutable_transform_param()->add_rand_val(-1.0);
+    data_param.mutable_transform_param()->add_rand_val(-1.0);	  	  
+  }
+  
   LayerParameter label_param(this->layer_param_);
-  //label_param.mutable_transform_param()->set_crop_size(this->layer_param_.transform_param().crop_size());
-  //label_param.mutable_transform_param()->set_mirror(this->layer_param_.transform_param().mirror());
+  label_param.mutable_transform_param()->set_crop_size(this->layer_param_.transform_param().crop_size());
+  label_param.mutable_transform_param()->set_mirror(this->layer_param_.transform_param().mirror());
   label_param.mutable_data_param()->set_source(this->layer_param_.image_label_data_param().label_list_path());
   label_param.mutable_data_param()->set_batch_size(this->layer_param_.image_label_data_param().batch_size());
-  if(true/*this->layer_param_.image_label_data_param().has_threads()*/) {
-    label_param.mutable_data_param()->set_threads(1/*this->layer_param_.image_label_data_param().threads()*/);
-    label_param.mutable_data_param()->set_parser_threads(1/*this->layer_param_.data_param().threads()*/);
-  }
+  label_param.mutable_data_param()->set_threads(threads);
+  label_param.mutable_data_param()->set_parser_threads(threads);
   label_param.mutable_data_param()->set_backend(static_cast<DataParameter_DB>(this->layer_param_.image_label_data_param().backend()));
-
-  if(this->layer_param_.image_label_data_param().has_threads()) {
-    this->layer_param_.mutable_data_param()->set_threads(this->layer_param_.image_label_data_param().threads());
-    this->layer_param_.mutable_data_param()->set_parser_threads(this->layer_param_.image_label_data_param().threads());
+  
+  label_param.mutable_transform_param()->clear_rand_val();
+  if(data_transformer_->HasRand()) {
+    label_param.mutable_transform_param()->add_rand_val(-1.0);
+    label_param.mutable_transform_param()->add_rand_val(-1.0);
+    label_param.mutable_transform_param()->add_rand_val(-1.0);	  	  
   }
-
+  
   //Create the internal layers
-  data_layer_.reset(new DataLayerExtended<Ftype, Btype>(data_param));
-  label_layer_.reset(new DataLayerExtended<Ftype, Btype>(label_param));
+  data_layer_.reset(new DataLayer<Ftype, Btype>(data_param));
+  label_layer_.reset(new DataLayer<Ftype, Btype>(label_param));
 
   //Populate bottom and top
   vector<Blob*> data_bottom_vec;
@@ -91,7 +87,6 @@ void ImageLabelDataLayer<Ftype, Btype>::LayerSetUp(const vector<Blob*>& bottom,
   vector<int> data_shape = {top[0]->num(), top[0]->channels(), data_height, data_width};
   top[0]->Reshape(data_shape);
 
-
   vector<Blob*> label_bottom_vec;
   vector<Blob*> label_top_vec;
   label_top_vec.push_back(top[1]);
@@ -100,92 +95,51 @@ void ImageLabelDataLayer<Ftype, Btype>::LayerSetUp(const vector<Blob*>& bottom,
   int label_channels = 1;
   vector<int> label_shape = {top[1]->num(), label_channels, data_height, data_width};
   top[1]->Reshape(label_shape);
-
-  BasePrefetchingDataLayer<Ftype, Btype>::LayerSetUp(bottom, top);
-}
-
-// This function is called on prefetch thread
-template <typename Ftype, typename Btype>
-void ImageLabelDataLayer<Ftype, Btype>::load_batch(Batch<Ftype>* batch, int thread_id, size_t queue_id) {
-  std::array<unsigned int, 3> rand;
-  this->data_transformers_[thread_id]->Fill3Randoms(&rand.front());
-
-  vector<Blob*> data_bottom_vec;
-  vector<Blob*> data_top_vec;
-  TBlob<Ftype> data;
-  data_top_vec.push_back(&data);
-  data_layer_->Forward(data_bottom_vec, data_top_vec);
-  this->data_transformers_[thread_id]->Transform(&data, &batch->data_, rand, true);
-
-  vector<Blob*> label_bottom_vec;
-  vector<Blob*> label_top_vec;
-  TBlob<Ftype> label;
-  label_top_vec.push_back(&label);
-  label_layer_->Forward(label_bottom_vec, label_top_vec);
-  this->data_transformers_[thread_id]->Transform(&label, &batch->label_, rand, false);
-  
-  //Experimental
-  batch->set_id(this->batch_id(thread_id));   
 }
 
 template<typename Ftype, typename Btype>
-void ImageLabelDataLayer<Ftype, Btype>::InternalThreadEntryN(size_t thread_id) {
-#ifndef CPU_ONLY
-  const bool use_gpu_transform = this->is_gpu_transform();
-#endif
-  static thread_local bool iter0 = this->phase_ == TRAIN;
-  if (iter0 && this->net_inititialized_flag_ != nullptr) {
-    this->net_inititialized_flag_->wait();
-  } else {  // nothing to wait -> initialize and start pumping
-    std::lock_guard<std::mutex> lock(this->mutex_in_);
-    this->InitializePrefetch();
-    start_reading();
-    iter0 = false;
+void ImageLabelDataLayer<Ftype, Btype>::Reshape(const vector<Blob*>& bottom, const vector<Blob*>& top) {
+  vector<Blob*> data_bottom_vec;
+  vector<Blob*> data_top_vec;
+  data_top_vec.push_back(top[0]);
+  data_layer_->Reshape(data_bottom_vec, data_top_vec);	
+  
+  vector<Blob*> label_bottom_vec;
+  vector<Blob*> label_top_vec;
+  label_top_vec.push_back(top[1]);
+  label_layer_->Reshape(label_bottom_vec, label_top_vec);  
+}
+  
+template<typename Ftype, typename Btype>
+void ImageLabelDataLayer<Ftype, Btype>::Forward_cpu(const vector<Blob*>& bottom,
+    const vector<Blob*>& top) {
+	 	
+  if(data_transformer_->HasRand()) {	
+    CHECK(data_layer_->layer_param().transform_param().rand_val_size() == 3) 
+	  << "Invalid rand_val size in label_param " << data_layer_->layer_param().transform_param().rand_val_size();	
+    CHECK(label_layer_->layer_param().transform_param().rand_val_size() == 3) 
+	  << "Invalid rand_val size in label_param " << label_layer_->layer_param().transform_param().rand_val_size();  
+	
+    unsigned int rand[3];
+    data_transformer_->Fill3Randoms(rand);
+    data_layer_->SetRandVal(rand);
+    label_layer_->SetRandVal(rand);	
+  } else {
+    CHECK(data_layer_->layer_param().transform_param().rand_val_size()==0 && 
+	  label_layer_->layer_param().transform_param().rand_val_size()==0) << "Invalid rand_val size in label_param " 
+	  << data_layer_->layer_param().transform_param().rand_val_size()
+	  << label_layer_->layer_param().transform_param().rand_val_size();
   }
-  try {
-    while (!this->must_stop(thread_id)) {
-      const size_t qid = this->queue_id(thread_id);
-#ifndef CPU_ONLY
-      shared_ptr<Batch<Ftype>> batch = this->prefetches_free_[qid]->pop();
-
-      CHECK_EQ((size_t) -1, batch->id());
-      load_batch(batch.get(), thread_id, qid);
-      if (Caffe::mode() == Caffe::GPU) {
-        if (!use_gpu_transform) {
-          batch->data_.async_gpu_push();
-        }
-        if (this->output_labels_) {
-          batch->label_.async_gpu_push();
-        }
-        CUDA_CHECK(cudaStreamSynchronize(Caffe::th_stream_aux(Caffe::STREAM_ID_ASYNC_PUSH)));
-      }
-
-      this->prefetches_full_[qid]->push(batch);
-#else
-      shared_ptr<Batch<Ftype>> batch = this->prefetches_free_[qid]->pop();
-      load_batch(batch.get(), thread_id, qid);
-      this->prefetches_full_[qid]->push(batch);
-#endif
-
-      if (iter0) {
-        if (this->net_iteration0_flag_ != nullptr) {
-          this->net_iteration0_flag_->wait();
-        }
-        std::lock_guard<std::mutex> lock(this->mutex_out_);
-        if (this->net_inititialized_flag_ != nullptr) {
-          this->net_inititialized_flag_ = nullptr;  // no wait on the second round
-          this->InitializePrefetch();
-          start_reading();
-        }
-        //if (this->auto_mode_) {
-        //  break;
-        //}  // manual otherwise, thus keep rolling
-        iter0 = false;
-      }
-    }
-  } catch (boost::thread_interrupted&) {
-     LOG(INFO) << "InternalThreadEntryN was interrupted" << std::endl;
-  }   
+  	
+  vector<Blob*> data_bottom_vec;
+  vector<Blob*> data_top_vec;
+  data_top_vec.push_back(top[0]);
+  data_layer_->Forward(data_bottom_vec, data_top_vec);	
+  
+  vector<Blob*> label_bottom_vec;
+  vector<Blob*> label_top_vec;
+  label_top_vec.push_back(top[1]);
+  label_layer_->Forward(label_bottom_vec, label_top_vec);  
 }
 
 INSTANTIATE_CLASS_FB(ImageLabelDataLayer);

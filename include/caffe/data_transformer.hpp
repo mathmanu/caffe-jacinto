@@ -3,6 +3,7 @@
 
 #include <string>
 #include <vector>
+#include <mutex>
 
 #include "caffe/blob.hpp"
 #include "caffe/common.hpp"
@@ -38,6 +39,10 @@ class DataTransformer {
   unsigned int Rand(int n) const {
     CHECK_GT(n, 0);
     return Rand() % n;
+  }
+
+  bool HasRand() {
+    return rng_!=NULL;
   }
 
 #ifndef CPU_ONLY
@@ -181,8 +186,9 @@ class DataTransformer {
   vector<int> InferBlobShape(const cv::Mat& cv_img, bool use_gpu = false);
 #endif  // USE_OPENCV
 
-  void Fill3Randoms(unsigned int* rand) const;
-
+  void Fill3Randoms(unsigned int* rand);
+  void SetRandVal(const unsigned int rand[3]);
+  
  protected:
   unsigned int Rand() const;
   void TransformGPU(const Datum& datum, Dtype* transformed_data,
@@ -201,6 +207,7 @@ class DataTransformer {
 #ifndef CPU_ONLY
   GPUMemory::Workspace mean_values_gpu_;
 #endif
+  std::mutex mtx_;
 };
 
 }  // namespace caffe

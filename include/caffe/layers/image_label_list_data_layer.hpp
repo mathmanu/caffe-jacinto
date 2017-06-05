@@ -45,6 +45,11 @@ class ImageLabelListDataLayer : public BasePrefetchingDataLayer<Ftype, Btype> {
     DLOG(INFO) << "[" << this->target_device_ << "] Start Reading.";  
   }
   
+  bool ShareInParallel() const override {
+    return false;
+  }
+
+  vector<shared_ptr<TBlob<Ftype>>> transformed_data_, transformed_label_;
   shared_ptr<Caffe::RNG> prefetch_rng_;  
   vector<std::string> image_lines_;
   vector<std::string> label_lines_;
@@ -54,6 +59,8 @@ class ImageLabelListDataLayer : public BasePrefetchingDataLayer<Ftype, Btype> {
   int label_margin_w_;
 
   std::mt19937 *rng_;
+
+  int epoch_;
 };
 
 } // namspace caffe

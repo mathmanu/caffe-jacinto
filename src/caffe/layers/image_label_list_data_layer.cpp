@@ -92,12 +92,13 @@ ImageLabelListDataLayer<Ftype, Btype>::ImageLabelListDataLayer(
     const LayerParameter &param) : BasePrefetchingDataLayer<Ftype, Btype>(param) {
   std::random_device rand_dev;
   rng_ = new std::mt19937(rand_dev());
-  //thread lockup can happen since transformation stage also uses threads
-  //hangs with multiple threads -> so set the threads to 1
-  if(this->layer_param_.image_label_data_param().threads() != 1) {
-    this->layer_param_.mutable_data_param()->set_threads(1);
-    this->layer_param_.mutable_data_param()->set_parser_threads(1);  
-  }
+
+  //Hang is observed when using default number of threads. Limit the number
+  bool has_threads = this->layer_param_.image_label_data_param().has_threads();
+  int input_threads = this->layer_param_.image_label_data_param().threads();
+  int threads = has_threads? std::min<int>(std::max<int>(input_threads, 1), 4) : 4;
+  this->layer_param_.mutable_data_param()->set_threads(threads);
+  this->layer_param_.mutable_data_param()->set_parser_threads(threads);
 }
 
 template<typename Ftype, typename Btype>
@@ -109,7 +110,7 @@ ImageLabelListDataLayer<Ftype, Btype>::~ImageLabelListDataLayer() {
 template<typename Ftype, typename Btype>
 void ImageLabelListDataLayer<Ftype, Btype>::InternalThreadEntryN(size_t thread_id) {
 #ifndef CPU_ONLY
-  //const bool use_gpu_transform = this->is_gpu_transform();
+  const bool use_gpu_transform = this->is_gpu_transform();
 #endif
   static thread_local bool iter0 = this->phase_ == TRAIN;
   if (iter0 && this->net_inititialized_flag_ != nullptr) {
@@ -128,7 +129,7 @@ void ImageLabelListDataLayer<Ftype, Btype>::InternalThreadEntryN(size_t thread_i
 
       CHECK_EQ((size_t) -1, batch->id());
       load_batch(batch.get(), thread_id, qid);
-      /*if (Caffe::mode() == Caffe::GPU) {
+      if (Caffe::mode() == Caffe::GPU) {
         if (!use_gpu_transform) {
           batch->data_.async_gpu_push();
         }
@@ -136,7 +137,7 @@ void ImageLabelListDataLayer<Ftype, Btype>::InternalThreadEntryN(size_t thread_i
           batch->label_.async_gpu_push();
         }
         CUDA_CHECK(cudaStreamSynchronize(Caffe::th_stream_aux(Caffe::STREAM_ID_ASYNC_PUSH)));
-      }*/
+      }
 
       this->prefetches_full_[qid]->push(batch);
 #else
@@ -174,6 +175,8 @@ bool static inline file_exists(const std::string filename) {
 template<typename Ftype, typename Btype>
 void ImageLabelListDataLayer<Ftype, Btype>::DataLayerSetUp(const vector<Blob*>& bottom,
                                                 const vector<Blob*>& top) {
+  epoch_ = 0;
+
   auto &data_param = this->layer_param_.image_label_data_param();
   string data_dir = data_param.data_dir();
   string image_dir = data_param.image_dir();
@@ -297,6 +300,16 @@ void ImageLabelListDataLayer<Ftype, Btype>::DataLayerSetUp(const vector<Blob*>& 
     this->prefetch_[i]->label_.Reshape(label_shape);
   }
 
+  transformed_data_.resize(this->data_transformers_.size());
+  transformed_label_.resize(this->data_transformers_.size());
+  for(int i=0; i<this->data_transformers_.size(); i++) {
+    transformed_data_[i].reset(new TBlob<Ftype>);
+    transformed_data_[i]->Reshape(data_shape);
+
+    transformed_label_[i].reset(new TBlob<Ftype>);
+    transformed_label_[i]->Reshape(label_shape);
+  }
+
   LOG(INFO) << "output data size: " << top[0]->num() << ","
   << top[0]->channels() << "," << top[0]->height() << ","
   << top[0]->width();
@@ -403,10 +416,10 @@ void ImageLabelListDataLayer<Ftype, Btype>::ResizeTo(
 ) {
   // perform scaling if desired size and image size are non-equal:
   if (size.height != img.rows || size.width != img.cols) {
-    //int orig_height = img.rows;
-    //int orig_width = img.cols;
     int new_height = size.height;
     int new_width = size.width;
+    //int orig_height = img.rows;
+    //int orig_width = img.cols;
     //if(orig_width > orig_height) {
     //    new_width = new_height*orig_width/orig_height;
     //} else {
@@ -414,7 +427,6 @@ void ImageLabelListDataLayer<Ftype, Btype>::ResizeTo(
     //}
 
     //LOG(INFO) << "Resizing " << img.cols << "x" << img.rows << " to " << new_width << "x" << new_height;
-
     double scale_value = ((new_width / (double)img.cols) + (new_height / (double)img.rows)) / 2;
     if(scale_value > 1) {
         cv::resize(img, *img_temp, cv::Size(new_width, new_height), cv::INTER_CUBIC);
@@ -492,7 +504,6 @@ void ImageLabelListDataLayer<Ftype, Btype>::load_batch(Batch<Ftype>* batch, int 
   CHECK(cv_img.data) << "Could not load " << image_lines_[lines_id_];
   // Use data_transformer to infer the expected blob shape from a cv_img.
   vector<int> top_shape = this->data_transformers_[thread_id]->InferBlobShape(cv_img);
-  //this->transformed_data_.Reshape(top_shape);
   
   // Reshape prefetch_data according to the batch_size.
   top_shape[0] = batch_size;
@@ -504,7 +515,6 @@ void ImageLabelListDataLayer<Ftype, Btype>::load_batch(Batch<Ftype>* batch, int 
 
   CHECK(cv_label.data) << "Could not load " << label_lines_[lines_id_];
   vector<int> label_shape = this->data_transformers_[thread_id]->InferBlobShape(cv_label);
-  //this->transformed_label_.Reshape(label_shape);
   
   auto &label_slice = this->layer_param_.image_label_data_param().label_slice();
   label_shape[0] = batch_size;
@@ -515,148 +525,76 @@ void ImageLabelListDataLayer<Ftype, Btype>::load_batch(Batch<Ftype>* batch, int 
   Ftype* prefetch_data = batch->data_.mutable_cpu_data();
   Ftype* prefetch_label = batch->label_.mutable_cpu_data();
 
+  double read_time = 0;
+  double trans_time = 0;
+  CPUTimer timer;
+
   auto lines_size = image_lines_.size();
 
-  if(data_param.threads() != 1) {
-    cv::Mutex mtx;
-    auto load_batch_parallel_func = [&](int item_id) {
-      // get a blob
-      int line_d = (lines_id_ + item_id) % lines_size;
-      CHECK_GT(lines_size, line_d);
+  auto load_batch_parallel_func = [&](int item_id) {
+    timer.Start();
+    int line_d = (lines_id_ + item_id) % lines_size;
+    CHECK_GT(lines_size, line_d);
 
-      CHECK(file_exists(image_dir + image_lines_[lines_id_])) << "Could not load " << image_lines_[lines_id_];
-      CHECK(file_exists(label_dir + label_lines_[lines_id_])) << "Could not load " << label_lines_[lines_id_];
+    CHECK(file_exists(image_dir + image_lines_[lines_id_])) << "Could not load " << image_lines_[lines_id_];
+    CHECK(file_exists(label_dir + label_lines_[lines_id_])) << "Could not load " << label_lines_[lines_id_];
 
-      cv::Mat cv_img = ReadImageToCVMat(image_dir + image_lines_[line_d]);
-      cv::Mat cv_label = ReadImageToCVMat(label_dir + label_lines_[line_d],
+    cv::Mat cv_img = ReadImageToCVMat(image_dir + image_lines_[line_d]);
+    cv::Mat cv_label = ReadImageToCVMat(label_dir + label_lines_[line_d],
                                           false);
-      SampleScale(&cv_img, &cv_label);
+    SampleScale(&cv_img, &cv_label);
 
-      switch (data_param.padding()) {
-        case ImageLabelDataParameter_Padding_ZERO:
-          cv_img = ExtendLabelMargin(cv_img, label_margin_w_, label_margin_h_, 0);
-          cv_img = PadImage(cv_img, crop_size, 0);
-          break;
-        case ImageLabelDataParameter_Padding_REFLECT:
-          cv_img = ExtendLabelMargin(cv_img, label_margin_w_, label_margin_h_, -1);
-          cv_img = PadImage(cv_img, crop_size, -1);
-          break;
-        default:
-          LOG(FATAL) << "Unknown Padding";
-      }
-      cv_label = ExtendLabelMargin(cv_label, label_margin_w_, label_margin_h_, 255);
-      cv_label = PadImage(cv_label, crop_size, 255);
-
-      CHECK(cv_img.data) << "Could not load " << image_lines_[line_d];
-      CHECK(cv_label.data) << "Could not load " << label_lines_[line_d];
-
-      //mtx.lock();
-      // Apply transformations (mirror, crop...) to the image
-      int image_offset = batch->data_.offset(item_id);
-      int label_offset = batch->label_.offset(item_id);
-	  
-	  TBlob<Ftype> transformed_data, transformed_label;
-	  transformed_data.Reshape(top_shape);	  
-	  transformed_label.Reshape(label_shape);
-	  	  
-      transformed_data.set_cpu_data(prefetch_data + image_offset);	  
-      transformed_label.set_cpu_data(prefetch_label + label_offset);
-      this->data_transformers_[thread_id]->Transform(cv_img, cv_label, &(transformed_data), &(transformed_label));
-
-      Ftype *label_data = prefetch_label + label_offset;
-      const Ftype *t_label_data = transformed_label.cpu_data();
-      GetLabelSlice(t_label_data, crop_size, crop_size, label_slice, label_data);
-      //mtx.unlock();
-    };
-
-    ParallelFor(0, batch_size, load_batch_parallel_func);
-
-    // go to the next iter
-    lines_id_ += batch_size;
-    if (lines_id_ >= lines_size) {
-      // We have reached the end. Restart from the first.
-      DLOG(INFO) << "Restarting data prefetching from start.";
-      lines_id_ = 0;
-      if (this->layer_param_.image_label_data_param().shuffle()) {
-        ShuffleImages();
-      }
+    switch (data_param.padding()) {
+      case ImageLabelDataParameter_Padding_ZERO:
+        cv_img = ExtendLabelMargin(cv_img, label_margin_w_, label_margin_h_, 0);
+        cv_img = PadImage(cv_img, crop_size, 0);
+        break;
+      case ImageLabelDataParameter_Padding_REFLECT:
+        cv_img = ExtendLabelMargin(cv_img, label_margin_w_, label_margin_h_, -1);
+        cv_img = PadImage(cv_img, crop_size, -1);
+        break;
+      default:
+        LOG(FATAL) << "Unknown Padding";
     }
-  } else {
-    double read_time = 0;
-    double trans_time = 0;
-    CPUTimer timer;
+    cv_label = ExtendLabelMargin(cv_label, label_margin_w_, label_margin_h_, 255);
+    cv_label = PadImage(cv_label, crop_size, 255);
 
-    // datum scales
-    for (int item_id = 0; item_id < batch_size; ++item_id) {
-      // get a blob
-      timer.Start();
-      CHECK_GT(lines_size, lines_id_);
+    CHECK(cv_img.data) << "Could not load " << image_lines_[line_d];
+    CHECK(cv_label.data) << "Could not load " << label_lines_[line_d];
+    read_time += timer.MicroSeconds();
 
-      CHECK(file_exists(image_dir + image_lines_[lines_id_])) << "Could not load " << image_lines_[lines_id_];
-      CHECK(file_exists(label_dir + label_lines_[lines_id_])) << "Could not load " << label_lines_[lines_id_];
+    timer.Start();
+    // Apply transformations (mirror, crop...) to the image
+    int image_offset = batch->data_.offset(item_id);
+    int label_offset = batch->label_.offset(item_id);
 
-      cv::Mat cv_img = ReadImageToCVMat(image_dir + image_lines_[lines_id_]);
-      cv::Mat cv_label = ReadImageToCVMat(label_dir + label_lines_[lines_id_], false);
-      SampleScale(&cv_img, &cv_label);
-	  
-      switch (data_param.padding()) {
-        case ImageLabelDataParameter_Padding_ZERO:
-          cv_img = ExtendLabelMargin(cv_img, label_margin_w_, label_margin_h_, 0);
-          cv_img = PadImage(cv_img, crop_size, 0);
-          break;
-        case ImageLabelDataParameter_Padding_REFLECT:
-          cv_img = ExtendLabelMargin(cv_img, label_margin_w_, label_margin_h_, -1);
-          cv_img = PadImage(cv_img, crop_size, -1);
-          break;
-        default:
-          LOG(FATAL) << "Unknown Padding";
-      }
-      cv_label = ExtendLabelMargin(cv_label, label_margin_w_, label_margin_h_, 255);
-      cv_label = PadImage(cv_label, crop_size, 255);
+    transformed_data_[thread_id]->set_cpu_data(prefetch_data + image_offset);
+    transformed_label_[thread_id]->set_cpu_data(prefetch_label + label_offset);
+    this->data_transformers_[thread_id]->Transform(cv_img, cv_label, &(*transformed_data_[thread_id]), &(*transformed_label_[thread_id]));
 
-      CHECK(cv_img.data) << "Could not load " << image_lines_[lines_id_];
-      CHECK(cv_label.data) << "Could not load " << label_lines_[lines_id_];
-      read_time += timer.MicroSeconds();
-      
-	  timer.Start();
-      // Apply transformations (mirror, crop...) to the image
-      int image_offset = batch->data_.offset(item_id);
-      int label_offset = batch->label_.offset(item_id);
-	  
-	  TBlob<Ftype> transformed_data, transformed_label;
-	  transformed_data.Reshape(top_shape);	  
-	  transformed_label.Reshape(label_shape);
-	  	  
-      transformed_data.set_cpu_data(prefetch_data + image_offset);	  
-      transformed_label.set_cpu_data(prefetch_label + label_offset);
-	  	  
-      this->data_transformers_[thread_id]->Transform(cv_img, cv_label,
-                                         &(transformed_data),
-                                         &(transformed_label));
-      Ftype *label_data = prefetch_label + label_offset;
-      const Ftype *t_label_data = transformed_label.cpu_data();
-      GetLabelSlice(t_label_data, crop_size, crop_size, label_slice, label_data);
-      trans_time += timer.MicroSeconds();
+    Ftype *label_data = prefetch_label + label_offset;
+    const Ftype *t_label_data = transformed_label_[thread_id]->cpu_data();
+    GetLabelSlice(t_label_data, crop_size, crop_size, label_slice, label_data);
+    trans_time += timer.MicroSeconds();
+  };
 
-      // prefetch_label[item_id] = lines_[lines_id_].second;
-      // go to the next iter
-      lines_id_++;
-      if (lines_id_ >= lines_size) {
-        // We have reached the end. Restart from the first.
-        DLOG(INFO) << "Restarting data prefetching from start.";
-        lines_id_ = 0;
-        if (this->layer_param_.image_label_data_param().shuffle()) {
-          ShuffleImages();
-        }
-      }
+  ParallelFor(0, batch_size, load_batch_parallel_func);
+
+  // go to the next iter
+  lines_id_ += batch_size;
+  if (lines_id_ >= lines_size) {
+    // We have reached the end. Restart from the first.
+    DLOG(INFO) << "Starting prefetch of epoch " <<  ++epoch_;
+    lines_id_ = 0;
+    if (this->layer_param_.image_label_data_param().shuffle()) {
+      ShuffleImages();
     }
-
-    DLOG(INFO) << "     Read time: " << read_time / 1000 << " ms.";
-    DLOG(INFO) << "Transform time: " << trans_time / 1000 << " ms.";
   }
 
   batch_timer.Stop();
-  DLOG(INFO) << "Prefetch batch: " << batch_timer.MilliSeconds() << " ms.";
+  LOG_EVERY_N(INFO,10000) << "          Read batch time: " << read_time / 1000 << " ms.";
+  LOG_EVERY_N(INFO,10000) << "     Transform batch time: " << trans_time / 1000 << " ms.";
+  LOG_EVERY_N(INFO,10000) << "Total Prefetch batch time: " << batch_timer.MilliSeconds() << " ms.";
   
   batch->set_id(this->batch_id(thread_id));  
 }

@@ -15,20 +15,7 @@
 namespace caffe {
 
 template <typename Ftype, typename Btype>
-class DataLayerExtended : public DataLayer<Ftype, Btype> {
-public:
-  DataLayerExtended(const LayerParameter& param) : DataLayer<Ftype, Btype> (param) {}
-  ~DataLayerExtended() {}
-};
-
-
-/**
- * @brief Provides data to the Net from image files.
- *
- * TODO(dox): thorough documentation for Forward and proto params.
- */
-template <typename Ftype, typename Btype>
-class ImageLabelDataLayer : public BasePrefetchingDataLayer<Ftype, Btype> {
+class ImageLabelDataLayer : public Layer<Ftype, Btype> {
  public:
   explicit ImageLabelDataLayer(const LayerParameter& param);
   virtual ~ImageLabelDataLayer();
@@ -37,22 +24,22 @@ class ImageLabelDataLayer : public BasePrefetchingDataLayer<Ftype, Btype> {
   const char* type() const override { return "ImageLabelData"; }
   int ExactNumBottomBlobs() const override { return 0; }
   int ExactNumTopBlobs() const override { return 2; }
-  void start_reading() override {}
-  bool ShareInParallel() const override {
-    return false;
-  }
-  Flag* layer_inititialized_flag() override {
-    return this->phase_ == TRAIN ? &layer_inititialized_flag_ : nullptr;
-  }
-  void InitializePrefetch() override;
-  void InternalThreadEntryN(size_t thread_id);
-
- protected:
-  void load_batch(Batch<Ftype>* batch, int thread_id, size_t queue_id = 0UL) override;
-  //bool is_gpu_transform() const { return true; }
-
-  shared_ptr<DataLayerExtended<Ftype,Btype>> data_layer_, label_layer_;
-  Flag layer_inititialized_flag_;
+  
+  void Reshape(const vector<Blob*>& bottom, const vector<Blob*>& top) override;
+    
+  void Forward_cpu(const vector<Blob*>& bottom, const vector<Blob*>& top) override;
+	  
+  void Backward_cpu(const vector<Blob*>& top, const vector<bool>& propagate_down,
+      const vector<Blob*>& bottom) override {}
+  void Backward_gpu(const vector<Blob*>& top, const vector<bool>& propagate_down,
+      const vector<Blob*>& bottom) override {}
+	  	  
+  shared_ptr<DataLayer<Ftype,Btype>> data_layer_, label_layer_;
+  shared_ptr<DataTransformer<Ftype>>  data_transformer_;
+  bool needs_rand_;
+  //bool ShareInParallel() const override {
+  //  return false;
+  //}  
 };
 
 

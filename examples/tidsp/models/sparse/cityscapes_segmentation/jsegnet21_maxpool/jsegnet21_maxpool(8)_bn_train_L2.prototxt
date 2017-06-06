@@ -37,7 +37,7 @@ name: "JSegNet21-MaxPool-(8)"
 
 layer {
   name: "data"
-  type: "ImageLabelData"
+  type: "ImageLabelListData"
   top: "data"
   top: "label"
   include {  phase: TRAIN  }
@@ -51,8 +51,8 @@ layer {
     #display: true
   }
   image_label_data_param {    
-    image_list_path: "data/train-image-lmdb"
-    label_list_path: "data/train-label-lmdb"
+    image_list_path: "data/train-image-list.txt"
+    label_list_path: "data/train-label-list.txt"
     batch_size: 16
     shuffle: true 
     label_slice {
@@ -64,7 +64,7 @@ layer {
       offset: 0
     }
     padding: REFLECT
-    backend: LMDB
+    #backend: LMDB
         
     #Min and Max sizes. This will be applied before the rest of the processing.
     #Setting both of these may cause distortion of the image. Recommed to set only one of these or a large range.
@@ -83,7 +83,7 @@ layer {
 
 layer {
   name: "data"
-  type: "ImageLabelData"
+  type: "ImageLabelListData"
   top: "data"
   top: "label"
   include {  phase: TEST  }
@@ -95,11 +95,11 @@ layer {
     #mean_value: 128
   }
   image_label_data_param {    
-    image_list_path: "data/val-image-lmdb"
-    label_list_path: "data/val-label-lmdb"
+    image_list_path: "data/val-image-list.txt"
+    label_list_path: "data/val-label-list.txt"
     
     batch_size: 4
-    shuffle: true
+    shuffle: false
     label_slice {
       dim: 640
       dim: 640
@@ -109,7 +109,7 @@ layer {
       offset: 0
     }
     padding: REFLECT
-    backend: LMDB
+    #backend: LMDB
 
     #Set to 1 to disable multireaded read      
     #threads: 1  

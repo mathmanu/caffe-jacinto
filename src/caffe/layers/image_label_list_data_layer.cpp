@@ -194,6 +194,7 @@ namespace caffe {
     std::ifstream infile(image_list_path.c_str());
     CHECK(infile.good() == true);
 
+    image_lines_.clear();
     string filename;
     while (infile >> filename) {
       image_lines_.push_back(filename);
@@ -205,6 +206,7 @@ namespace caffe {
     std::ifstream in_label(label_list_path.c_str());
     CHECK(in_label.good() == true);
 
+    label_lines_.clear();
     while (in_label >> filename) {
       label_lines_.push_back(filename);
     }
@@ -445,34 +447,6 @@ namespace caffe {
     }
   }
 
-  template <typename Ftype, typename Btype>
-  void AssignEvenLabelWeight(const Ftype *labels, int num, Ftype *weights) {
-    Ftype max_label = labels[0];
-    for (int i = 0; i < num; ++i) {
-      if (labels[i] != 255) {
-        max_label = std::max(labels[i], max_label);
-      }
-    }
-    int num_labels = static_cast<int>(max_label) + 1;
-    vector<int> counts(num_labels, 0);
-    vector<double> label_weight(num_labels);
-    for (int i = 0; i < num; ++i) {
-      if (labels[i] != 255) {
-        counts[static_cast<int>(labels[i])] += 1;
-      }
-    }
-    for (int i = 0; i < num_labels; ++i) {
-      if (counts[i] == 0) {
-        label_weight[i] = 0;
-      } else {
-        label_weight[i] = 1.0 / counts[i];
-      }
-    }
-    for (int i = 0; i < num; ++i) {
-      weights[i] = label_weight[static_cast<int>(labels[i])];
-    }
-  }
-
   template<typename Ftype, typename Btype>
   void ImageLabelListDataLayer<Ftype, Btype>::load_batch(Batch<Ftype>* batch, int thread_id, size_t queue_id) {
     CPUTimer batch_timer;
@@ -580,9 +554,11 @@ namespace caffe {
 
     // go to the next iter
     lines_id_ += batch_size;
+
+    //LOG(INFO) << "Doing epoch " << epoch_ << "(" << lines_id_ << "/" << lines_size << ")";
     if (lines_id_ >= lines_size) {
       // We have reached the end. Restart from the first.
-      DLOG(INFO) << "Starting prefetch of epoch " << ++epoch_;
+      LOG(INFO) << "Starting prefetch of epoch " << ++epoch_;
       lines_id_ = 0;
       if (this->layer_param_.image_label_data_param().shuffle()) {
         ShuffleImages();

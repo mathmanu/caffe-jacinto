@@ -44,7 +44,7 @@ bool BasePrefetchingDataLayer<Ftype, Btype>::auto_mode(const LayerParameter& par
 template<typename Ftype, typename Btype>
 BaseDataLayer<Ftype, Btype>::BaseDataLayer(const LayerParameter& param, size_t transf_num)
     : Layer<Ftype, Btype>(param), transform_param_(param.transform_param()),
-      data_transformers_(transf_num) {}
+      data_transformers_(transf_num), rand_seed_(0) {}
 
 template<typename Ftype, typename Btype>
 void
@@ -52,7 +52,7 @@ BaseDataLayer<Ftype, Btype>::LayerSetUp(const vector<Blob*>& bottom, const vecto
   output_labels_ = top.size() != 1;
   for (int i = 0; i < data_transformers_.size(); ++i) {
     data_transformers_[i] = make_shared<DataTransformer<Ftype>>(transform_param_, this->phase_);
-    data_transformers_[i]->InitRand();
+    data_transformers_[i]->InitRand(this->rand_seed_);
   }
   // Subclasses should setup the size of bottom and top
   DataLayerSetUp(bottom, top);
@@ -178,7 +178,7 @@ void BasePrefetchingDataLayer<Ftype, Btype>::ResizeQueues() {
     for (size_t i = size; i < transf_num_; ++i) {
       this->data_transformers_[i] =
           make_shared<DataTransformer<Ftype>>(this->transform_param_, this->phase_);
-      this->data_transformers_[i]->InitRand();
+      this->data_transformers_[i]->InitRand(this->rand_seed_);
     }
   }
 }

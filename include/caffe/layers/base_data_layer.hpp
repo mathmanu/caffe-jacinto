@@ -43,10 +43,13 @@ class BaseDataLayer : public Layer<Ftype, Btype> {
 
   virtual bool is_gpu_transform() const { return false; }
 
+  void SetRandSeed(int seed) { this->rand_seed_ = seed; }
+
  protected:
   TransformationParameter transform_param_;
   vector <shared_ptr<DataTransformer<Ftype>>> data_transformers_;
   bool output_labels_;
+  int rand_seed_;
 };
 
 template<typename Ftype>

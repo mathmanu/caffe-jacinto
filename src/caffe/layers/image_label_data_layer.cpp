@@ -124,6 +124,7 @@ void ImageLabelDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bott
   std::ifstream infile(image_list_path.c_str());
   CHECK(infile.good() == true);
 
+    image_lines_.clear();
   string filename;
   while (infile >> filename) {
     image_lines_.push_back(filename);
@@ -135,6 +136,7 @@ void ImageLabelDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bott
   std::ifstream in_label(label_list_path.c_str());
   CHECK(in_label.good() == true);
 
+    label_lines_.clear();
   while (in_label >> filename) {
     label_lines_.push_back(filename);
   }
@@ -204,13 +206,14 @@ void ImageLabelDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bott
 
   // Use data_transformer to infer the expected blob shape from a cv_image.
   vector<int> data_shape = this->data_transformer_->InferBlobShape(cv_img);
-  this->transformed_data_.Reshape(data_shape);
+
   // Reshape prefetch_data and top[0] according to the batch_size.
   const int batch_size = this->layer_param_.image_label_data_param().batch_size();
   CHECK_GT(batch_size, 0) << "Positive batch size required";
   data_shape[0] = batch_size;
   top[0]->Reshape(data_shape);
-
+  this->transformed_data_.Reshape(data_shape);
+  
   /*
    * label
    */
@@ -224,7 +227,8 @@ void ImageLabelDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bott
   label_shape[2] = label_slice.dim(0);
   label_shape[3] = label_slice.dim(1);
   top[1]->Reshape(label_shape);
-
+  this->transformed_label_.Reshape(label_shape);
+  
   for (int i = 0; i < this->PREFETCH_COUNT; ++i) {
     this->prefetch_[i].data_.Reshape(data_shape);
     this->prefetch_[i].label_.Reshape(label_shape);
@@ -368,33 +372,6 @@ void ImageLabelDataLayer<Dtype>::ResizeTo(
   }
 }
 
-template <typename Dtype>
-void AssignEvenLabelWeight(const Dtype *labels, int num, Dtype *weights) {
-  Dtype max_label = labels[0];
-  for (int i = 0; i < num; ++i) {
-    if (labels[i] != 255) {
-      max_label = std::max(labels[i], max_label);
-    }
-  }
-  int num_labels = static_cast<int>(max_label) + 1;
-  vector<int> counts(num_labels, 0);
-  vector<double> label_weight(num_labels);
-  for (int i = 0; i < num; ++i) {
-    if (labels[i] != 255) {
-      counts[static_cast<int>(labels[i])] += 1;
-    }
-  }
-  for (int i = 0; i < num_labels; ++i) {
-    if (counts[i] == 0) {
-      label_weight[i] = 0;
-    } else {
-      label_weight[i] = 1.0 / counts[i];
-    }
-  }
-  for (int i = 0; i < num; ++i) {
-    weights[i] = label_weight[static_cast<int>(labels[i])];
-  }
-}
 
 template <typename Dtype>
 void ImageLabelDataLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
@@ -430,11 +407,11 @@ void ImageLabelDataLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
   CHECK(cv_img.data) << "Could not load " << image_lines_[lines_id_];
   // Use data_transformer to infer the expected blob shape from a cv_img.
   vector<int> top_shape = this->data_transformer_->InferBlobShape(cv_img);
-  this->transformed_data_.Reshape(top_shape);
   // Reshape prefetch_data according to the batch_size.
   top_shape[0] = batch_size;
   batch->data_.Reshape(top_shape);
-
+  this->transformed_data_.Reshape(top_shape);
+  
   CHECK(file_exists(label_dir + label_lines_[lines_id_])) << "Could not load " << label_lines_[lines_id_];
   cv::Mat cv_label = ReadImageToCVMat(label_dir + label_lines_[lines_id_],
                                       false);
@@ -443,15 +420,14 @@ void ImageLabelDataLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
   CHECK(cv_label.data) << "Could not load " << label_lines_[lines_id_];
   vector<int> label_shape = this->data_transformer_->InferBlobShape(cv_label);
 
-  this->transformed_label_.Reshape(label_shape);
-
   auto &label_slice = this->layer_param_.image_label_data_param().label_slice();
 
   label_shape[0] = batch_size;
   label_shape[2] = label_slice.dim(0);
   label_shape[3] = label_slice.dim(1);
   batch->label_.Reshape(label_shape);
-
+  this->transformed_label_.Reshape(label_shape);
+  
   Dtype* prefetch_data = batch->data_.mutable_cpu_data();
   Dtype* prefetch_label = batch->label_.mutable_cpu_data();
 

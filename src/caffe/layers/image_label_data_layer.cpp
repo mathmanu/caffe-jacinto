@@ -486,7 +486,8 @@ void ImageLabelDataLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
       GetLabelSlice(t_label_data, crop_size, crop_size, label_slice, label_data);
     };
 
-    ParallelFor(0, batch_size, load_batch_parallel_func);
+    int num_threads = std::min(batch_size, 2);
+    ParallelFor(0, batch_size, load_batch_parallel_func, num_threads);
 
     // go to the next iter
     lines_id_ += batch_size;

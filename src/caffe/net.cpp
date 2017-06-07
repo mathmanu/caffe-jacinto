@@ -2097,11 +2097,11 @@ void Net::ThresholdNet(float threshold_fraction_low, float threshold_fraction_mi
 	        break;
 	      }
 	    }	
-
-
         conv_weights.zerout(selected_threshold);
         float zcount = conv_weights.count_zero(selected_threshold);
-        LOG(WARNING) << layers_[i]->layer_param().name() << " MaxAbsWeight=" << max_abs_value << " MaxThreshold=" << max_threshold_value << " SelectedThreshold=" << selected_threshold << " ZeroPercentage=" << (zcount*100/count);
+        LOG(WARNING) << layers_[i]->layer_param().name() << " MaxAbsWeight=" << max_abs_value
+            << " MaxThreshold=" << max_threshold_value << " SelectedThreshold=" << selected_threshold
+            << " ZeroPercentage=" << (zcount*100/count);
       }
     }
   }

@@ -710,10 +710,7 @@ void Blob::gpu_if_nonzero(int count, Type dtype, const void* X, void* Y) const {
 
 void Blob::SetSparseMode(const SparseMode mode) {
     CHECK(mode != SPARSE_NONE);
-	
     const shared_ptr<SyncedMemory>& data_mem = data_tensor_->synced_mem();
-    shared_ptr<SyncedMemory>& connectivity_mem = data_tensor_->mutable_synced_mem();
-		
 	if (!data_mem) {
 		return;
 	}
@@ -722,9 +719,9 @@ void Blob::SetSparseMode(const SparseMode mode) {
       connectivity_ = make_shared<Tensor>(data_type());
     }
     connectivity_->Reshape(count_); 
-    
 	initialize_connectivity();  
-  
+    shared_ptr<SyncedMemory>& connectivity_mem = connectivity_->mutable_synced_mem();
+
 	if(mode == SPARSE_UPDATE){
 	    switch (data_mem->head()) {
 	    case SyncedMemory::HEAD_AT_CPU:
@@ -900,34 +897,34 @@ void Blob::gpu_zerout(int count, Type dtype, const void* X, void* Y, float thres
 #endif
 
 void Blob::zerout(float threshold) {
-    const shared_ptr<SyncedMemory>& connectivity_mem = connectivity_->synced_mem();
-	if (!connectivity_mem) {
-		return;
-	}
+  if (!data_tensor_) {
+      return;
+  }
+  const shared_ptr<SyncedMemory>& data_mem = data_tensor_->synced_mem();
 
 	// We will perform update based on where the data is located.
-	switch (connectivity_mem->head()) {
-	case SyncedMemory::HEAD_AT_CPU:
-	{
-		// perform computation on CPU
-		cpu_zerout(this->count(), data_type(), connectivity_mem->cpu_data(), connectivity_mem->mutable_cpu_data(), threshold);
-		break;
-	}
-	case SyncedMemory::HEAD_AT_GPU:
-	case SyncedMemory::SYNCED:
-	{
+  switch (data_mem->head()) {
+  case SyncedMemory::HEAD_AT_CPU:
+  {
+	// perform computation on CPU
+	cpu_zerout(this->count(), data_type(), data_mem->cpu_data(), data_mem->mutable_cpu_data(), threshold);
+	break;
+  }
+  case SyncedMemory::HEAD_AT_GPU:
+  case SyncedMemory::SYNCED:
+  {
 #ifndef CPU_ONLY
-		// perform computation on GPU
-		gpu_zerout(this->count(), data_type(), connectivity_mem->gpu_data(), connectivity_mem->mutable_gpu_data(), threshold);
+ 	// perform computation on GPU
+	gpu_zerout(this->count(), data_type(), data_mem->gpu_data(), data_mem->mutable_gpu_data(), threshold);
 #else
-		NO_GPU;
+	NO_GPU;
 #endif
-		break;
-	}
-	default:
-		LOG(WARNING)<< "Syncedmem not initialized.";
-		return;
-	}
+	break;
+  }
+  default:
+	LOG(WARNING)<< "Syncedmem not initialized.";
+	return;
+  }
 }
 
 

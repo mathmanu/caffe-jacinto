@@ -393,15 +393,15 @@ void Solver::Step(int iters) {
       // Break out of training loop.
       break;
     }
+
+    if(param_.display_sparsity() > 0 && (iter_ % param_.display_sparsity()) == 0) {
+      if(Caffe::root_solver()) {
+          LOG(INFO) << "Sparsity after update:";
+          net_->DisplaySparsity();
+      }
+    }
   }
   Finalize();
-  
-  if(param_.display_sparsity() > 0 && (iter_ % param_.display_sparsity()) == 0) {
-    if(Caffe::root_solver()) {
-        LOG(INFO) << "Sparsity after update:";
-        net_->DisplaySparsity();
-    }
-  }  
 }
 
 void Solver::Finalize() {

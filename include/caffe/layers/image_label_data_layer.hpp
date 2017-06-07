@@ -24,28 +24,16 @@ class ImageLabelDataLayer : public BasePrefetchingDataLayer<Dtype> {
 
   virtual ~ImageLabelDataLayer();
 
-  virtual void DataLayerSetUp(const vector<Blob<Dtype> *> &bottom,
-                              const vector<Blob<Dtype> *> &top);
+  virtual void DataLayerSetUp(const vector<Blob<Dtype> *> &bottom, const vector<Blob<Dtype> *> &top);
 
-  // DataLayer uses DataReader instead for sharing for parallelism
-  virtual inline bool ShareInParallel() const { return false; }
-
-  virtual inline const char *type() const { return "ImageLabelData"; }
-
-  virtual inline int ExactNumBottomBlobs() const { return 0; }
-
-  virtual inline int ExactNumTopBlobs() const { return -1; }
-
-  virtual inline int MaxTopBlobs() const { return 3; }
-
-  virtual inline int MinTopBlobs() const { return 2; }
+  const char *type() const override { return "ImageLabelData"; }
+  int ExactNumBottomBlobs() const override { return 0; }
+  int ExactNumTopBlobs() const override { return 2; }
 
  protected:
-  shared_ptr<Caffe::RNG> prefetch_rng_;
 
-  virtual void ShuffleImages();
-
-  virtual void SampleScale(cv::Mat *image, cv::Mat *label);
+  void ShuffleImages();
+  void SampleScale(cv::Mat *image, cv::Mat *label);
 
   void ResizeTo(
       const cv::Mat& img,
@@ -56,17 +44,22 @@ class ImageLabelDataLayer : public BasePrefetchingDataLayer<Dtype> {
   );
 
   virtual void load_batch(Batch<Dtype>* batch);
+  
+  bool ShareInParallel() const override { return false; }
 
+  vector<shared_ptr<Blob<Dtype>>> transformed_data_, transformed_label_;
+  vector<shared_ptr<DataTransformer<Dtype>>> data_transformers_;  
+  shared_ptr<Caffe::RNG> prefetch_rng_;  
   vector<std::string> image_lines_;
   vector<std::string> label_lines_;
   int lines_id_;
-
-  Blob<Dtype> transformed_label_;
 
   int label_margin_h_;
   int label_margin_w_;
 
   std::mt19937 *rng_;
+
+  int epoch_;
 };
 
 } // namspace caffe

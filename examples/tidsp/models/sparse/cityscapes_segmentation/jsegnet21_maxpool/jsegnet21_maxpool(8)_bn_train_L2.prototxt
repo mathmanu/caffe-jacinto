@@ -63,7 +63,7 @@ layer {
     #  offset: 0
     #  offset: 0
     #}
-    padding: REFLECT
+    #padding: REFLECT
     #backend: LMDB
         
     #Min and Max sizes. This will be applied before the rest of the processing.

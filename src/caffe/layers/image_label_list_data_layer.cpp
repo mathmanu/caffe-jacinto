@@ -278,7 +278,7 @@ namespace caffe {
     vector<int> data_shape = this->data_transformers_[0]->InferBlobShape(cv_img);
 
     // Reshape prefetch_data and top[0] according to the batch_size.
-    const int batch_size = this->layer_param_.image_label_data_param().batch_size();
+    const int batch_size = data_param.batch_size();
     CHECK_GT(batch_size, 0) << "Positive batch size required";
     data_shape[0] = batch_size;
     top[0]->Reshape(data_shape);
@@ -286,15 +286,15 @@ namespace caffe {
     /*
      * label
      */
-    auto &label_slice = this->layer_param_.image_label_data_param().label_slice();
-    label_margin_h_ = label_slice.offset(0);
-    label_margin_w_ = label_slice.offset(1);
+    label_margin_h_ = data_param.has_label_slice()? data_param.label_slice().offset(0) : 0;
+    label_margin_w_ = data_param.has_label_slice()? data_param.label_slice().offset(1) : 0;
     LOG(INFO) << "Assuming image and label map sizes are the same";
     vector<int> label_shape(4);
     label_shape[0] = batch_size;
     label_shape[1] = 1;
-    label_shape[2] = label_slice.dim(0);
-    label_shape[3] = label_slice.dim(1);
+    label_shape[2] = data_param.has_label_slice()? data_param.label_slice().dim(0) : data_shape[2];
+    label_shape[3] = data_param.has_label_slice()? data_param.label_slice().dim(1) : data_shape[3];
+
     top[1]->Reshape(label_shape);
 
     for (int i = 0; i < this->prefetch_.size(); ++i) {
@@ -488,10 +488,9 @@ namespace caffe {
     CHECK(cv_label.data) << "Could not load " << label_lines_[lines_id_];
     vector<int> label_shape = this->data_transformers_[thread_id]->InferBlobShape(cv_label);
 
-    auto &label_slice = this->layer_param_.image_label_data_param().label_slice();
     label_shape[0] = batch_size;
-    label_shape[2] = label_slice.dim(0);
-    label_shape[3] = label_slice.dim(1);
+    label_shape[2] = data_param.has_label_slice()? data_param.label_slice().dim(0) : top_shape[2];
+    label_shape[3] = data_param.has_label_slice()? data_param.label_slice().dim(1) : top_shape[3];
     batch->label_.Reshape(label_shape);
 
     Ftype* prefetch_data = batch->data_.mutable_cpu_data();
@@ -541,16 +540,21 @@ namespace caffe {
       int label_offset = batch->label_.offset(item_id);
 
       transformed_data_[thread_id]->set_cpu_data(prefetch_data + image_offset);
-      transformed_label_[thread_id]->set_cpu_data(prefetch_label + label_offset);
+      if(!data_param.has_label_slice()) {	  
+        transformed_label_[thread_id]->set_cpu_data(prefetch_label + label_offset);
+	  }
       this->data_transformers_[thread_id]->Transform(cv_img, cv_label, &(*transformed_data_[thread_id]), &(*transformed_label_[thread_id]));
 
-      Ftype *label_data = prefetch_label + label_offset;
-      const Ftype *t_label_data = transformed_label_[thread_id]->cpu_data();
-      GetLabelSlice(t_label_data, crop_size, crop_size, label_slice, label_data);
+      if(data_param.has_label_slice()) {
+        Ftype *label_data = prefetch_label + label_offset;
+        const Ftype *t_label_data = transformed_label_[thread_id]->cpu_data();
+        GetLabelSlice(t_label_data, crop_size, crop_size, data_param.label_slice(), label_data);
+	  }
       trans_time += timer.MicroSeconds();
     };
 
-    ParallelFor(0, batch_size, load_batch_parallel_func);
+    int num_threads = std::min(batch_size, 2);
+    ParallelFor(0, batch_size, load_batch_parallel_func, num_threads);
 
     // go to the next iter
     lines_id_ += batch_size;

@@ -55,14 +55,14 @@ layer {
     label_list_path: "data/train-label-list.txt"
     batch_size: 16
     shuffle: true 
-    label_slice {
-      dim: 640
-      dim: 640
-      stride: 1
-      stride: 1
-      offset: 0
-      offset: 0
-    }
+    #label_slice {
+    #  dim: 640
+    #  dim: 640
+    #  stride: 1
+    #  stride: 1
+    #  offset: 0
+    #  offset: 0
+    #}
     padding: REFLECT
     #backend: LMDB
         
@@ -100,15 +100,15 @@ layer {
     
     batch_size: 4
     shuffle: false
-    label_slice {
-      dim: 640
-      dim: 640
-      stride: 1
-      stride: 1
-      offset: 0
-      offset: 0
-    }
-    padding: REFLECT
+    #label_slice {
+    #  dim: 640
+    #  dim: 640
+    #  stride: 1
+    #  stride: 1
+    #  offset: 0
+    #  offset: 0
+    #}
+    #padding: REFLECT
     #backend: LMDB
 
     #Set to 1 to disable multireaded read      

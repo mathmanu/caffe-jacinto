@@ -58,15 +58,15 @@ layer {
     label_list_path: "data/train-label-list.txt"
     batch_size: 16
     shuffle: true 
-    label_slice {
-      dim: 640
-      dim: 640
-      stride: 1
-      stride: 1
-      offset: 0
-      offset: 0
-    }
-    padding: REFLECT
+    #label_slice {
+    #  dim: 640
+    #  dim: 640
+    #  stride: 1
+    #  stride: 1
+    #  offset: 0
+    #  offset: 0
+    #}
+    #padding: REFLECT
     #Min and Max sizes. This will be applied before the rest of the processing.
     #Setting both of these may cause distortion of the image. Recommed to set only one of these or a large range.
     #size_min: 512    
@@ -101,15 +101,16 @@ layer {
     
     batch_size: 4
     shuffle: false
-    label_slice {
-      dim: 640
-      dim: 640
-      stride: 1
-      stride: 1
-      offset: 0
-      offset: 0
-    }
-    padding: REFLECT
+    #label_slice {
+    #  dim: 640
+    #  dim: 640
+    #  stride: 1
+    #  stride: 1
+    #  offset: 0
+    #  offset: 0
+    #}
+    #padding: REFLECT
+
 
     #Set to 1 to disable multireaded read      
     #threads: 1  

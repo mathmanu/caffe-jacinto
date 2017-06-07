@@ -225,15 +225,16 @@ void ImageLabelListDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& 
   /*
    * label
    */
-  auto &label_slice = this->layer_param_.image_label_data_param().label_slice();
-  label_margin_h_ = label_slice.offset(0);
-  label_margin_w_ = label_slice.offset(1);
+    label_margin_h_ = data_param.has_label_slice()? data_param.label_slice().offset(0) : 0;
+    label_margin_w_ = data_param.has_label_slice()? data_param.label_slice().offset(1) : 0;
+
   LOG(INFO) << "Assuming image and label map sizes are the same";
   vector<int> label_shape(4);
   label_shape[0] = batch_size;
   label_shape[1] = 1;
-  label_shape[2] = label_slice.dim(0);
-  label_shape[3] = label_slice.dim(1);
+    label_shape[2] = data_param.has_label_slice()? data_param.label_slice().dim(0) : data_shape[2];
+    label_shape[3] = data_param.has_label_slice()? data_param.label_slice().dim(1) : data_shape[3];
+
   top[1]->Reshape(label_shape);
 
   for (int i = 0; i < this->PREFETCH_COUNT; ++i) {
@@ -428,11 +429,10 @@ void ImageLabelListDataLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
   CHECK(cv_label.data) << "Could not load " << label_lines_[lines_id_];
   vector<int> label_shape = this->data_transformers_[0]->InferBlobShape(cv_label);
 
-  auto &label_slice = this->layer_param_.image_label_data_param().label_slice();
-
   label_shape[0] = batch_size;
-  label_shape[2] = label_slice.dim(0);
-  label_shape[3] = label_slice.dim(1);
+    label_shape[2] = data_param.has_label_slice()? data_param.label_slice().dim(0) : top_shape[2];
+    label_shape[3] = data_param.has_label_slice()? data_param.label_slice().dim(1) : top_shape[3];
+
   batch->label_.Reshape(label_shape);
   
   Dtype* prefetch_data = batch->data_.mutable_cpu_data();
@@ -478,12 +478,16 @@ void ImageLabelListDataLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
       int label_offset = batch->label_.offset(item_id);
 	  
       transformed_data_[item_id]->set_cpu_data(prefetch_data + image_offset);
-      transformed_label_[item_id]->set_cpu_data(prefetch_label + label_offset);
+      if(!data_param.has_label_slice()) {
+        transformed_label_[item_id]->set_cpu_data(prefetch_label + label_offset);
+      }
       this->data_transformers_[item_id]->Transform(cv_img, cv_label, &(*transformed_data_[item_id]), &(*transformed_label_[item_id]));
 
-      Dtype *label_data = prefetch_label + label_offset;
-      const Dtype *t_label_data = this->transformed_label_[item_id]->cpu_data();
-      GetLabelSlice(t_label_data, crop_size, crop_size, label_slice, label_data);
+      if(data_param.has_label_slice()) {
+        Dtype *label_data = prefetch_label + label_offset;
+        const Dtype *t_label_data = this->transformed_label_[item_id]->cpu_data();
+        GetLabelSlice(t_label_data, crop_size, crop_size, data_param.label_slice(), label_data);
+      }
     };
 
     int num_threads = std::min(batch_size, 2);

@@ -1137,18 +1137,6 @@ template <typename Dtype>
 void Net<Dtype>::Update() {
   for (int i = 0; i < learnable_params_.size(); ++i) {
     learnable_params_[i]->Update();
-
-	if(this->solver_ && this->solver_->param().threshold_weights()) {
-	  Dtype sparsity_threshold = this->solver_->param().sparsity_threshold();
-      learnable_params_[i]->Zerout(sparsity_threshold);
-
-      Dtype sparsity_target = this->solver_->param().sparsity_target();
-      Dtype count = learnable_params_[i]->count();
-      Dtype sparsity = learnable_params_[i]->count_zero(sparsity_threshold) / count;
-	  if(sparsity >= sparsity_target) {
-	    this->params_lr_[i] = this->solver_->param().sparsity_lr_mult();
-	  }
-	}
   }
 }
 
@@ -1818,9 +1806,9 @@ std::map<std::string, std::pair<int,int> > spasity_map;
 }
 
 template <typename Dtype>
-void Net<Dtype>::SetWeightConnectivity(WeightConnectMode mode, Dtype threshold, bool threshold_weights) {
+void Net<Dtype>::SetSparseMode(SparseMode mode) {
   for(int layer_id=0; layer_id<layers_.size(); layer_id++) {
-    layers_[layer_id]->SetWeightConnectivity(mode, threshold, threshold_weights);
+    layers_[layer_id]->SetSparseMode(mode);
   }
 }
 

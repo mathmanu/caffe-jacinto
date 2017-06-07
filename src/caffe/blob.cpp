@@ -66,14 +66,14 @@ template <typename Dtype>
 Blob<Dtype>::Blob(const int num, const int channels, const int height,
     const int width)
   // capacity_ must be initialized before calling Reshape
-  : capacity_(0) {
+  : capacity_(0), sparse_mode_(SPARSE_NONE) {
   Reshape(num, channels, height, width);
 }
 
 template <typename Dtype>
 Blob<Dtype>::Blob(const vector<int>& shape)
   // capacity_ must be initialized before calling Reshape
-  : capacity_(0) {
+  : capacity_(0), sparse_mode_(SPARSE_NONE) {
   Reshape(shape);
 }
 
@@ -186,7 +186,7 @@ void Blob<Dtype>::Update() {
   switch (data_->head()) {
   case SyncedMemory::HEAD_AT_CPU:
     // perform computation on CPU
-    if(weight_connect_mode_ != WEIGHT_CONNECTED) {
+    if(sparse_mode_ != SPARSE_NONE && connectivity_!=NULL) {
       caffe_cpu_eltwise_multi(count_,
 			static_cast<const Dtype*>(connectivity_->cpu_data()),
 			static_cast<Dtype*>(diff_->mutable_cpu_data()) );
@@ -199,7 +199,7 @@ void Blob<Dtype>::Update() {
   case SyncedMemory::SYNCED:
 #ifndef CPU_ONLY
     // perform computation on GPU
-    if(weight_connect_mode_ != WEIGHT_CONNECTED) {
+    if(sparse_mode_ != SPARSE_NONE && connectivity_!=NULL) {
       caffe_gpu_eltwise_multi(count_,
 			static_cast<const Dtype*>(connectivity_->gpu_data()),
 			static_cast<Dtype*>(diff_->mutable_gpu_data()) );
@@ -319,12 +319,12 @@ Dtype Blob<Dtype>::min() const {
 }
 
 template <typename Dtype>
-void Blob<Dtype>::SetWeightConnectivity(const WeightConnectMode mode, const Dtype threshold, const bool threshold_weights) {
-    CHECK(mode != WEIGHT_CONNECTED);
+void Blob<Dtype>::SetSparseMode(const SparseMode mode, const Dtype threshold, const bool threshold_weights) {
+    CHECK(mode != SPARSE_NONE);
     if(threshold_weights) {
       this->Zerout(threshold);
     }
-	if(mode == WEIGHT_DISCONNECTED_ELTWISE){
+	if(mode == SPARSE_UPDATE){
 		switch (Caffe::mode()) {
 			case Caffe::CPU: {
 				  caffe_cpu_if_nonzerout(count_, threshold,
@@ -346,7 +346,7 @@ void Blob<Dtype>::SetWeightConnectivity(const WeightConnectMode mode, const Dtyp
 			  LOG(FATAL) << "Unknown caffe mode: " << Caffe::mode();
 		}
 	}
-	weight_connect_mode_ = mode;
+	sparse_mode_ = mode;
 }
 
 template<typename Dtype>
@@ -625,8 +625,8 @@ bool Blob<Dtype>::ShapeEquals(const BlobProto& other) {
 template <typename Dtype>
 void Blob<Dtype>::InitializeConnectivity(Dtype val){
     CHECK(connectivity_);
-    weight_connect_mode_ = WEIGHT_CONNECTED;
-    if(weight_connect_mode_ != WEIGHT_CONNECTED) {
+    sparse_mode_ = SPARSE_NONE;
+    if(sparse_mode_ != SPARSE_NONE) {
       caffe_set(count_, val, static_cast<Dtype*>(connectivity_->mutable_cpu_data()));
     }
 }

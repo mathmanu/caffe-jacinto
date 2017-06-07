@@ -95,7 +95,7 @@ class Layer {
   /*
    * typically for convolutional layers, to align nonzero weights together
    * */
-  virtual void SetWeightConnectivity(WeightConnectMode mode, Dtype threshold, bool threshold_weights) {}
+  virtual void SetSparseMode(SparseMode mode) {}
 
   /**
    * @brief Whether a layer should be shared by multiple nets during data

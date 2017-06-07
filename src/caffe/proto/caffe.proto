@@ -123,11 +123,11 @@ message NetLogParameter {
 
 // Specifies how to deal with connections whose weights are recovered/initialized as zeros. 
 // Used for fine-tuning
-enum WeightConnectMode {
-  WEIGHT_CONNECTED = 0;  //keep connected
-  WEIGHT_DISCONNECTED_ELTWISE = 1; //disconnect all zero-weight connections
-}  
-  
+enum SparseMode {
+  SPARSE_NONE = 0;               //keep connected
+  SPARSE_UPDATE = 1;             //disconnect all zero-weight connections during back propagation udpate
+} 
+
 // NOTE
 // Update the next available ID when you add a new SolverParameter field.
 //
@@ -284,11 +284,7 @@ message SolverParameter {
     
   // Sparsity params
   optional int32 display_sparsity = 44 [default = 0];
-  optional float sparsity_threshold = 45 [default = 0];
-  optional bool threshold_weights = 56 [default = false];
-  optional float sparsity_target = 57 [default = 1.0];
-   optional float sparsity_lr_mult = 58 [default = 1.0];
-    
+
   // Quantization params  
   optional uint32 quantization_start_iter = 46 [default = 2000];  
   optional bool unsigned_check_in = 47 [default = true];
@@ -297,7 +293,7 @@ message SolverParameter {
   optional bool quantize_activations = 50 [default = true];   
   optional QuantizationParameter quantization_param = 51;  
 
-  optional WeightConnectMode weight_connect_mode = 52 [default = WEIGHT_CONNECTED];
+  optional SparseMode sparse_mode = 52 [default = SPARSE_NONE];  
   optional int32 display_quantization = 53 [default = 2000];
   optional bool insert_quantization_param = 55 [default = false];
 }
@@ -398,7 +394,6 @@ message LayerParameter {
   //
   // The size must be either 0 or equal to the number of bottoms.
   repeated bool propagate_down = 11;
-  optional WeightConnectMode weight_connect_mode = 12 [default = WEIGHT_CONNECTED];
   
   // Rules controlling whether and when a layer is included in the network,
   // based on the current NetState.  You may specify a non-zero number of rules

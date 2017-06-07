@@ -28,11 +28,10 @@ random_seed: 33
 #ignore_mismatching_blobs: true
 
 display_sparsity: 1000
-#sparsity_threshold: 1e-4
-#threshold_weights: true
-weight_connect_mode: WEIGHT_DISCONNECTED_ELTWISE
+sparse_mode: SPARSE_UPDATE
 
 #insert_quantization_param: true
+#quantization_start_iter: 2000
 
 #Net parameters
 net_param {
@@ -41,7 +40,7 @@ name: "JSegNet21-MaxPool-(8)"
 
 layer {
   name: "data"
-  type: "ImageLabelData"
+  type: "ImageLabelListData"
   top: "data"
   top: "label"
   include {  phase: TRAIN  }
@@ -73,21 +72,19 @@ layer {
     #size_min: 512    
     #size_max: 2048   
     
-    #Random scaling before crop    
+    #Random scaling before crop. This will be applied before cropping
     scale_prob: 0.5
     scale_min: 0.75
     scale_max: 1.25    
     
     #Set to 1 to disable multireaded read      
-    #threads: 1    
-
-    #check_image_files: true       
+    #threads: 1           
   }
 }
 
 layer {
   name: "data"
-  type: "ImageLabelData"
+  type: "ImageLabelListData"
   top: "data"
   top: "label"
   include {  phase: TEST  }
@@ -103,7 +100,7 @@ layer {
     label_list_path: "data/val-label-list.txt"
     
     batch_size: 4
-    shuffle: true
+    shuffle: false
     label_slice {
       dim: 640
       dim: 640
@@ -114,7 +111,8 @@ layer {
     }
     padding: REFLECT
 
-    #check_image_files: true 
+    #Set to 1 to disable multireaded read      
+    #threads: 1  
   }
 }
 

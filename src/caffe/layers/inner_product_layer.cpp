@@ -7,12 +7,11 @@
 namespace caffe {
 
 template <typename Dtype>
-void InnerProductLayer<Dtype>::SetWeightConnectivity(WeightConnectMode mode, Dtype threshold, bool threshold_weights) {
+void InnerProductLayer<Dtype>::SetSparseMode(SparseMode mode) {
   //disconnect connections
-  if(mode != WEIGHT_CONNECTED){
-      this->mutable_layer_param().set_weight_connect_mode(mode);
+  if(mode != SPARSE_NONE){
       LOG(INFO)<<"all zero weights of "<<this->layer_param().name()<<" are frozen";
-      this->blobs_[0]->SetWeightConnectivity(mode, threshold, threshold_weights);
+      this->blobs_[0]->SetSparseMode(mode);
   }
 }
 

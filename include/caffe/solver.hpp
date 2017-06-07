@@ -119,7 +119,7 @@ class Solver {
 
   void StartQuantization(shared_ptr<Net<Dtype> >& net);
   void FinishQuantization(shared_ptr<Net<Dtype> >& net);
-  void SetWeightConnectivity();
+  void SetSparseMode();
 
 
   SolverParameter param_;

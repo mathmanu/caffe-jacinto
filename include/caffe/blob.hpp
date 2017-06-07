@@ -24,7 +24,7 @@ template <typename Dtype>
 class Blob {
  public:
   Blob()
-       : data_(), diff_(), count_(0), capacity_(0), weight_connect_mode_(WEIGHT_CONNECTED) {}
+       : data_(), diff_(), count_(0), capacity_(0), sparse_mode_(SPARSE_NONE) {}
 
   /// @brief Deprecated; use <code>Blob(const vector<int>& shape)</code>.
   explicit Blob(const int num, const int channels, const int height,
@@ -253,7 +253,7 @@ class Blob {
   void Zerout(const Dtype threshold);
   Dtype max() const;
   Dtype min() const;
-  void SetWeightConnectivity(const WeightConnectMode mode, const Dtype threshold, const bool threshold_weights);
+  void SetSparseMode(const SparseMode mode, const Dtype threshold=0.0f, const bool threshold_weights=false);
   inline void Connect(){ InitializeConnectivity(); }
   int count_zero(const Dtype threshold) const;
   
@@ -305,7 +305,8 @@ class Blob {
   vector<int> shape_;
   int count_;
   int capacity_;
-  WeightConnectMode weight_connect_mode_;
+  SparseMode sparse_mode_;
+  
 
   DISABLE_COPY_AND_ASSIGN(Blob);
 };  // class Blob

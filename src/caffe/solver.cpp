@@ -204,13 +204,13 @@ void Solver<Dtype>::StartQuantization(shared_ptr<Net<Dtype> >& net) {
       net->SetTrainQuantizationParams(param_.quantization_param().precision(), rounding_scheme,
           param_.quantization_param().bw_weights(), param_.quantization_param().bw_weights(),
           param_.quantization_param().bw_layer_in(), param_.quantization_param().bw_layer_out(),
-          param_.unsigned_check_in(), param_.unsigned_check_out(), param_.sparsity_threshold(),
+          param_.unsigned_check_in(), param_.unsigned_check_out(), 0.0f,
           param_.quantize_weights(), param_.quantize_activations());
     } else {
       net->SetTestQuantizationParams(param_.quantization_param().precision(), rounding_scheme,
           param_.quantization_param().bw_weights(), param_.quantization_param().bw_weights(),
           param_.quantization_param().bw_layer_in(), param_.quantization_param().bw_layer_out(),
-          param_.unsigned_check_in(), param_.unsigned_check_out(), param_.sparsity_threshold(),
+          param_.unsigned_check_in(), param_.unsigned_check_out(), 0.0f,
           param_.quantize_weights(), param_.quantize_activations());
     }
   }
@@ -233,10 +233,9 @@ void Solver<Dtype>::FinishQuantization(shared_ptr<Net<Dtype> >& net) {
 }
 
 template<typename Dtype>
-void Solver<Dtype>::SetWeightConnectivity() {
-  bool threshold_weights = this->param().threshold_weights();
-  if (param_.weight_connect_mode() != caffe::WEIGHT_CONNECTED) {
-    net_->SetWeightConnectivity(param_.weight_connect_mode(), param_.sparsity_threshold(), threshold_weights);
+void Solver<Dtype>::SetSparseMode() {
+  if (param_.sparse_mode() != caffe::SPARSE_NONE) {
+    net_->SetSparseMode(param_.sparse_mode());
   }
 }
 
@@ -375,7 +374,7 @@ template <typename Dtype>
 void Solver<Dtype>::Solve(const char* resume_file) {
   CHECK(Caffe::root_solver());
 
-  this->SetWeightConnectivity();
+  this->SetSparseMode();
 
   LOG(INFO) << "Solving " << net_->name();
   LOG(INFO) << "Learning Rate Policy: " << param_.lr_policy();
@@ -462,7 +461,7 @@ void Solver<Dtype>::Test(const int test_net_id) {
     test_net->SetTestQuantizationParams(param_.quantization_param().precision(), param_.quantization_param().rounding_scheme(),
         param_.quantization_param().bw_weights(), param_.quantization_param().bw_weights(),
         param_.quantization_param().bw_layer_in(), param_.quantization_param().bw_layer_out(),
-        param_.unsigned_check_in(), param_.unsigned_check_out(), param_.sparsity_threshold(),
+        param_.unsigned_check_in(), param_.unsigned_check_out(), 0.0f,
         param_.quantize_weights(), param_.quantize_activations());
 
     Dtype iter_loss;

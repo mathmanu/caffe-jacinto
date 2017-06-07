@@ -1,5 +1,5 @@
-#ifndef CAFFE_IMAGE_LABEL_DATA_LAYER_H
-#define CAFFE_IMAGE_LABEL_DATA_LAYER_H
+#ifndef CAFFE_IMAGE_LABEL_LIST_DATA_LAYER_H
+#define CAFFE_IMAGE_LABEL_LIST_DATA_LAYER_H
 
 #include <random>
 #include <vector>
@@ -17,12 +17,12 @@
 namespace caffe {
 
 template<typename Dtype>
-class ImageLabelDataLayer : public BasePrefetchingDataLayer<Dtype> {
+class ImageLabelListDataLayer : public BasePrefetchingDataLayer<Dtype> {
  public:
 
-  explicit ImageLabelDataLayer(const LayerParameter &param);
+  explicit ImageLabelListDataLayer(const LayerParameter &param);
 
-  virtual ~ImageLabelDataLayer();
+  virtual ~ImageLabelListDataLayer();
 
   virtual void DataLayerSetUp(const vector<Blob<Dtype> *> &bottom, const vector<Blob<Dtype> *> &top);
 
@@ -64,4 +64,4 @@ class ImageLabelDataLayer : public BasePrefetchingDataLayer<Dtype> {
 
 } // namspace caffe
 
-#endif //CAFFE_IMAGE_LABEL_DATA_LAYER_H
+#endif //CAFFE_IMAGE_LABEL_LIST_DATA_LAYER_H

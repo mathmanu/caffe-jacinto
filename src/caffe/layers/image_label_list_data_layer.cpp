@@ -7,7 +7,7 @@
 #include <utility>
 #include <vector>
 
-#include "caffe/layers/image_label_data_layer.hpp"
+#include "caffe/layers/image_label_list_data_layer.hpp"
 #include "caffe/layer.hpp"
 #include "caffe/proto/caffe.pb.h"
 #include "caffe/util/benchmark.hpp"
@@ -87,7 +87,7 @@ void GetLabelSlice(const Dtype *labels, int rows, int cols,
 namespace caffe {
 
 template <typename Dtype>
-ImageLabelDataLayer<Dtype>::ImageLabelDataLayer(
+ImageLabelListDataLayer<Dtype>::ImageLabelListDataLayer(
     const LayerParameter &param) : BasePrefetchingDataLayer<Dtype>(param) {
   std::random_device rand_dev;
   rng_ = new std::mt19937(rand_dev());
@@ -95,7 +95,7 @@ ImageLabelDataLayer<Dtype>::ImageLabelDataLayer(
 }
 
 template <typename Dtype>
-ImageLabelDataLayer<Dtype>::~ImageLabelDataLayer() {
+ImageLabelListDataLayer<Dtype>::~ImageLabelListDataLayer() {
   this->StopInternalThread();
   delete rng_;
 }
@@ -106,7 +106,7 @@ bool static inline file_exists(const std::string filename) {
 }
 
 template <typename Dtype>
-void ImageLabelDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom,
+void ImageLabelListDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom,
                                                 const vector<Blob<Dtype>*>& top) {
   epoch_ = 0;
   const int batch_size = this->layer_param_.image_label_data_param().batch_size();
@@ -261,7 +261,7 @@ void ImageLabelDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bott
 }
 
 template <typename Dtype>
-void ImageLabelDataLayer<Dtype>::ShuffleImages() {
+void ImageLabelListDataLayer<Dtype>::ShuffleImages() {
   caffe::rng_t* prefetch_rng =
       static_cast<caffe::rng_t*>(prefetch_rng_->generator());
   vector<int> order(image_lines_.size());
@@ -280,7 +280,7 @@ void ImageLabelDataLayer<Dtype>::ShuffleImages() {
 }
 
 template <typename Dtype>
-void ImageLabelDataLayer<Dtype>::SampleScale(cv::Mat *image, cv::Mat *label) {
+void ImageLabelListDataLayer<Dtype>::SampleScale(cv::Mat *image, cv::Mat *label) {
   ImageLabelDataParameter data_param = this->layer_param_.image_label_data_param();
   if(data_param.size_min() != 0 || data_param.size_max() != 0) {
     int size_min = data_param.size_min();
@@ -343,7 +343,7 @@ void ImageLabelDataLayer<Dtype>::SampleScale(cv::Mat *image, cv::Mat *label) {
 }
 
 template<typename Dtype>
-void ImageLabelDataLayer<Dtype>::ResizeTo(
+void ImageLabelListDataLayer<Dtype>::ResizeTo(
     const cv::Mat& img,
     cv::Mat* img_temp,
     const cv::Mat& label,
@@ -386,7 +386,7 @@ void ImageLabelDataLayer<Dtype>::ResizeTo(
 
 
 template <typename Dtype>
-void ImageLabelDataLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
+void ImageLabelListDataLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
   CPUTimer batch_timer;
   batch_timer.Start();
   CHECK(batch->data_.count());
@@ -506,7 +506,7 @@ void ImageLabelDataLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
 }
 
 
-INSTANTIATE_CLASS(ImageLabelDataLayer);
-REGISTER_LAYER_CLASS(ImageLabelData);
+INSTANTIATE_CLASS(ImageLabelListDataLayer);
+REGISTER_LAYER_CLASS(ImageLabelListData);
 
 }  // namespace caffe

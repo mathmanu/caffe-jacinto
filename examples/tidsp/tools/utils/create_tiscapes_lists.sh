@@ -42,7 +42,7 @@ if [ $MODIFY_LABEL -eq 1 ]
 then #of if
 LABEL_FOLDER=data/train-label-folder
 WILDCARD="*labelIds.png"
-./tools/create_image_folder.py --label --image_dir=$DATASETPATH/gtFine/train --search_string="*/$WILDCARD" --output_dir=$LABEL_FOLDER --label_dict="$LABEL_MAP_DICT"
+./tools/utils/create_image_folder.py --label --image_dir=$DATASETPATH/gtFine/train --search_string="*/$WILDCARD" --output_dir=$LABEL_FOLDER --label_dict="$LABEL_MAP_DICT"
 
 else #of if
 LABEL_FOLDER=$DATASETPATH/gtFine/train
@@ -62,7 +62,7 @@ if [ $MODIFY_LABEL -eq 1 ]
 then #of if
 LABEL_FOLDER=data/val-label-folder
 WILDCARD="*labelIds.png"
-./tools/create_image_folder.py --label --image_dir=$DATASETPATH/gtFine/val --search_string="*/$WILDCARD" --output_dir=$LABEL_FOLDER --label_dict="$LABEL_MAP_DICT"
+./tools/utils/create_image_folder.py --label --image_dir=$DATASETPATH/gtFine/val --search_string="*/$WILDCARD" --output_dir=$LABEL_FOLDER --label_dict="$LABEL_MAP_DICT"
 else #of if
 LABEL_FOLDER=$DATASETPATH/gtFine/val
 WILDCARD="*labelTrainIds.png"

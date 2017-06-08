@@ -24,15 +24,16 @@ caffe=../../build/tools/caffe.bin
 
 #L2 regularized training
 
-nw_path="/data/mmcodec_video2_tier3/users/manu/experiments/object"
 gpu="1,0" #'0'
 
 
+weights_src="https://github.com/tidsp/caffe-jacinto-models/blob/master/examples/tidsp/models/non_sparse/imagenet_classification/jacintonet11/jacintonet11_bn_iter_320000.caffemodel?raw=true"
+weights_dst="training/imagenet_jacintonet11_bn_maxpool_L2_iter_160000.caffemodel"
+wget $weights_src -O $weights_dst
+
 #------------------------------------------------
 #L2 training.
-weights="$nw_path/classification/2017.05/imagenet_caffe-0.15/jacintonet11_maxpool_(netsurgery-name-change)_(60.91%)/imagenet_jacintonet11_bn_maxpool_L2_iter_160000.caffemodel"
-#weights="training/imagenet_jacintonet11_bn_maxpool_L2_iter_160000.caffemodel"
-$caffe train --solver="models/sparse/cityscapes_segmentation/jsegnet21_maxpool/jsegnet21_maxpool(8)_bn_train_L2.prototxt" --gpu=$gpu --weights=$weights
+$caffe train --solver="models/sparse/cityscapes_segmentation/jsegnet21_maxpool/jsegnet21_maxpool(8)_bn_train_L2.prototxt" --gpu=$gpu --weights=$weights_dst
 pause 'Finished L2 training.'
 
 #------------------------------------------------

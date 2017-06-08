@@ -32,9 +32,9 @@ val_crop=0 #"1024 512" #"512 512"
 val_resize=0 #"1024 512"
 val_input="./data/val-image-list.txt"
 val_label="./data/val-label-list.txt"
-val_classes=34 #34 #20 #5
+val_classes=34 #20 #5
 val_weights=0
-num_images=100000
+num_images=10 #100000
 
 #for 19 or 20 classes training of cityscapes, first convert to original labelIds and then apply the pallete
 label_dict_20_to_34="{0:7, 1:8, 2:11, 3:12, 4:13, 5:17, 6:19, 7:20, 8:21, 9:22, 10:23, 11:24, 12:25, 13:26, 14:27, 15:28, 16:31, 17:32, 18:33, 19:0}"
@@ -49,25 +49,25 @@ class_dict="{0:255, 1:255, 2:255, 3:255, 4:255, 5:255, 6:255, 7:0, 8:1, 9:255, 1
 ##------------------------------------------------
 ##L2 training.
 #val_weights="training/jsegnet21_maxpool_L2_bn_iter_32000.caffemodel"
-#python ./tools/infer_segmentation.py --crop $val_crop --resize $val_resize --model $val_model --weights $val_weights --input $val_input --label $val_label --num_classes=$val_classes --num_images=$num_images --resize_back --label_dict="$label_dict_20_to_34" --class_dict="$class_dict"
+#python ./tools/utils/infer_segmentation.py --crop $val_crop --resize $val_resize --model $val_model --weights $val_weights --input $val_input --label $val_label --num_classes=$val_classes --num_images=$num_images --resize_back --label_dict="$label_dict_20_to_34" --class_dict="$class_dict"
 #pause 'Finished L2 eval.'
 
 #------------------------------------------------
 #L1 training.
 val_weights="training/jsegnet21_maxpool_L1_bn_iter_32000.caffemodel"
-python ./tools/infer_segmentation.py --crop $val_crop --resize $val_resize --model $val_model --weights $val_weights --input $val_input --label $val_label --num_classes=$val_classes --num_images=$num_images --resize_back --label_dict="$label_dict_20_to_34" --class_dict="$class_dict"
+python ./tools/utils/infer_segmentation.py --crop $val_crop --resize $val_resize --model $val_model --weights $val_weights --input $val_input --label $val_label --num_classes=$val_classes --num_images=$num_images --resize_back --label_dict="$label_dict_20_to_34" --class_dict="$class_dict"
 pause 'Finished L1 eval.'
 
 ##------------------------------------------------
 #val_weights="training/jsegnet21_maxpool_L1_bn_finetune_iter_32000.caffemodel"
-#python ./tools/infer_segmentation.py --crop $val_crop --resize $val_resize --model $val_model --weights $val_weights --input $val_input --label $val_label --num_classes=$val_classes --num_images=$num_images --resize_back --label_dict="$label_dict_20_to_34" --class_dict="$class_dict"
+#python ./tools/utils/infer_segmentation.py --crop $val_crop --resize $val_resize --model $val_model --weights $val_weights --input $val_input --label $val_label --num_classes=$val_classes --num_images=$num_images --resize_back --label_dict="$label_dict_20_to_34" --class_dict="$class_dict"
 #pause 'Finished sparse finetuning eval. Press [Enter] to continue...'
 
 ##------------------------------------------------
 ##Final NoBN Quantization step
 #val_model="training/jsegnet21_maxpool_L1_nobn_quant_final_iter_4000_deploy.prototxt"
 #val_weights="training/jsegnet21_maxpool_L1_nobn_quant_final_iter_4000.caffemodel"
-#python ./tools/infer_segmentation.py --crop $val_crop --resize $val_resize --model $val_model --weights $val_weights --input $val_input --label $val_label --num_classes=$val_classes --num_images=$num_images --resize_back --label_dict="$label_dict_20_to_34" --class_dict="$class_dict"
+#python ./tools/utils/infer_segmentation.py --crop $val_crop --resize $val_resize --model $val_model --weights $val_weights --input $val_input --label $val_label --num_classes=$val_classes --num_images=$num_images --resize_back --label_dict="$label_dict_20_to_34" --class_dict="$class_dict"
 #pause 'Finished quantization eval. Press [Enter] to continue...'
 
 

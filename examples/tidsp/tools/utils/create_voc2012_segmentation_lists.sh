@@ -21,7 +21,7 @@ export DATASETPATH=/data/hdd/datasets/object-detect/other/pascal/2012/VOCdevkit/
 
 #-------------------------------------------------------
 echo "creating train lists"
-./tools/create_image_folder.py --label --list_file=$DATASETPATH/ImageSets/Segmentation/train.txt --image_dir=$DATASETPATH/SegmentationClass --search_string="*.png" --output_dir="data/train-label-folder"
+./tools/utils/create_image_folder.py --label --list_file=$DATASETPATH/ImageSets/Segmentation/train.txt --image_dir=$DATASETPATH/SegmentationClass --search_string="*.png" --output_dir="data/train-label-folder"
 > data/train-image-list.txt
 > data/train-label-list.txt
 for f in `cat $DATASETPATH/ImageSets/Segmentation/train.txt`
@@ -33,7 +33,7 @@ done
 
 #-------------------------------------------------------
 echo "creating val lists"
-./tools/create_image_folder.py --label --list_file=$DATASETPATH/ImageSets/Segmentation/val.txt --image_dir=$DATASETPATH/SegmentationClass --search_string="*.png" --output_dir="data/val-label-folder"
+./tools/utils/create_image_folder.py --label --list_file=$DATASETPATH/ImageSets/Segmentation/val.txt --image_dir=$DATASETPATH/SegmentationClass --search_string="*.png" --output_dir="data/val-label-folder"
 > data/val-image-list.txt
 > data/val-label-list.txt
 for f in `cat $DATASETPATH/ImageSets/Segmentation/val.txt`

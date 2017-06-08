@@ -933,6 +933,8 @@ message DataParameter {
   // Takes effect only when used together with 'threads' setting.
   // Ignored and always set to 1 for test nets.
   optional uint32 parser_threads  = 12 [default = 0];
+  
+  optional uint32 rand_seed = 24 [default = 0];  
 }
 
 message DropoutParameter {

@@ -36,6 +36,8 @@ void ImageLabelDataLayer<Ftype, Btype>::LayerSetUp(const vector<Blob*>& bottom,
   int input_threads = this->layer_param_.image_label_data_param().threads();
   int threads = has_threads? std::min<int>(std::max<int>(input_threads, 1), 8) : 2;
 
+  unsigned int rand_seed = caffe_rng_rand();
+  
   LayerParameter data_param(this->layer_param_);
   data_param.mutable_transform_param()->set_crop_size(this->layer_param_.transform_param().crop_size());
   data_param.mutable_transform_param()->set_mirror(this->layer_param_.transform_param().mirror());
@@ -44,7 +46,7 @@ void ImageLabelDataLayer<Ftype, Btype>::LayerSetUp(const vector<Blob*>& bottom,
   data_param.mutable_data_param()->set_backend(static_cast<DataParameter_DB>(this->layer_param_.image_label_data_param().backend()));
   data_param.mutable_data_param()->set_threads(threads);
   data_param.mutable_data_param()->set_parser_threads(threads);
-
+  data_param.mutable_data_param()->set_rand_seed(rand_seed);
   
   LayerParameter label_param(this->layer_param_);
   label_param.mutable_transform_param()->set_crop_size(this->layer_param_.transform_param().crop_size());
@@ -54,17 +56,11 @@ void ImageLabelDataLayer<Ftype, Btype>::LayerSetUp(const vector<Blob*>& bottom,
   label_param.mutable_data_param()->set_backend(static_cast<DataParameter_DB>(this->layer_param_.image_label_data_param().backend()));
   label_param.mutable_data_param()->set_threads(threads);
   label_param.mutable_data_param()->set_parser_threads(threads);
-
+  label_param.mutable_data_param()->set_rand_seed(rand_seed);
+  
   //Create the internal layers
   data_layer_.reset(new DataLayer<Ftype, Btype>(data_param));
   label_layer_.reset(new DataLayer<Ftype, Btype>(label_param));
-  
-  //Use a common rand seed so that the transform parameters
-  //are same for both data and label streams
-  int seed = caffe_rng_rand();
-  data_layer_->SetRandSeed(seed);
-  label_layer_->SetRandSeed(seed);
-  this->InitRand(seed);
 
   //Populate bottom and top
   vector<Blob*> data_bottom_vec;

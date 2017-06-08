@@ -25,7 +25,7 @@ class DataTransformer {
    * @brief Initialize the Random number generations if needed by the
    *    transformation.
    */
-  void InitRand();
+  void InitRand(unsigned int rand_seed = 0);
 
   /**
    * @brief Generates a random integer from Uniform({0, 1, ..., n-1}).

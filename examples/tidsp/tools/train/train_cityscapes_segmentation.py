@@ -17,9 +17,7 @@ def get_arguments():
     parser = argparse.ArgumentParser()
     parser.add_argument('--model_name', type=str, required=True, help='Model name')  	
     parser.add_argument('--config_name', type=str, required=True, help='A configuration name')      
-    parser.add_argument('--pretrain_model', type=str, default=None, help='Pretrained caffemodel name')  
-    parser.add_argument('--base_lr', type=float, default=0.1, help='Base learning rate')
-    parser.add_argument('--max_iter', type=int, default=100000, help='Max iterations')      
+    parser.add_argument('--pretrain_model', type=str, default=None, help='Pretrained caffemodel name')      
     parser.add_argument('--solver_param', type=str, default=None, help='Extra solver parameters')          
     return parser.parse_args()
       
@@ -65,9 +63,6 @@ def main():
     # If true, use batch norm for all newly added layers.
     # Currently only the non batch norm version has been tested.
     use_batchnorm = True
-    # initial learning rate.
-    base_lr = args.base_lr
-    max_iter = args.max_iter
     
     # Modify the job name if you want.
     base_name = args.config_name   
@@ -131,15 +126,21 @@ def main():
     freeze_layers = []
 
     # Evaluate on whole test set.
-    #use slightly larger number than 500 since we are using crops
-    num_test_image = 800 
-    test_batch_size = 4
+    num_test_image = 500 
+    test_batch_size = 8
     test_batch_size_in_proto = test_batch_size    
     test_iter = int(num_test_image / test_batch_size)
-
+        
+    if ('base_lr' not in args.solver_param.keys()) or \
+        ('max_iter' not in args.solver_param.keys()):
+        ValueError('base_lr and max_iter must be specified in solver_parms argument')
+    base_lr = args.solver_param['base_lr']
+    max_iter = args.solver_param['max_iter']
+            
     solver_param = {
         # Train parameters
         'base_lr': base_lr,
+        'max_iter': max_iter,        
         'weight_decay': 0.0001,
         'lr_policy': "multistep",
         'stepvalue': [int(max_iter/2),int(max_iter*3/4)],      
@@ -147,7 +148,6 @@ def main():
         'gamma': 0.1,
         'momentum': 0.9,
         'iter_size': iter_size,
-        'max_iter': max_iter,
         'snapshot': 10000,
         'display': 100,
         #'average_loss': 10,

@@ -153,7 +153,7 @@ def jsegnet21(net, from_layer=None, use_batchnorm=True, use_relu=True, num_outpu
    
    from_layer = out_layer
    out_layer = 'out5a'
-   out_layer = ConvBNLayer(net, from_layer, out_layer, use_batchnorm, use_relu, num_output=512, kernel_size=[3,3], pad=4, stride=1, group=2, dilation=4, in_place=in_place) 
+   out_layer = ConvBNLayer(net, from_layer, out_layer, use_batchnorm, use_relu, num_output=64, kernel_size=[3,3], pad=4, stride=1, group=2, dilation=4, in_place=in_place) 
    
    #frozen upsampling layer
    from_layer = out_layer 
@@ -177,15 +177,15 @@ def jsegnet21(net, from_layer=None, use_batchnorm=True, use_relu=True, num_outpu
       
    from_layer = out_layer
    out_layer = 'ctx_conv2'
-   out_layer = ConvBNLayer(net, from_layer, out_layer, use_batchnorm, use_relu, num_output=64, kernel_size=[3,3], pad=4, stride=1, group=4, dilation=4, in_place=in_place) 
+   out_layer = ConvBNLayer(net, from_layer, out_layer, use_batchnorm, use_relu, num_output=64, kernel_size=[3,3], pad=4, stride=1, group=1, dilation=4, in_place=in_place) 
    
    from_layer = out_layer
    out_layer = 'ctx_conv3'
-   out_layer = ConvBNLayer(net, from_layer, out_layer, use_batchnorm, use_relu, num_output=64, kernel_size=[3,3], pad=4, stride=1, group=4, dilation=4, in_place=in_place) 
+   out_layer = ConvBNLayer(net, from_layer, out_layer, use_batchnorm, use_relu, num_output=64, kernel_size=[3,3], pad=4, stride=1, group=1, dilation=4, in_place=in_place) 
    
    from_layer = out_layer
    out_layer = 'ctx_conv4'
-   out_layer = ConvBNLayer(net, from_layer, out_layer, use_batchnorm, use_relu, num_output=64, kernel_size=[3,3], pad=4, stride=1, group=4, dilation=4, in_place=in_place) 
+   out_layer = ConvBNLayer(net, from_layer, out_layer, use_batchnorm, use_relu, num_output=64, kernel_size=[3,3], pad=4, stride=1, group=1, dilation=4, in_place=in_place) 
        
    from_layer = out_layer
    out_layer = 'ctx_final'
@@ -196,6 +196,10 @@ def jsegnet21(net, from_layer=None, use_batchnorm=True, use_relu=True, num_outpu
         'bias_filler': dict(type='constant', value=0) }   
    net[out_layer] = L.Convolution(net[from_layer], num_output=num_output, kernel_size=[3,3], pad=1, stride=1, group=1, dilation=1, **conv_kwargs) 
          
+   from_layer = out_layer
+   out_layer = 'ctx_final/relu'
+   net[out_layer] = L.ReLU(net[from_layer], in_place=True) 
+               
    #frozen upsampling layer         
    from_layer = out_layer
    out_layer = 'out_deconv_final_up2'   

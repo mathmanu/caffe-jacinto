@@ -1,24 +1,41 @@
 import caffe
+import argparse
 
-net_old = caffe.Net('/user/a0393608/files/work/code/vision/ti/bitbucket/algoref/caffe-jacinto/examples/tidsp/models/sparse/imagenet_classification/backup/jacintonet11(1000)_bn_maxpool_deploy_oldBNNames.prototxt', '/data/mmcodec_video2_tier3/users/manu/experiments/object/classification/2017.04/2017.04.imagenet/jacintonet11_maxpool(60.52%)/original/imagenet_jacintonet11_bn_maxpool_L2_iter_160000.caffemodel', caffe.TEST)
+def get_arguments():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--old_model', type=str, required=True, help='Old model name')    
+    parser.add_argument('--old_weights', type=str, required=True, help='Pretrained caffemodel name')  
+    parser.add_argument('--new_model', type=str, required=True, help='New model name')    
+    parser.add_argument('--new_weights', type=str, required=True, help='Output pretrained caffemodel name')           
+    return parser.parse_args()
+    
+def change_names():
+    args = get_arguments()
+    
+    #Old model and weights
+    net_old = caffe.Net(args.old_model, args.old_weights, caffe.TEST)
 
-net_new = caffe.Net('/user/a0393608/files/work/code/vision/ti/bitbucket/algoref/caffe-jacinto/examples/tidsp/models/sparse/imagenet_classification/jacintonet11_maxpool/jacintonet11(1000)_bn_maxpool_deploy.prototxt', '/data/mmcodec_video2_tier3/users/manu/experiments/object/classification/2017.04/2017.04.imagenet/jacintonet11_maxpool(60.52%)/original/imagenet_jacintonet11_bn_maxpool_L2_iter_160000.caffemodel', caffe.TEST)
+    #Initialize with old wights -> some layers will nto get initialized
+    net_new = caffe.Net(args.new_model, args.old_weights, caffe.TEST)
 
-for i in range(5):
-  net_new.params['conv1a/bn'][i].data[...] = net_old.params['bn_conv1a'][i].data[...]
-  net_new.params['conv1b/bn'][i].data[...] = net_old.params['bn_conv1b'][i].data[...]
-  net_new.params['res2a_branch2a/bn'][i].data[...] = net_old.params['bn2a_branch2a'][i].data[...]
-  net_new.params['res2a_branch2b/bn'][i].data[...] = net_old.params['bn2a_branch2b'][i].data[...]
-  net_new.params['res3a_branch2a/bn'][i].data[...] = net_old.params['bn3a_branch2a'][i].data[...]
-  net_new.params['res3a_branch2b/bn'][i].data[...] = net_old.params['bn3a_branch2b'][i].data[...]
-  net_new.params['res4a_branch2a/bn'][i].data[...] = net_old.params['bn4a_branch2a'][i].data[...]
-  net_new.params['res4a_branch2b/bn'][i].data[...] = net_old.params['bn4a_branch2b'][i].data[...]
-  net_new.params['res5a_branch2a/bn'][i].data[...] = net_old.params['bn5a_branch2a'][i].data[...]
-  net_new.params['res5a_branch2b/bn'][i].data[...] = net_old.params['bn5a_branch2b'][i].data[...]               
-  
-print('Completed copying..')  
-net_new.save('new_bn_names.caffemodel')
+    #Take care of the layers (which have atleast one blob) with names cahnges
+    for i in range(5):
+      net_new.params['conv1a/bn'][i].data[...] = net_old.params['bn_conv1a'][i].data[...]
+      net_new.params['conv1b/bn'][i].data[...] = net_old.params['bn_conv1b'][i].data[...]
+      net_new.params['res2a_branch2a/bn'][i].data[...] = net_old.params['bn2a_branch2a'][i].data[...]
+      net_new.params['res2a_branch2b/bn'][i].data[...] = net_old.params['bn2a_branch2b'][i].data[...]
+      net_new.params['res3a_branch2a/bn'][i].data[...] = net_old.params['bn3a_branch2a'][i].data[...]
+      net_new.params['res3a_branch2b/bn'][i].data[...] = net_old.params['bn3a_branch2b'][i].data[...]
+      net_new.params['res4a_branch2a/bn'][i].data[...] = net_old.params['bn4a_branch2a'][i].data[...]
+      net_new.params['res4a_branch2b/bn'][i].data[...] = net_old.params['bn4a_branch2b'][i].data[...]
+      net_new.params['res5a_branch2a/bn'][i].data[...] = net_old.params['bn5a_branch2a'][i].data[...]
+      net_new.params['res5a_branch2b/bn'][i].data[...] = net_old.params['bn5a_branch2b'][i].data[...]               
+      
+    print('Completed copying..')  
+    net_new.save(args.new_weights)
 
-
-
-
+def main():
+    change_names()
+    
+if __name__ == "__main__":
+    main() 

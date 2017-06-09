@@ -26,9 +26,10 @@ caffe=../../build/tools/caffe.bin
 
 gpu="1,0" #'0'
 
-
-weights_src="https://github.com/tidsp/caffe-jacinto-models/blob/master/examples/tidsp/models/non_sparse/imagenet_classification/jacintonet11/jacintonet11_bn_iter_320000.caffemodel?raw=true"
-weights_dst="training/imagenet_jacintonet11_bn_maxpool_L2_iter_160000.caffemodel"
+#------------------------------------------------
+#Download the pretrained weights
+weights_src="https://github.com/tidsp/caffe-jacinto-models/blob/master/examples/tidsp/models/non_sparse/imagenet_classification/jacintonet11_v2/imagenet_jacintonet11_v2_bn_iter_160000.caffemodel?raw=true"
+weights_dst="training/imagenet_jacintonet11_v2_bn_iter_160000.caffemodel"
 wget $weights_src -O $weights_dst
 
 #------------------------------------------------

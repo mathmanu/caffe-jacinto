@@ -181,11 +181,13 @@ class NetSpec(object):
     def __getitem__(self, item):
         return self.__getattr__(item)
 
-    def to_proto(self):
+    def to_proto(self, verbose=False):
         names = {v: k for k, v in six.iteritems(self.tops)}
         autonames = Counter()
         layers = OrderedDict()
         for name, top in six.iteritems(self.tops):
+            if verbose:
+                print("print from net_spec.py "); print((name,top))
             top._to_proto(layers, names, autonames)
         net = caffe_pb2.NetParameter()
         net.layer.extend(layers.values())

@@ -41,11 +41,15 @@ def main():
     # If true, Remove old model files.
     remove_old_models = False
 
-    resize_width = 224
-    resize_height = 224
+    resize_width = 640
+    resize_height = 640
 
-    train_data = "./data/ilsvrc12_train_lmdb" 
-    test_data = "./data/ilsvrc12_val_lmdb"
+    train_data = "data/train-image-list.txt" 
+    train_label = "data/train-label-list.txt" 
+        
+    test_data = "data/val-image-list.txt"
+    test_label = "data/val-label-list.txt"    
+    
     mean_value = 128 #used in a bias layer in the net.
     train_transform_param = {
             'mirror': True,
@@ -111,8 +115,8 @@ def main():
     num_gpus = len(gpulist)
 
     # Divide the mini-batch to different GPUs.
-    batch_size = 128
-    accum_batch_size = 256
+    batch_size = 16
+    accum_batch_size = 16
     iter_size = accum_batch_size / batch_size
     solver_mode = P.Solver.CPU
     device_id = 0
@@ -127,19 +131,19 @@ def main():
     freeze_layers = []
 
     # Evaluate on whole test set.
-    num_test_image = 50000
-    test_batch_size = 50
+    #use slightly larger number than 500 since we are using crops
+    num_test_image = 800 
+    test_batch_size = 4
     test_batch_size_in_proto = test_batch_size    
-    test_iter = num_test_image / test_batch_size
+    test_iter = int(num_test_image / test_batch_size)
 
     solver_param = {
         # Train parameters
         'base_lr': base_lr,
         'weight_decay': 0.0001,
-        'lr_policy': "poly",
+        'lr_policy': "multistep",
+        'stepvalue': [int(max_iter/2),int(max_iter*3/4)],      
         'power': 1,
-        #'lr_policy': "multistep",    
-        #'stepvalue': 100000,
         'gamma': 0.1,
         'momentum': 0.9,
         'iter_size': iter_size,
@@ -154,7 +158,7 @@ def main():
         'snapshot_after_train': True,
         # Test parameters
         'test_iter': [test_iter],
-        'test_interval': 10000,
+        'test_interval': 1000,
         'test_initialization': True,
         'random_seed': 33,
         }
@@ -186,12 +190,16 @@ def main():
           
         train_proto_str = []
         if phase=='train':                 
-          data_kwargs = { 'source': train_data, 'name': 'data', 'batch_size': train_batch_size_in_proto, 'backend': caffe_pb2.DataParameter.DB.Value('LMDB'), 'ntop':2 }          
-          net['data'], net['label'] = L.Data(transform_param=train_transform_param, **data_kwargs)
+          data_kwargs = {'name': 'data', 'ntop':2, 
+             'image_label_data_param': { 'image_list_path': train_data, 'label_list_path': train_label, 
+             'batch_size': train_batch_size_in_proto, 'scale_prob': 0.5, 'scale_min': 0.75, 'scale_max': 1.25 } }      
+          net['data'], net['label'] = L.ImageLabelListData(transform_param=train_transform_param, **data_kwargs)
           out_layer = 'data' 
         elif phase=='test':
-          data_kwargs = { 'source': test_data, 'name': 'data', 'batch_size': test_batch_size_in_proto, 'backend': caffe_pb2.DataParameter.DB.Value('LMDB'), 'ntop':2 }        
-          net['data'], net['label'] = L.Data(transform_param=test_transform_param,**data_kwargs)
+          data_kwargs = { 'name': 'data', 'ntop':2, 
+             'image_label_data_param': { 'image_list_path': test_data, 'label_list_path': test_label, 
+              'batch_size': test_batch_size_in_proto, 'scale_prob': 0.5, 'scale_min': 0.75, 'scale_max': 1.25 } }         
+          net['data'], net['label'] = L.ImageLabelListData(transform_param=test_transform_param,**data_kwargs)
           out_layer = 'data'
         elif phase=='deploy':
           net['data'] = L.Input(shape=[dict(dim=[1, 3, resize_height, resize_width])])
@@ -204,21 +212,23 @@ def main():
         net['data/bias'] = L.Bias(net[out_layer], in_place=False, **bias_kwargs)
         out_layer = 'data/bias'
                             
-        if args.model_name == 'jacintonet11':
-            out_layer = models.jacintonet_v2.jacintonet11(net, from_layer=out_layer, freeze_layers=freeze_layers)
+        if args.model_name == 'jsegnet21':
+            out_layer = models.jacintonet_v2.jsegnet21(net, from_layer=out_layer, freeze_layers=freeze_layers)
         else:
             ValueError("Invalid model name")
 
         if phase=='train' or phase=='test':  
-            net["loss"] = L.SoftmaxWithLoss(net[out_layer], net['label'],
+            loss_param = {'ignore_label': 255, 'normalization':caffe_pb2.LossParameter.NormalizationMode.Value('VALID') }
+            net["loss"] = L.SoftmaxWithLoss(net[out_layer], net['label'], loss_param=loss_param,
                 propagate_down=[True, False])
 
-            net["accuracy/top1"] = L.Accuracy(net[out_layer], net['label'],
+            accuracy_param = {'ignore_label': 255 }
+            net["accuracy/top1"] = L.Accuracy(net[out_layer], net['label'], accuracy_param=accuracy_param,
                 include=dict(phase=caffe_pb2.Phase.Value('TEST')))
-        
-            accuracy_param_top5 = { 'top_k': 5 }            
-            net["accuracy/top5"] = L.Accuracy(net[out_layer], net['label'],
-                accuracy_param=accuracy_param_top5, include=dict(phase=caffe_pb2.Phase.Value('TEST')))
+            
+            accuracy_param_top5 = {'ignore_label': 255, 'top_k': 5 }          
+            net["accuracy/top5"] = L.Accuracy(net[out_layer], net['label'], accuracy_param=accuracy_param_top5, 
+                include=dict(phase=caffe_pb2.Phase.Value('TEST')))
         elif phase=='deploy':
             net['prob'] = L.Softmax(net[out_layer]) 
                  

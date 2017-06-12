@@ -37,11 +37,11 @@ Note that Caffe-jacinto does not directly support any embedded/low-power device.
 ### Examples
 ###### Semantic segmentation:
 * Note that ImageNet training (see below) is recommended before doing this segmentation training to create the pre-trained weights. The segmentation training will read the ImageNet trained caffemodel for doing the fine tuning on segmentation. However it is possible to directly do segmentation training without ImageNet training, but the quality might be inferior.
-* [Train sparse, quantized CNN for semantic segmentation](examples/tidsp/models/sparse/cityscapes_segmentation/README.md) on the cityscapes dataset. Inference script is also provided to test out the final model.
+* [Train sparse, quantized CNN for semantic segmentation](examples/tidsp/docs/Cityscapes_Segmentation_README.md) on the cityscapes dataset. Inference script is also provided to test out the final model.
 
 ###### Classification:
-* [Training on ILSVRC ImageNet dataset](examples/tidsp/models/sparse/imagenet_classification/README.md). The 1000 class ImageNet trained weights is useful for fine tuning other tasks.
-* [Train sparse, quantized CNN on cifar10 dataset](examples/tidsp/models/sparse/cifar10_classification/README.md) for classification. Note that this is just a toy example and no inference script is provided to test the final model.
+* [Training on ILSVRC ImageNet dataset](examples/tidsp/docs/Imagenet_Classification_README.md). The 1000 class ImageNet trained weights is useful for fine tuning other tasks.
+* [Train sparse, quantized CNN on cifar10 dataset](examples/tidsp/docs/Cifar10_Classification_README.md) for classification. Note that this is just a toy example and no inference script is provided to test the final model.
 
 <br>
 The following sections are kept as it is from the original Caffe.

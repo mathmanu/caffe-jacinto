@@ -6,16 +6,17 @@ model_name="jsegnet21"
 
 mkdir $folder_name
 max_iter=32000
+stepvalue=24000
 threshold_step_factor=1e-6
-base_lr=1e-3
+base_lr=1e-4
 
-solver_param="{'type':'Adam','base_lr':$base_lr,'max_iter':$max_iter,'test_interval':2000,'test_initialization':0}"
+solver_param="{'type':'Adam','base_lr':$base_lr,'max_iter':$max_iter,'test_interval':2000,'test_initialization':0,'stepvalue':[$stepvalue]}"
 
 sparse_solver_param="{'type':'Adam','base_lr':$base_lr,'max_iter':$max_iter,'test_interval':2000,'test_initialization':0,\
-'sparse_mode':1,'display_sparsity':1000}"
+'sparse_mode':1,'display_sparsity':1000,'stepvalue':[$stepvalue]}"
 
 quant_solver_param="{'type':'Adam','base_lr':$base_lr,'max_iter':$max_iter,'test_interval':2000,'test_initialization':0,\
-'sparse_mode':1,'display_sparsity':1000,'insert_quantization_param':1,'quantization_start_iter':2000,'snapshot_log':1}"
+'sparse_mode':1,'display_sparsity':1000,'insert_quantization_param':1,'quantization_start_iter':2000,'snapshot_log':1,'stepvalue':[$stepvalue]}"
 
 caffe="../../build/tools/caffe.bin"
 

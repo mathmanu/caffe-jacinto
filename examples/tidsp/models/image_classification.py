@@ -50,23 +50,17 @@ def main():
     # If true, Remove old model files.
     config_param.remove_old_models = False
 
-    config_param.resize_width = 224
-    config_param.resize_height = 224
+    config_param.crop_size = 224
+    config_param.image_width = 224
+    config_param.image_height = 224
 
     config_param.train_data = "./data/ilsvrc12_train_lmdb" 
     config_param.test_data = "./data/ilsvrc12_val_lmdb"
+
+    config_param.total_stride = 32
+	
     config_param.mean_value = 128 #used in a bias layer in the net.
-    config_param.train_transform_param = {
-            'mirror': True,
-            'mean_value': [0, 0, 0],
-            'crop_size': config_param.resize_width
-            }
-    config_param.test_transform_param = {
-            'mirror': False,
-            'mean_value': [0, 0, 0],
-            'crop_size': config_param.resize_width
-            }
-    
+	    
     # Setup Default values
     # If true, use batch norm for all newly added layers.
     # Currently only the non batch norm version has been tested.
@@ -77,6 +71,8 @@ def main():
     # Defining which GPUs to use.
     config_param.gpus = "0,1" #gpus = "0"    
     
+    config_param.num_output = 1000
+	
     config_param.batch_size = 128
     config_param.accum_batch_size = 256
     
@@ -98,10 +94,11 @@ def main():
     #Updat from params given from outside
     if args.config_param != None: 
       for k in args.config_param.keys():
-        config_param.__setitem__(k,args.config_param[k])
+        config_param.__setattr__(k,args.config_param[k])
+        config_param.__setitem__(k,args.config_param[k])		
               
     # Modify the job name if you want.
-    config_param.base_name = config_param['config_name']   
+    config_param.base_name = config_param.config_name
     config_param.job_name = config_param.base_name
                   
     # Base dir
@@ -175,6 +172,17 @@ def main():
     if args.solver_param != None:
       solver_param.update(args.solver_param)
             
+    config_param.train_transform_param = {
+            'mirror': True,
+            'mean_value': [0, 0, 0],
+            'crop_size': config_param.crop_size
+            }
+    config_param.test_transform_param = {
+            'mirror': False,
+            'mean_value': [0, 0, 0],
+            'crop_size': config_param.crop_size
+            }
+						
     ### Hopefully you don't need to change the following ###
     # Check file.
     check_if_exist(config_param.train_data)
@@ -207,7 +215,7 @@ def main():
           net['data'], net['label'] = L.Data(transform_param=config_param.test_transform_param,**data_kwargs)
           out_layer = 'data'
         elif phase=='deploy':
-          net['data'] = L.Input(shape=[dict(dim=[1, 3, config_param.resize_height, config_param.resize_width])])
+          net['data'] = L.Input(shape=[dict(dim=[1, 3, config_param.image_height, config_param.image_width])])
           out_layer = 'data'
                          
         bias_kwargs = { #fixed value with lr_mult=0
@@ -218,7 +226,9 @@ def main():
         out_layer = 'data/bias'
                             
         if config_param.model_name == 'jacintonet11':
-            out_layer = models.jacintonet_v2.jacintonet11(net, from_layer=out_layer, freeze_layers=config_param.freeze_layers)
+            out_layer = models.jacintonet_v2.jacintonet11(net, from_layer=out_layer,\
+            num_output=config_param.num_output,total_stride=config_param.total_stride,\
+            freeze_layers=config_param.freeze_layers)
         else:
             ValueError("Invalid model name")
 
@@ -268,7 +278,7 @@ def main():
         net_param.name = '{}_deploy'.format(config_param.model_name)
         net_param.input.extend(['data'])
         net_param.input_shape.extend([
-            caffe_pb2.BlobShape(dim=[1, 3, config_param.resize_height, config_param.resize_width])])
+            caffe_pb2.BlobShape(dim=[1, 3, config_param.image_height, config_param.image_width])])
         print(net_param, file=f)
     if config_param.save_dir!=config_param.job_dir:        
       shutil.copy(config_param.deploy_net_file, config_param.job_dir)

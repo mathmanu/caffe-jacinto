@@ -7,7 +7,7 @@ DBTYPE=lmdb
 
 echo "Creating $DBTYPE..."
 
-rm -rf $EXAMPLE/cifar10_train_$DBTYPE $OUT/cifar10_test_$DBTYPE
+rm -rf $OUT/cifar10_train_$DBTYPE $OUT/cifar10_test_$DBTYPE
 
 ../../build/examples/cifar10/convert_cifar_data.bin $DATA $OUT $DBTYPE
 

@@ -443,6 +443,7 @@ message LayerParameter {
   //
   // The size must be either 0 or equal to the number of bottoms.
   repeated bool propagate_down = 11;
+
   // Rules controlling whether and when a layer is included in the network,
   // based on the current NetState.  You may specify a non-zero number of rules
   // to include OR exclude, but not both.  If no include or exclude rules are
@@ -591,8 +592,8 @@ message TransformationParameter {
   // False if omitted when Forward Type is float/double.
   // True otherwise (float16 doesn't work well on CPU).
   optional bool use_gpu_transform = 8 [default = false];
-  optional bool display = 12 [default = false];
   
+  optional bool display = 12 [default = false];  
   optional int32 num_labels = 16 [default = 0];  
 }
 // Message that stores parameters used to create gridbox ground truth
@@ -714,9 +715,7 @@ message AccuracyParameter {
 
   // If specified, ignore instances with the given label.
   optional int32 ignore_label = 3;
-  
 }
-
 
 message ArgMaxParameter {
   // If true produce pairs (argmax, maxval)
@@ -906,9 +905,6 @@ message DataParameter {
   // be larger than the number of keys in the database.
   // DEPRECATED. Each solver accesses a different subset of the database.
   optional uint32 rand_skip = 7 [default = 0];
-  // The shuffle variable is for the data layier to access random data point (for shuffling data when you read it!!). The random point would be set as urand(0, length of data).
-  optional bool shuffle = 20 [default = false];
-  optional int32 shuffle_skip_max = 21 [default = 1000];
   optional DB backend = 8 [default = LEVELDB];
   // DEPRECATED. See TransformationParameter. For data pre-processing, we can do
   // simple scaling and subtracting the data mean, if provided. Note that the
@@ -933,8 +929,6 @@ message DataParameter {
   // Takes effect only when used together with 'threads' setting.
   // Ignored and always set to 1 for test nets.
   optional uint32 parser_threads  = 12 [default = 0];
-  
-  optional uint32 rand_seed = 24 [default = 0];  
 }
 
 message DropoutParameter {

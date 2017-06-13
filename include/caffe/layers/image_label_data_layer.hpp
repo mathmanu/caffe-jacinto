@@ -35,24 +35,6 @@ class ImageLabelDataLayer : public Layer<Ftype, Btype> {
   void Backward_gpu(const vector<Blob*>& top, const vector<bool>& propagate_down,
       const vector<Blob*>& bottom) override {}
 	  	  
-  void InitRand(int seed) {
-    const unsigned int rng_seed = seed? seed : caffe_rng_rand();
-    rng_.reset(new Caffe::RNG(rng_seed));
-  }
-
-  unsigned int Rand() const {
-    CHECK(rng_);
-    caffe::rng_t *rng =
-        static_cast<caffe::rng_t *>(rng_->generator());
-    // this doesn't actually produce a uniform distribution
-    return static_cast<unsigned int>((*rng)());
-  }
-
-  unsigned int Rand(int n) const {
-    CHECK_GT(n, 0);
-    return Rand() % n;
-  }
-
   //bool ShareInParallel() const override {
   //  return false;
   //}
@@ -61,7 +43,6 @@ protected:
   shared_ptr<DataLayer<Ftype,Btype>> data_layer_, label_layer_;
   shared_ptr<DataTransformer<Ftype>>  data_transformer_;
   bool needs_rand_;
-  shared_ptr<Caffe::RNG> rng_;
 };
 
 

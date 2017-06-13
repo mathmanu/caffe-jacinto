@@ -47,7 +47,6 @@ class BaseDataLayer : public Layer<Ftype, Btype> {
   TransformationParameter transform_param_;
   vector <shared_ptr<DataTransformer<Ftype>>> data_transformers_;
   bool output_labels_;
-  unsigned int rand_seed_;
 };
 
 template<typename Ftype>

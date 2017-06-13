@@ -36,8 +36,10 @@ void ImageLabelDataLayer<Ftype, Btype>::LayerSetUp(const vector<Blob*>& bottom,
   int input_threads = this->layer_param_.image_label_data_param().threads();
   int threads = has_threads? std::min<int>(std::max<int>(input_threads, 1), 8) : 2;
 
-  unsigned int rand_seed = caffe_rng_rand();
   int num_mean_values = this->layer_param_.transform_param().mean_value_size();
+
+  unsigned int random_seed = this->layer_param_.transform_param().has_random_seed()? 
+     this->layer_param_.transform_param().random_seed() : caffe_rng_rand();
   
   LayerParameter data_param(this->layer_param_);
   data_param.mutable_transform_param()->set_crop_size(this->layer_param_.transform_param().crop_size());
@@ -53,7 +55,6 @@ void ImageLabelDataLayer<Ftype, Btype>::LayerSetUp(const vector<Blob*>& bottom,
   data_param.mutable_data_param()->set_backend(static_cast<DataParameter_DB>(this->layer_param_.image_label_data_param().backend()));
   data_param.mutable_data_param()->set_threads(threads);
   data_param.mutable_data_param()->set_parser_threads(threads);
-  data_param.mutable_data_param()->set_rand_seed(rand_seed);
   
   LayerParameter label_param(this->layer_param_);
   label_param.mutable_transform_param()->set_crop_size(this->layer_param_.transform_param().crop_size());
@@ -64,13 +65,12 @@ void ImageLabelDataLayer<Ftype, Btype>::LayerSetUp(const vector<Blob*>& bottom,
     label_param.mutable_transform_param()->add_mean_value(0);
   }
   label_param.mutable_transform_param()->set_random_seed(random_seed);  
-
+  label_param.mutable_data_param()->set_shuffle(this->layer_param_.image_label_data_param().shuffle());   
   label_param.mutable_data_param()->set_source(this->layer_param_.image_label_data_param().label_list_path());
   label_param.mutable_data_param()->set_batch_size(this->layer_param_.image_label_data_param().batch_size());
   label_param.mutable_data_param()->set_backend(static_cast<DataParameter_DB>(this->layer_param_.image_label_data_param().backend()));
   label_param.mutable_data_param()->set_threads(threads);
   label_param.mutable_data_param()->set_parser_threads(threads);
-  label_param.mutable_data_param()->set_rand_seed(rand_seed);
   
   //Create the internal layers
   data_layer_.reset(new DataLayer<Ftype, Btype>(data_param));
@@ -122,15 +122,6 @@ void ImageLabelDataLayer<Ftype, Btype>::Forward_cpu(const vector<Blob*>& bottom,
   vector<Blob*> label_bottom_vec;
   vector<Blob*> label_top_vec;
   label_top_vec.push_back(top[1]);
-
-  //skip forward by a random number is shuffle is set.
-  if(this->layer_param_.image_label_data_param().shuffle()) {
-    int rand = Rand(100);
-    for(int i=0; i<rand; i++) {
-      data_layer_->Forward(data_bottom_vec, data_top_vec);
-      label_layer_->Forward(label_bottom_vec, label_top_vec);
-    }
-  }
 
   data_layer_->Forward(data_bottom_vec, data_top_vec);
   label_layer_->Forward(label_bottom_vec, label_top_vec);  

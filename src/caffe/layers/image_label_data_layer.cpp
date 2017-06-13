@@ -37,10 +37,17 @@ void ImageLabelDataLayer<Ftype, Btype>::LayerSetUp(const vector<Blob*>& bottom,
   int threads = has_threads? std::min<int>(std::max<int>(input_threads, 1), 8) : 2;
 
   unsigned int rand_seed = caffe_rng_rand();
+  int num_mean_values = this->layer_param_.transform_param().mean_value_size();
   
   LayerParameter data_param(this->layer_param_);
   data_param.mutable_transform_param()->set_crop_size(this->layer_param_.transform_param().crop_size());
   data_param.mutable_transform_param()->set_mirror(this->layer_param_.transform_param().mirror());
+  data_param.mutable_transform_param()->clear_mean_value();
+  for(int i=0; i<num_mean_values; i++) {
+    data_param.mutable_transform_param()->add_mean_value(this->layer_param_.transform_param().mean_value(i));
+  }
+  data_param.mutable_transform_param()->set_random_seed(random_seed);  
+  data_param.mutable_data_param()->set_shuffle(this->layer_param_.image_label_data_param().shuffle());    
   data_param.mutable_data_param()->set_source(this->layer_param_.image_label_data_param().image_list_path());
   data_param.mutable_data_param()->set_batch_size(this->layer_param_.image_label_data_param().batch_size());
   data_param.mutable_data_param()->set_backend(static_cast<DataParameter_DB>(this->layer_param_.image_label_data_param().backend()));
@@ -51,6 +58,13 @@ void ImageLabelDataLayer<Ftype, Btype>::LayerSetUp(const vector<Blob*>& bottom,
   LayerParameter label_param(this->layer_param_);
   label_param.mutable_transform_param()->set_crop_size(this->layer_param_.transform_param().crop_size());
   label_param.mutable_transform_param()->set_mirror(this->layer_param_.transform_param().mirror());
+  //label doesn't have mean value - add zeros, just in case there is a rand sequence mismatch some where
+  label_param.mutable_transform_param()->clear_mean_value();
+  for(int i=0; i<num_mean_values; i++) {
+    label_param.mutable_transform_param()->add_mean_value(0);
+  }
+  label_param.mutable_transform_param()->set_random_seed(random_seed);  
+
   label_param.mutable_data_param()->set_source(this->layer_param_.image_label_data_param().label_list_path());
   label_param.mutable_data_param()->set_batch_size(this->layer_param_.image_label_data_param().batch_size());
   label_param.mutable_data_param()->set_backend(static_cast<DataParameter_DB>(this->layer_param_.image_label_data_param().backend()));

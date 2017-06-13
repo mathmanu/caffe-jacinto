@@ -1,30 +1,17 @@
 #!/bin/bash
-function pause(){
-  #read -p "$*"
-  echo "$*"
-}
 
 #-------------------------------------------------------
-#rm training/*.caffemodel training/*.prototxt training/*.solverstate training/*.txt
-#rm final/*.caffemodel final/*.prototxt final/*.solverstate final/*.txt
+folder_name="training/jacintonet11_imagenet_2017.06.12";mkdir $folder_name
+model_name="jacintonet11"
+max_iter=320000
+base_lr=0.1
 #-------------------------------------------------------
 
-#-------------------------------------------------------
-LOG="training/train-log-`date +'%Y-%m-%d_%H-%M-%S'`.txt"
-exec &> >(tee -a "$LOG")
-echo Logging output to "$LOG"
-#-------------------------------------------------------
+stage="stage0"
+config_name=$folder_name/$stage;mkdir $config_name
+config_param="{'config_name':'$config_name','model_name':'$model_name','pretrain_model':None}" 
+solver_param="{'type':'SGD','base_lr':$base_lr,'max_iter':$max_iter}"
+python ./models/image_classification.py --config_param="$config_param" --solver_param="$solver_param"
 
-#-------------------------------------------------------
-caffe=../../build/tools/caffe.bin
-gpu="0" #"1,0" #"0"
-#-------------------------------------------------------
 
-#L2 regularized training
-$caffe train --solver="models/sparse/imagenet_classification/jacintonet11_maxpool/jacintonet11(1000)_bn_maxpool_train_L2.prototxt" --gpu=$gpu
-pause 'Finished L2 training. Press [Enter] to continue...'
 
-#Save the final model
-#cp training/*.txt final/
-#cp training/*.caffemodel final/
-#pause 'Done.'

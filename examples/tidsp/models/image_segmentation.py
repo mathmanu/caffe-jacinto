@@ -31,7 +31,7 @@ def main():
             
     #Start populating config_param
     config_param = OrderedDict()
-             
+	
     #Names
     config_param.config_name = 'image_classification'
     config_param.model_name = "jacintonet11"
@@ -78,23 +78,18 @@ def main():
     config_param.num_output = 20
     config_param.batch_size = 16
     config_param.accum_batch_size = 16
-    
-    config_param.solver_mode = P.Solver.CPU
-    config_param.device_id = 0    
 
     # Which layers to freeze (no backward) during training.
     config_param.freeze_layers = []
-            
-    config_param.base_lr = 1e-4
-    config_param.max_iter = 32000  
-                
+                            
     # Evaluate on whole test set.
-    config_param.test_interval = 2000
     config_param.num_test_image = 500
     config_param.test_batch_size = 4
     config_param.test_batch_size_in_proto = config_param.test_batch_size      
     
-    #Updat from params given from outside
+    #Update from params given from outside
+    #if args.config_param != None:
+    #  config_param.update(args.config_param)   
     if args.config_param != None: 
       for k in args.config_param.keys():
         config_param.__setattr__(k,args.config_param[k])
@@ -135,47 +130,44 @@ def main():
     config_param.num_gpus = len(config_param.gpulist)
 
     # Divide the mini-batch to different GPUs.
-    config_param.iter_size = config_param.accum_batch_size / config_param.batch_size
+	# In BVLC caffe, this has to be divided by num GPUs - not required in NVIDIA/caffe
     config_param.train_batch_size_in_proto = config_param.batch_size 
-            
-    #Compute additional tran and test params
-    if config_param.num_gpus > 0:
-      #batch_size_in_proto = int(math.ceil(float(batch_size) / num_gpus)) #not needed for nvcaffe
-      config_param.iter_size = int(math.ceil(float(config_param.accum_batch_size) / (config_param.batch_size)))      
-      config_param.solver_mode = P.Solver.GPU
-      config_param.device_id = int(config_param.gpulist[0])
-    config_param.test_iter = int(config_param.num_test_image / config_param.test_batch_size)
-         
+                  
     #Solver params                   
     solver_param = {
         # Train parameters
 		'type': 'Adam',
-        'base_lr': config_param.base_lr,
-        'max_iter': config_param.max_iter,        
+        'base_lr': 1e-4,
+        'max_iter': 32000, 
         'weight_decay': 0.0001,
         'lr_policy': 'multistep',
-		'stepvalue':[int(config_param.max_iter*3/4)],
+		'stepvalue':[24000],
         'power': 1,
         'gamma': 0.1,
         'momentum': 0.9,
-        'iter_size': config_param.iter_size,
+        'iter_size': int(math.ceil(config_param.accum_batch_size/config_param.batch_size)),
         'snapshot': 10000,
         'display': 100,
         #'average_loss': 10,
-        'solver_mode': config_param.solver_mode,
-        #'device_id': device_id,
+        'solver_mode': P.Solver.GPU if (config_param.num_gpus > 0) else P.Solver.CPU,
+        'device_id': int(config_param.gpulist[0]) if (config_param.num_gpus > 0) else 0,
         'debug_info': False,
         'snapshot_after_train': True,
         # Test parameters
-        'test_iter': [config_param.test_iter],
-        'test_interval': config_param.test_interval,
+        'test_iter': [int(math.ceil(config_param.num_test_image/config_param.test_batch_size))],
+        'test_interval': 2000,
         'test_initialization': False,
         'random_seed': 33,
         }
-
-    if args.solver_param != None:
-      solver_param.update(args.solver_param)
-            
+		
+    #Update from params given from outside
+    #if args.solver_param != None:
+    #  solver_param.update(args.solver_param)       
+    if args.solver_param != None: 
+      for k in args.solver_param.keys():
+        solver_param.__setitem__(k,args.solver_param[k])	  
+        #solver_param.__setattr__(k,args.solver_param[k])
+		
     config_param.train_transform_param = {
             'mirror': True,
             'mean_value': [0, 0, 0],

@@ -54,11 +54,8 @@ def main():
     config_param.image_width = 640
     config_param.image_height = 640
 
-    config_param.train_data = "data/train-image-list.txt" 
-    config_param.train_label = "data/train-label-list.txt" 
-        
-    config_param.test_data = "data/val-image-list.txt"
-    config_param.test_label = "data/val-label-list.txt"    
+    # Select betwen list based ImageData or lmdb
+    config_param.use_image_list = True
     
     config_param.total_stride = 16
 	
@@ -95,6 +92,11 @@ def main():
         config_param.__setattr__(k,args.config_param[k])
         config_param.__setitem__(k,args.config_param[k])		
               
+    config_param.train_data = "data/train-image-list.txt" if config_param.use_image_list else 'data/train-image-lmdb'
+    config_param.train_label = "data/train-label-list.txt" if config_param.use_image_list else 'data/train-label-lmdb'    
+    config_param.test_data = "data/val-image-list.txt" if config_param.use_image_list else 'data/val-image-lmdb'
+    config_param.test_label = "data/val-label-list.txt" if config_param.use_image_list else 'data/val-label-lmdb'
+                  
     # Modify the job name if you want.
     config_param.base_name = config_param.config_name
     config_param.job_name = config_param.base_name
@@ -170,12 +172,12 @@ def main():
 		
     config_param.train_transform_param = {
             'mirror': True,
-            'mean_value': [0, 0, 0],
+            'mean_value': [0], #specify 1 or 3 values
             'crop_size': config_param.crop_size
             }
     config_param.test_transform_param = {
             'mirror': False,
-            'mean_value': [0, 0, 0],
+            'mean_value': [0], #specify 1 or 3 values
             'crop_size': config_param.crop_size
             }
 						
@@ -202,18 +204,30 @@ def main():
         #get the proto string for the data layer in train phase seperately and return it
           
         train_proto_str = []
-        if phase=='train':                 
+        if phase=='train' and config_param.use_image_list:                 
           data_kwargs = {'name': 'data', 'ntop':2, 
              'image_label_data_param': { 'image_list_path': config_param.train_data, 'label_list_path': config_param.train_label, 
              'batch_size': config_param.train_batch_size_in_proto, 'scale_prob': 0.5, 'scale_min': 0.75, 'scale_max': 1.25 } }      
           net['data'], net['label'] = L.ImageLabelListData(transform_param=config_param.train_transform_param, **data_kwargs)
           out_layer = 'data' 
-        elif phase=='test':
+        elif phase=='train':                 
+          data_kwargs = {'name': 'data', 'ntop':2, 
+             'image_label_data_param': { 'image_list_path': config_param.train_data, 'label_list_path': config_param.train_label,
+             'batch_size': config_param.train_batch_size_in_proto, 'backend':caffe_pb2.ImageLabelDataParameter.DB.Value('LMDB') } }      
+          net['data'], net['label'] = L.ImageLabelData(transform_param=config_param.train_transform_param, **data_kwargs)
+          out_layer = 'data'           
+        elif phase=='test' and config_param.use_image_list:
           data_kwargs = { 'name': 'data', 'ntop':2, 
              'image_label_data_param': { 'image_list_path': config_param.test_data, 'label_list_path': config_param.test_label, 
               'batch_size': config_param.test_batch_size_in_proto, 'scale_prob': 0.5, 'scale_min': 0.75, 'scale_max': 1.25 } }         
           net['data'], net['label'] = L.ImageLabelListData(transform_param=config_param.test_transform_param,**data_kwargs)
           out_layer = 'data'
+        elif phase=='test':
+          data_kwargs = { 'name': 'data', 'ntop':2, 
+             'image_label_data_param': { 'image_list_path': config_param.test_data, 'label_list_path': config_param.test_label,
+              'batch_size': config_param.test_batch_size_in_proto, 'backend':caffe_pb2.ImageLabelDataParameter.DB.Value('LMDB')} }         
+          net['data'], net['label'] = L.ImageLabelData(transform_param=config_param.test_transform_param,**data_kwargs)
+          out_layer = 'data'          
         elif phase=='deploy':
           net['data'] = L.Input(shape=[dict(dim=[1, 3, config_param.image_height, config_param.image_width])])
           out_layer = 'data'

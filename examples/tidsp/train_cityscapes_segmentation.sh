@@ -1,14 +1,15 @@
 #!/bin/bash
 
 #-------------------------------------------------------
-folder_name="training/jsegnet21_cityscapes20_2017.06.12";mkdir $folder_name
 model_name="jsegnet21"
+folder_name=training/"$model_name"_cityscapes20_`date +'%Y-%m-%d_%H-%M-%S'`;mkdir $folder_name
 
 #------------------------------------------------
 max_iter=32000
 stepvalue=24000
 threshold_step_factor=1e-6
 base_lr=1e-4
+use_image_list=1
 
 #------------------------------------------------
 solver_param="{'type':'Adam','base_lr':$base_lr,'max_iter':$max_iter}"
@@ -37,7 +38,7 @@ fi
 stage="stage0"
 weights=$weights_dst
 config_name="$folder_name"/$stage; echo $config_name; mkdir $config_name
-config_param="{'config_name':'$config_name','model_name':'$model_name','pretrain_model':'$weights'}" 
+config_param="{'config_name':'$config_name','model_name':'$model_name','pretrain_model':'$weights','use_image_list':$use_image_list}" 
 python ./models/image_segmentation.py --config_param="$config_param" --solver_param=$solver_param
 config_name_prev=$config_name
 
@@ -45,7 +46,7 @@ config_name_prev=$config_name
 stage="stage1"
 weights="$config_name_prev/jsegnet21_iter_$max_iter.caffemodel"
 config_name="$folder_name"/$stage; echo $config_name; mkdir $config_name
-config_param="{'config_name':'$config_name','model_name':'$model_name','pretrain_model':'$weights'}" 
+config_param="{'config_name':'$config_name','model_name':'$model_name','pretrain_model':'$weights','use_image_list':$use_image_list}" 
 $caffe threshold --threshold_fraction_low 0.40 --threshold_fraction_mid 0.70 --threshold_fraction_high 0.70 --threshold_value_max 0.2 --threshold_value_maxratio 0.2 --threshold_step_factor $threshold_step_factor --model="$config_name_prev/deploy.prototxt" --gpu="0" --weights=$weights --output="$config_name/jsegnet21_iter_$max_iter.caffemodel"
 config_name_prev=$config_name
 
@@ -53,7 +54,7 @@ config_name_prev=$config_name
 stage="stage2"
 weights="$config_name_prev/jsegnet21_iter_$max_iter.caffemodel"
 config_name="$folder_name"/$stage; echo $config_name; mkdir $config_name
-config_param="{'config_name':'$config_name','model_name':'$model_name','pretrain_model':'$weights'}" 
+config_param="{'config_name':'$config_name','model_name':'$model_name','pretrain_model':'$weights','use_image_list':$use_image_list}" 
 python ./models/image_segmentation.py --config_param="$config_param" --solver_param=$sparse_solver_param
 config_name_prev=$config_name
 
@@ -61,7 +62,7 @@ config_name_prev=$config_name
 stage="stage3"
 weights="$config_name_prev/jsegnet21_iter_$max_iter.caffemodel"
 config_name="$folder_name"/$stage; echo $config_name; mkdir $config_name
-config_param="{'config_name':'$config_name','model_name':'$model_name','pretrain_model':'$weights'}" 
+config_param="{'config_name':'$config_name','model_name':'$model_name','pretrain_model':'$weights','use_image_list':$use_image_list}" 
 $caffe threshold --threshold_fraction_low 0.40 --threshold_fraction_mid 0.80 --threshold_fraction_high 0.80 --threshold_value_max 0.2 --threshold_value_maxratio 0.2 --threshold_step_factor $threshold_step_factor --model="$config_name_prev/deploy.prototxt" --gpu="0" --weights=$weights --output="$config_name/jsegnet21_iter_$max_iter.caffemodel"
 config_name_prev=$config_name
 
@@ -69,7 +70,7 @@ config_name_prev=$config_name
 stage="stage4"
 weights="$config_name_prev/jsegnet21_iter_$max_iter.caffemodel"
 config_name="$folder_name"/$stage; echo $config_name; mkdir $config_name
-config_param="{'config_name':'$config_name','model_name':'$model_name','pretrain_model':'$weights'}" 
+config_param="{'config_name':'$config_name','model_name':'$model_name','pretrain_model':'$weights','use_image_list':$use_image_list}" 
 python ./models/image_segmentation.py --config_param="$config_param" --solver_param=$sparse_solver_param
 config_name_prev=$config_name
 
@@ -77,7 +78,7 @@ config_name_prev=$config_name
 stage="stage5"
 weights="$config_name_prev/jsegnet21_iter_$max_iter.caffemodel"
 config_name="$folder_name"/$stage; echo $config_name; mkdir $config_name
-config_param="{'config_name':'$config_name','model_name':'$model_name','pretrain_model':'$weights'}" 
+config_param="{'config_name':'$config_name','model_name':'$model_name','pretrain_model':'$weights','use_image_list':$use_image_list}" 
 $caffe threshold --threshold_fraction_low 0.40 --threshold_fraction_mid 0.90 --threshold_fraction_high 0.90 --threshold_value_max 0.2 --threshold_value_maxratio 0.2 --threshold_step_factor $threshold_step_factor --model="$config_name_prev/deploy.prototxt" --gpu="0" --weights=$weights --output="$config_name/jsegnet21_iter_$max_iter.caffemodel"
 config_name_prev=$config_name
 
@@ -85,7 +86,7 @@ config_name_prev=$config_name
 stage="stage6"
 weights="$config_name_prev/jsegnet21_iter_$max_iter.caffemodel"
 config_name="$folder_name"/$stage; echo $config_name; mkdir $config_name
-config_param="{'config_name':'$config_name','model_name':'$model_name','pretrain_model':'$weights'}" 
+config_param="{'config_name':'$config_name','model_name':'$model_name','pretrain_model':'$weights','use_image_list':$use_image_list}" 
 python ./models/image_segmentation.py --config_param="$config_param" --solver_param=$sparse_solver_param
 config_name_prev=$config_name
 
@@ -93,6 +94,6 @@ config_name_prev=$config_name
 stage="stage7"
 weights="$config_name_prev/jsegnet21_iter_$max_iter.caffemodel"
 config_name="$folder_name"/$stage; echo $config_name; mkdir $config_name
-config_param="{'config_name':'$config_name','model_name':'$model_name','pretrain_model':'$weights'}" 
+config_param="{'config_name':'$config_name','model_name':'$model_name','pretrain_model':'$weights','use_image_list':$use_image_list}" 
 python ./models/image_segmentation.py --config_param="$config_param" --solver_param=$quant_solver_param
 config_name_prev=$config_name

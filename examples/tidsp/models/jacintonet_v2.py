@@ -1,6 +1,6 @@
 from __future__ import print_function
 import caffe
-from caffe.model_libs import *
+from models.model_libs import *
 
 def jacintonet11(net, from_layer=None, use_batchnorm=True, use_relu=True, num_output=1000, total_stride=32, freeze_layers=[]):  
    in_place = False #Top and Bottom blobs must be different for NVCaffe BN caffe-0.15

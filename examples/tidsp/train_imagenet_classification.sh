@@ -1,8 +1,9 @@
 #!/bin/bash
 
 #-------------------------------------------------------
-folder_name="training/jacintonet11_imagenet_2017.06.12";mkdir $folder_name
 model_name="jacintonet11"
+folder_name=training/"$model_name"_imagenet_`date +'%Y-%m-%d_%H-%M-%S'`;mkdir $folder_name
+
 max_iter=320000
 base_lr=0.1
 #-------------------------------------------------------

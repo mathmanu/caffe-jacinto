@@ -9,7 +9,7 @@ max_iter=32000
 stepvalue=24000
 threshold_step_factor=1e-6
 base_lr=1e-4
-use_image_list=1
+use_image_list=0
 
 #------------------------------------------------
 solver_param="{'type':'Adam','base_lr':$base_lr,'max_iter':$max_iter}"

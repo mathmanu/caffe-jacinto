@@ -35,6 +35,7 @@ def main():
     #Names
     config_param.config_name = 'image_classification'
     config_param.model_name = "jacintonet11"
+    config_param.dataset = "nodataset"       
     config_param.pretrain_model = None
                           
     ### Modify the following parameters accordingly ###
@@ -118,7 +119,7 @@ def main():
     config_param.deploy_net_file = "{}/deploy.prototxt".format(config_param.save_dir)
     config_param.solver_file = "{}/solver.prototxt".format(config_param.save_dir)
     # snapshot prefix.
-    config_param.snapshot_prefix = "{}/{}".format(config_param.snapshot_dir, config_param.model_name)
+    config_param.snapshot_prefix = "{}/{}_{}".format(config_param.snapshot_dir, config_param.model_name, config_param.dataset)
     # job script path.
     config_param.job_file_base = "{}/{}".format(config_param.job_dir, 'train')
     config_param.log_file = "{}.log".format(config_param.job_file_base)    

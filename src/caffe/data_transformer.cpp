@@ -301,7 +301,8 @@ void DataTransformer<Dtype>::TransformPtrInt(Datum* datum,
   }
   if (has_mean_values) {
     CHECK(mean_values_.size() == 1 || mean_values_.size() == datum_channels) <<
-     "Specify either 1 mean_value or as many as channels: " << datum_channels;
+        "Specify either 1 mean_value or as many as channels: " <<
+        "(mean_values: " << mean_values_.size() << " datum_channels: " << datum_channels << ")";
     if (datum_channels > 1 && mean_values_.size() == 1) {
       // Replicate the mean_value for simplicity
       for (int c = 1; c < datum_channels; ++c) {

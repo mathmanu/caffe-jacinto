@@ -1526,7 +1526,16 @@ void Net<Dtype>::AddQuantizationParams() {
     if(layers_[layer_id]->layer_param().type() == "Convolution" || layers_[layer_id]->layer_param().type() == "InnerProduct") {
       QuantizationParameter& quantization_param = *layers_[layer_id]->mutable_layer_param().mutable_quantization_param();
       quantization_param.set_quantize_layer_weights(true);
-      if((layer_id+1) < layers_.size() && layers_[layer_id+1]->layer_param().type() != "ReLU") {
+      if((layer_id+1) < layers_.size() && layers_[layer_id+1]->layer_param().type() != "ReLU" &&
+          layers_[layer_id+1]->layer_param().type() != "BatchNorm") {
+        quantization_param.set_quantize_layer_out(true);
+      }
+    } else if(layers_[layer_id]->layer_param().type() == "BatchNorm") {
+      QuantizationParameter& quantization_param = *layers_[layer_id]->mutable_layer_param().mutable_quantization_param();
+      if((layer_id+1) < layers_.size() && layers_[layer_id+1]->layer_param().type() != "Convolution" &&
+          layers_[layer_id+1]->layer_param().type() != "InnerProduct" &&
+          layers_[layer_id+1]->layer_param().type() != "ReLU" &&
+          layers_[layer_id+1]->layer_param().type() != "Scale") {
         quantization_param.set_quantize_layer_out(true);
       }
     } else if(layers_[layer_id]->layer_param().type() == "ReLU" || layers_[layer_id]->layer_param().type() == "Scale" ||

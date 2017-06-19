@@ -14,6 +14,8 @@ template <typename Dtype>
 void CuDNNBatchNormLayer<Dtype>::Forward_gpu(
     const vector<Blob<Dtype>*>& bottom,
     const vector<Blob<Dtype>*>& top) {
+  this->Quantize_gpu(bottom, top);
+
   const Dtype* bottom_data = bottom[0]->gpu_data();
   const Dtype* scale_data = this->blobs_[0]->gpu_data();
   const Dtype* bias_data = this->blobs_[1]->gpu_data();
@@ -47,6 +49,8 @@ void CuDNNBatchNormLayer<Dtype>::Forward_gpu(
   } else {
     LOG(FATAL) << "Unknown phase";
   }
+
+  this->Quantize_gpu(bottom, top);
 }
 
 template <typename Dtype>

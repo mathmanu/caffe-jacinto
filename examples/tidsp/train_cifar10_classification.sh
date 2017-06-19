@@ -120,6 +120,7 @@ config_name_prev=$config_name
 
 #quantization
 stage="stage7"
+base_lr=1e-4
 weights=$config_name_prev/"$model_name"_"$dataset"_iter_$max_iter.caffemodel
 config_name="$folder_name"/$stage; echo $config_name; mkdir $config_name
 config_param="{'config_name':'$config_name','model_name':'$model_name','dataset':'$dataset','stride_list':$stride_list,'pretrain_model':'$weights',\

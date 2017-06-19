@@ -47,6 +47,8 @@ void BatchNormLayer<Dtype>::compute_mean_per_channel_gpu(int N, int C, int S,
 template <typename Dtype>
 void BatchNormLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
     const vector<Blob<Dtype>*>& top) {
+  this->Quantize_gpu(bottom, top);
+
   int N = bottom[0]->shape(0);
   int C = channels_;
   int S = bottom[0]->count(0) / (N*C);
@@ -138,6 +140,8 @@ void BatchNormLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
   const Blob<Dtype> & shift_data = *(this->blobs_[1]);
   multicast_gpu(N, C, S, shift_data.gpu_data(), temp_.mutable_gpu_data());
   caffe_gpu_add(top_size, top_data, temp_.mutable_gpu_data(), top_data);
+
+  this->Quantize_gpu(bottom, top);
 }
 
 template <typename Dtype>

@@ -23,7 +23,7 @@ base_lr=0.1
 threshold_step_factor=1e-6
 type=SGD
 batch_size=64
-stride_list="[1,2,1,2,1]"
+stride_list="[1,1,2,1,2]"
 #-------------------------------------------------------
 solver_param="{'type':'$type','base_lr':$base_lr,'max_iter':$max_iter,'test_interval':1000}"
 

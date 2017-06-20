@@ -27,9 +27,6 @@ stride_list="[1,1,2,1,2]"
 #-------------------------------------------------------
 solver_param="{'type':'$type','base_lr':$base_lr,'max_iter':$max_iter,'test_interval':1000}"
 
-base_lr=1e-3  #use a lower lr for fine tuning
-sparse_solver_param="{'type':'$type','base_lr':$base_lr,'max_iter':$max_iter,'test_interval':1000,\
-'sparse_mode':1,'display_sparsity':1000}"
 
 #-------------------------------------------------------
 stage="stage0"
@@ -55,9 +52,15 @@ config_param="{'config_name':'$config_name','model_name':'$model_name','dataset'
 $caffe threshold --threshold_fraction_low 0.40 --threshold_fraction_mid 0.70 --threshold_fraction_high 0.70 --threshold_value_max 0.2 --threshold_value_maxratio 0.2 --threshold_step_factor $threshold_step_factor --model="$config_name_prev/deploy.prototxt" --gpu="0" --weights=$weights --output=$config_name/"$model_name"_"$dataset"_iter_$max_iter.caffemodel
 config_name_prev=$config_name
 
+#-------------------------------------------------------
 #fine tuning
 stage="stage2"
 weights=$config_name_prev/"$model_name"_"$dataset"_iter_$max_iter.caffemodel
+
+base_lr=1e-3  #use a lower lr for fine tuning
+sparse_solver_param="{'type':'$type','base_lr':$base_lr,'max_iter':$max_iter,'test_interval':1000,\
+'sparse_mode':1,'display_sparsity':1000}"
+
 config_name="$folder_name"/$stage; echo $config_name; mkdir $config_name
 config_param="{'config_name':'$config_name','model_name':'$model_name','dataset':'$dataset','stride_list':$stride_list,'pretrain_model':'$weights',\
 'num_output':10,'image_width':32,'image_height':32,'crop_size':32,\

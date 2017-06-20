@@ -101,10 +101,10 @@ config_name_prev=$config_name
 
 #quantization
 stage="stage7"
+weights=$config_name_prev/"$model_name"_"$dataset"_iter_$max_iter.caffemodel
 max_iter=4000
 quant_solver_param="{'type':'Adam','base_lr':$base_lr,'max_iter':$max_iter,'lr_policy':'multistep','stepvalue':[$stepvalue],\
 'sparse_mode':1,'display_sparsity':1000,'insert_quantization_param':1,'quantization_start_iter':2000,'snapshot_log':1}"
-weights=$config_name_prev/"$model_name"_"$dataset"_iter_$max_iter.caffemodel
 config_name="$folder_name"/$stage; echo $config_name; mkdir $config_name
 config_param="{'config_name':'$config_name','model_name':'$model_name','dataset':'$dataset','pretrain_model':'$weights','use_image_list':$use_image_list}" 
 python ./models/image_segmentation.py --config_param="$config_param" --solver_param=$quant_solver_param

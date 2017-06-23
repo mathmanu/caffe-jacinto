@@ -18,8 +18,8 @@ echo Logging output to "$LOG"
 caffe="../../build/tools/caffe.bin"
 
 #-------------------------------------------------------
-max_iter=1 #64000
-base_lr=0 #0.1
+max_iter=64000
+base_lr=0.1
 threshold_step_factor=1e-6
 type=SGD
 batch_size=64
@@ -60,10 +60,13 @@ stage="stage2"
 weights=$config_name_prev/"$model_name"_"$dataset"_iter_$max_iter.caffemodel
 
 max_iter=64000
+stepvalue1=32000
+stepvalue2=48000
 type=SGD
 base_lr=0.01
 
 sparse_solver_param="{'type':'$type','base_lr':$base_lr,'max_iter':$max_iter,'test_interval':1000,\
+'lr_policy':'multistep','stepvalue':[$stepvalue1,$stepvalue2],\
 'sparse_mode':1,'display_sparsity':1000}"
 
 config_name="$folder_name"/$stage; echo $config_name; mkdir $config_name
@@ -80,7 +83,9 @@ config_name_prev=$config_name
 #-------------------------------------------------------
 #quantization
 stage="stage3"
+base_lr=0.001
 quant_solver_param="{'type':'$type','base_lr':$base_lr,'max_iter':$max_iter,'test_interval':1000,\
+'lr_policy':'multistep','stepvalue':[$stepvalue1,$stepvalue2],\
 'sparse_mode':1,'display_sparsity':1000,\
 'insert_quantization_param':1,'quantization_start_iter':2000,'snapshot_log':1}"
 

@@ -16,7 +16,6 @@ template <typename Dtype>
 DataLayer<Dtype>::DataLayer(const LayerParameter& param)
   : BasePrefetchingDataLayer<Dtype>(param),
     reader_(param) {
-    this->rand_seed_ = this->layer_param_.data_param().rand_seed();
     // Check user override in param file
     if (this->layer_param_.data_param().threads() == 0) {
 #ifndef CPU_ONLY

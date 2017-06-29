@@ -61,6 +61,7 @@ void Solver<Dtype>::Init(const SolverParameter& param) {
   }
   iter_ = 0;
   current_step_ = 0;
+  sparsity_factor_ = param_.sparsity_start_factor();
 }
 
 template <typename Dtype>
@@ -232,12 +233,6 @@ void Solver<Dtype>::FinishQuantization(shared_ptr<Net<Dtype> >& net) {
   }
 }
 
-template<typename Dtype>
-void Solver<Dtype>::SetSparseMode() {
-  if (param_.sparse_mode() != caffe::SPARSE_NONE) {
-    net_->SetSparseMode(param_.sparse_mode());
-  }
-}
 
 template <typename Dtype>
 void Solver<Dtype>::Step(int iters) {
@@ -328,25 +323,11 @@ void Solver<Dtype>::Step(int iters) {
       callbacks_[i]->syncCommStream();
     }
 
-    /*
-    if(param_.display_sparsity() > 0 && (iter_ % param_.display_sparsity()) == 0) {
-      if(Caffe::root_solver()) {
-        LOG(INFO) << "Sparsity before update:";
-        net_->DisplaySparsity(0.0);
-      }
-    }*/
 
     ApplyUpdate();
 
     if(param_.insert_quantization_param()) {
       FinishQuantization(net_);
-    }
-
-    if(param_.display_sparsity() > 0 && (iter_ % param_.display_sparsity()) == 0) {
-      if(Caffe::root_solver()) {
-        LOG(INFO) << "Sparsity after update:";
-        net_->DisplaySparsity(0.0);
-      }
     }
 
     // Increment the internal iter_ counter -- its value should always indicate
@@ -370,11 +351,57 @@ void Solver<Dtype>::Step(int iters) {
   }
 }
 
+
+template<typename Dtype>
+void Solver<Dtype>::ThresholdNet() {
+  //induce incremental sparsity
+  if (Caffe::root_solver()) {
+    if(param_.sparsity_target() > 0.0 && sparsity_factor_ < param_.sparsity_target()) {
+      if((iter_ % param_.sparsity_step_iter())==0 && iter_ >= param_.sparsity_start_iter()) {
+        sparsity_factor_ += param_.sparsity_step_factor();
+        float threshold_fraction_low = sparsity_factor_/2;
+        float threshold_fraction_mid = sparsity_factor_;
+        float threshold_fraction_high = sparsity_factor_;
+        float threshold_value_maxratio = 0.2;
+        float threshold_value_max = 0.2;
+        float threshold_step_factor = 1e-6;
+
+        LOG(INFO) << "Finding and applying thresholds. Target sparsity = " << sparsity_factor_;
+        net_->FindAndApplyThresholdNet(threshold_fraction_low, threshold_fraction_mid, threshold_fraction_high,
+            threshold_value_maxratio, threshold_value_max, threshold_step_factor, false);
+
+        this->StoreSparseModeConnectivity();
+
+        //LOG(INFO) << "Sparsity after threshold:";
+        //this->DisplaySparsity();
+      }
+    }
+
+    if(param_.sparse_mode() != SPARSE_NONE) {
+      net_->ApplySparseModeConnectivity();
+    }
+  }
+}
+
+template<typename Dtype>
+void Solver<Dtype>::StoreSparseModeConnectivity() {
+  if (param_.sparse_mode() != caffe::SPARSE_NONE) {
+    net_->StoreSparseModeConnectivity(param_.sparse_mode());
+  }
+}
+
+template<typename Dtype>
+void Solver<Dtype>::DisplaySparsity() {
+  LOG(INFO) << "sparsity_target=" << param_.sparsity_target()
+      << " sparsity_factor=" << sparsity_factor_ << " iter=" << iter_;
+  net_->DisplaySparsity();
+}
+
 template <typename Dtype>
 void Solver<Dtype>::Solve(const char* resume_file) {
   CHECK(Caffe::root_solver());
 
-  this->SetSparseMode();
+  this->StoreSparseModeConnectivity();
 
   LOG(INFO) << "Solving " << net_->name();
   LOG(INFO) << "Learning Rate Policy: " << param_.lr_policy();

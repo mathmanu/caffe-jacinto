@@ -8,14 +8,6 @@
 
 namespace caffe {
 
-template <typename Dtype>
-void BaseConvolutionLayer<Dtype>::SetSparseMode(SparseMode mode){
-  //disconnect connections
-  if(mode != SPARSE_NONE){
-      LOG(INFO)<<"all zero weights of "<<this->layer_param().name()<<" are frozen";
-      this->blobs_[0]->SetSparseMode(mode);
-  }
-}
 
 template <typename Dtype>
 void BaseConvolutionLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,

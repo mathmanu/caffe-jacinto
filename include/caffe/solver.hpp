@@ -117,11 +117,14 @@ class Solver {
   void DisplayOutputBlobs(const int net_id);
   void UpdateSmoothedLoss(Dtype loss, int start_iter, int average_loss);
 
+public:
   void StartQuantization(shared_ptr<Net<Dtype> >& net);
   void FinishQuantization(shared_ptr<Net<Dtype> >& net);
-  void SetSparseMode();
-
-
+  void StoreSparseModeConnectivity();
+  void ThresholdNet();
+  void DisplaySparsity();
+  
+ protected:
   SolverParameter param_;
   int iter_;
   int current_step_;
@@ -146,6 +149,8 @@ class Solver {
   Timer iteration_timer_;
   float iterations_last_;
 
+  float sparsity_factor_;
+  
   DISABLE_COPY_AND_ASSIGN(Solver);
 };
 

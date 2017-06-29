@@ -1073,11 +1073,13 @@ vector<int> DataTransformer<Dtype>::InferBlobShape(
 #endif  // USE_OPENCV
 
 template <typename Dtype>
-void DataTransformer<Dtype>::InitRand(unsigned int rand_seed) {
+void DataTransformer<Dtype>::InitRand() {
   const bool needs_rand = param_.mirror() || (phase_ == TRAIN && param_.crop_size());
   if (needs_rand) {
-    const unsigned int rng_seed = rand_seed? rand_seed : caffe_rng_rand();
-    rng_.reset(new Caffe::RNG(rng_seed));
+    // Use random_seed setting for deterministic transformations
+    const uint64_t random_seed = param_.random_seed() >= 0 ?
+        static_cast<uint64_t>(param_.random_seed()) : caffe_rng_rand();
+    rng_.reset(new Caffe::RNG(random_seed));
   } else {
     rng_.reset();
   }

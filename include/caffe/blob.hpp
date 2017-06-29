@@ -24,7 +24,7 @@ template <typename Dtype>
 class Blob {
  public:
   Blob()
-       : data_(), diff_(), count_(0), capacity_(0), sparse_mode_(SPARSE_NONE) {}
+       : data_(), diff_(), count_(0), capacity_(0) {}
 
   /// @brief Deprecated; use <code>Blob(const vector<int>& shape)</code>.
   explicit Blob(const int num, const int channels, const int height,
@@ -225,7 +225,7 @@ class Blob {
   }
 
   inline const shared_ptr<SyncedMemory>& connectivity() const {
-    CHECK(connectivity_);
+    //CHECK(connectivity_);
     return connectivity_;
   }
 
@@ -253,7 +253,6 @@ class Blob {
   void Zerout(const Dtype threshold);
   Dtype max() const;
   Dtype min() const;
-  void SetSparseMode(const SparseMode mode, const Dtype threshold=0.0f, const bool threshold_weights=false);
   inline void Connect(){ InitializeConnectivity(); }
   int count_zero(const Dtype threshold) const;
   
@@ -296,6 +295,10 @@ class Blob {
   bool ShapeEquals(const BlobProto& other);
 
   void InitializeConnectivity(Dtype val = 1.0);
+  void ComputeSparseDiff();
+  void ComputeSparseData();
+  void StoreSparseModeConnectivity(const SparseMode mode);
+  
 
  protected:
   shared_ptr<SyncedMemory> data_;
@@ -305,7 +308,6 @@ class Blob {
   vector<int> shape_;
   int count_;
   int capacity_;
-  SparseMode sparse_mode_;
   
 
   DISABLE_COPY_AND_ASSIGN(Blob);

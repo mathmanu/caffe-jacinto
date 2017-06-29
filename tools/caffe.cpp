@@ -556,8 +556,9 @@ int threshold() {
   caffe_net.CopyTrainedLayersFrom(FLAGS_weights);
 
   LOG(INFO) << "Thresholding Net " << FLAGS_model;
-  caffe_net.ThresholdNet(FLAGS_threshold_fraction_low, FLAGS_threshold_fraction_mid, FLAGS_threshold_fraction_high,
+  caffe_net.FindAndApplyThresholdNet(FLAGS_threshold_fraction_low, FLAGS_threshold_fraction_mid, FLAGS_threshold_fraction_high,
       FLAGS_threshold_value_maxratio, FLAGS_threshold_value_max, FLAGS_threshold_step_factor);
+  caffe_net.DisplaySparsity();
 
   boost::filesystem::path output_path(FLAGS_output);
   string output_prefix = output_path.parent_path().string() + "/" + output_path.stem().string();

@@ -92,11 +92,6 @@ class Layer {
   virtual void LayerSetUp(const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top) {}
 
-  /*
-   * typically for convolutional layers, to align nonzero weights together
-   * */
-  virtual void SetSparseMode(SparseMode mode) {}
-
   /**
    * @brief Whether a layer should be shared by multiple nets during data
    *        parallelism. By default, all layers except for data layers should

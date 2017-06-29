@@ -354,7 +354,7 @@ void P2PSync<Dtype>::divide_batch_size(NetParameter* net) {
       if (net->layer(i).data_param().has_batch_size()) {
         uint32_t total = net->layer(i).data_param().batch_size();
         uint32_t batch = total / solver_count;
-        CHECK(batch * solver_count == total) << m;
+        LOG_IF(WARNING, batch * solver_count == total) << m;
         net->mutable_layer(i)->mutable_data_param()->set_batch_size(batch);
       }
     }
@@ -362,7 +362,7 @@ void P2PSync<Dtype>::divide_batch_size(NetParameter* net) {
       if (net->layer(i).hdf5_data_param().has_batch_size()) {
         uint32_t total = net->layer(i).hdf5_data_param().batch_size();
         uint32_t batch = total / solver_count;
-        CHECK(batch * solver_count == total) << m;
+        LOG_IF(WARNING, batch * solver_count == total) << m;
         net->mutable_layer(i)->mutable_hdf5_data_param()->set_batch_size(batch);
       }
     }
@@ -370,7 +370,7 @@ void P2PSync<Dtype>::divide_batch_size(NetParameter* net) {
       if (net->layer(i).image_data_param().has_batch_size()) {
         uint32_t total = net->layer(i).image_data_param().batch_size();
         uint32_t batch = total / solver_count;
-        CHECK(batch * solver_count == total) << m;
+        LOG_IF(WARNING, batch * solver_count == total) << m;
         net->mutable_layer(i)->mutable_image_data_param()->set_batch_size(
             batch);
       }
@@ -379,7 +379,7 @@ void P2PSync<Dtype>::divide_batch_size(NetParameter* net) {
       if (net->layer(i).memory_data_param().has_batch_size()) {
         uint32_t total = net->layer(i).memory_data_param().batch_size();
         uint32_t batch = total / solver_count;
-        CHECK(batch * solver_count == total) << m;
+        LOG_IF(WARNING, batch * solver_count == total) << m;
         net->mutable_layer(i)->mutable_memory_data_param()->set_batch_size(
             batch);
       }
@@ -388,7 +388,7 @@ void P2PSync<Dtype>::divide_batch_size(NetParameter* net) {
       if (net->layer(i).window_data_param().has_batch_size()) {
         uint32_t total = net->layer(i).window_data_param().batch_size();
         uint32_t batch = total / solver_count;
-        CHECK(batch * solver_count == total) << m;
+        LOG_IF(WARNING, batch * solver_count == total) << m;
         net->mutable_layer(i)->mutable_window_data_param()->set_batch_size(
             batch);
       }
@@ -397,7 +397,7 @@ void P2PSync<Dtype>::divide_batch_size(NetParameter* net) {
       if (net->layer(i).image_label_data_param().has_batch_size()) {
         uint32_t total = net->layer(i).image_label_data_param().batch_size();
         uint32_t batch = total / solver_count;
-        CHECK(batch * solver_count == total) << m;
+        LOG_IF(WARNING, batch * solver_count == total) << m;
         net->mutable_layer(i)->mutable_image_label_data_param()->set_batch_size(batch);
       }
     }

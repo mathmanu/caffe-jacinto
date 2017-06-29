@@ -240,7 +240,7 @@ class Net {
   /**
    * @brief Get the count of zero coefficients
    */
-  int GetSparsity(std::map<std::string, std::pair<int,int> >& sparsity_map, const Dtype threshold);
+  int GetSparsity(std::map<std::string, std::pair<int,int> >& sparsity_map, const Dtype threshold = 0);
   void ClearQuantizationRangeInLayers();
   void UpdateQuantizationRangeInLayers();
   void CopyQuantizationRangeInLayers();
@@ -277,12 +277,13 @@ class Net {
 		  bool& unsigned_layer_out, Dtype& min_layer_out, Dtype& max_layer_out);
 
   void OptimizeNet();
-  void ThresholdNet(float threshold_fraction_low, float threshold_fraction_mid, float threshold_fraction_high,
-      float threshold_value_maxratio, float threshold_value, float threshold_step_factor);
-  void DisplaySparsity(float sparsity_threshold = 0.0f);
-
-  void SetSparseMode(SparseMode mode);
-
+  
+  void FindAndApplyThresholdNet(float threshold_fraction_low, float threshold_fraction_mid, float threshold_fraction_high,
+      float threshold_value_maxratio, float threshold_value, float threshold_step_factor, bool verbose = true);
+  void ApplySparseModeConnectivity();  
+  void StoreSparseModeConnectivity(SparseMode mode);
+  void DisplaySparsity();
+  
  protected:
   // Helpers for Init.
   /// @brief Append a new top blob to the net.

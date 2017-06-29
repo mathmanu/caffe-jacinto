@@ -41,9 +41,8 @@ void Blob<Dtype>::Reshape(const vector<int>& shape) {
   if (count_ > capacity_) {
     capacity_ = count_;
     data_.reset(new SyncedMemory(capacity_ * sizeof(Dtype)));
-    connectivity_.reset(new SyncedMemory(capacity_ * sizeof(Dtype)));
     diff_.reset(new SyncedMemory(capacity_ * sizeof(Dtype)));
-    InitializeConnectivity();
+    //InitializeConnectivity();
   }
 }
 
@@ -66,14 +65,14 @@ template <typename Dtype>
 Blob<Dtype>::Blob(const int num, const int channels, const int height,
     const int width)
   // capacity_ must be initialized before calling Reshape
-  : capacity_(0), sparse_mode_(SPARSE_NONE) {
+  : capacity_(0) {
   Reshape(num, channels, height, width);
 }
 
 template <typename Dtype>
 Blob<Dtype>::Blob(const vector<int>& shape)
   // capacity_ must be initialized before calling Reshape
-  : capacity_(0), sparse_mode_(SPARSE_NONE) {
+  : capacity_(0) {
   Reshape(shape);
 }
 
@@ -181,16 +180,71 @@ template <> void Blob<unsigned int>::Update() { NOT_IMPLEMENTED; }
 template <> void Blob<int>::Update() { NOT_IMPLEMENTED; }
 
 template <typename Dtype>
+void Blob<Dtype>::ComputeSparseDiff() {
+  if(connectivity_ == NULL) {
+    return;
+  }
+  // We will perform update based on where the data is located.
+  switch (data_->head()) {
+  case SyncedMemory::HEAD_AT_CPU:
+    // perform computation on CPU
+    caffe_cpu_eltwise_multi(count_,
+	  static_cast<const Dtype*>(connectivity_->cpu_data()),
+	  static_cast<Dtype*>(diff_->mutable_cpu_data()) );
+    break;
+  case SyncedMemory::HEAD_AT_GPU:
+  case SyncedMemory::SYNCED:
+#ifndef CPU_ONLY
+    // perform computation on GPU
+    caffe_gpu_eltwise_multi(count_,
+	  static_cast<const Dtype*>(connectivity_->gpu_data()),
+	  static_cast<Dtype*>(diff_->mutable_gpu_data()) );
+    
+#else
+    NO_GPU;
+#endif
+    break;
+  default:
+    LOG(FATAL) << "Syncedmem not initialized.";
+  }
+}
+
+template <typename Dtype>
+void Blob<Dtype>::ComputeSparseData() {
+  if(connectivity_ == NULL) {
+    return;
+  }
+  // We will perform update based on where the data is located.
+  switch (data_->head()) {
+  case SyncedMemory::HEAD_AT_CPU:
+    // perform computation on CPU
+    caffe_cpu_eltwise_multi(count_,
+	  static_cast<const Dtype*>(connectivity_->cpu_data()),
+	  static_cast<Dtype*>(data_->mutable_cpu_data()) );
+    break;
+  case SyncedMemory::HEAD_AT_GPU:
+  case SyncedMemory::SYNCED:
+#ifndef CPU_ONLY
+    // perform computation on GPU
+    caffe_gpu_eltwise_multi(count_,
+	  static_cast<const Dtype*>(connectivity_->gpu_data()),
+	  static_cast<Dtype*>(data_->mutable_gpu_data()) );
+    
+#else
+    NO_GPU;
+#endif
+    break;
+  default:
+    LOG(FATAL) << "Syncedmem not initialized.";
+  }
+}
+
+template <typename Dtype>
 void Blob<Dtype>::Update() {
   // We will perform update based on where the data is located.
   switch (data_->head()) {
   case SyncedMemory::HEAD_AT_CPU:
     // perform computation on CPU
-    if(sparse_mode_ != SPARSE_NONE && connectivity_!=NULL) {
-      caffe_cpu_eltwise_multi(count_,
-			static_cast<const Dtype*>(connectivity_->cpu_data()),
-			static_cast<Dtype*>(diff_->mutable_cpu_data()) );
-    }
     caffe_axpy<Dtype>(count_, Dtype(-1),
         static_cast<const Dtype*>(diff_->cpu_data()),
         static_cast<Dtype*>(data_->mutable_cpu_data()));
@@ -199,11 +253,6 @@ void Blob<Dtype>::Update() {
   case SyncedMemory::SYNCED:
 #ifndef CPU_ONLY
     // perform computation on GPU
-    if(sparse_mode_ != SPARSE_NONE && connectivity_!=NULL) {
-      caffe_gpu_eltwise_multi(count_,
-			static_cast<const Dtype*>(connectivity_->gpu_data()),
-			static_cast<Dtype*>(diff_->mutable_gpu_data()) );
-    }
     caffe_gpu_axpy<Dtype>(count_, Dtype(-1),
         static_cast<const Dtype*>(diff_->gpu_data()),
         static_cast<Dtype*>(data_->mutable_gpu_data()));
@@ -319,34 +368,38 @@ Dtype Blob<Dtype>::min() const {
 }
 
 template <typename Dtype>
-void Blob<Dtype>::SetSparseMode(const SparseMode mode, const Dtype threshold, const bool threshold_weights) {
+void Blob<Dtype>::StoreSparseModeConnectivity(const SparseMode mode) {
     CHECK(mode != SPARSE_NONE);
-    if(threshold_weights) {
-      this->Zerout(threshold);
-    }
-	if(mode == SPARSE_UPDATE){
-		switch (Caffe::mode()) {
-			case Caffe::CPU: {
-				  caffe_cpu_if_nonzerout(count_, threshold,
+	
+	const Dtype threshold = 0;
+	//const bool threshold_weights = true;
+	
+    //if(threshold_weights) {
+    //  this->Zerout(threshold);
+    //}
+	
+	InitializeConnectivity();
+	
+	switch (Caffe::mode()) {
+		case Caffe::CPU: {
+			caffe_cpu_if_nonzerout(count_, threshold,
 						  static_cast<const Dtype*>(data_->cpu_data()),
 						  static_cast<Dtype*>(connectivity_->mutable_cpu_data()));
 				  break;
-			}
-			case Caffe::GPU: {
+		}
+		case Caffe::GPU: {
 #ifndef CPU_ONLY
-				  caffe_gpu_if_nonzerout(count_, threshold,
+			caffe_gpu_if_nonzerout(count_, threshold,
 						  static_cast<const Dtype*>(data_->gpu_data()),
 						  static_cast<Dtype*>(connectivity_->mutable_gpu_data()));
 #else
-			  NO_GPU;
+			NO_GPU;
 #endif
-				break;
-			}
-			default:
-			  LOG(FATAL) << "Unknown caffe mode: " << Caffe::mode();
+			break;
 		}
-	}
-	sparse_mode_ = mode;
+		default:
+			LOG(FATAL) << "Unknown caffe mode: " << Caffe::mode();
+    }
 }
 
 template<typename Dtype>
@@ -624,11 +677,11 @@ bool Blob<Dtype>::ShapeEquals(const BlobProto& other) {
 
 template <typename Dtype>
 void Blob<Dtype>::InitializeConnectivity(Dtype val){
+    if(!connectivity_) {
+      connectivity_.reset(new SyncedMemory(capacity_ * sizeof(Dtype)));
+	}
     CHECK(connectivity_);
-    sparse_mode_ = SPARSE_NONE;
-    if(sparse_mode_ != SPARSE_NONE) {
-      caffe_set(count_, val, static_cast<Dtype*>(connectivity_->mutable_cpu_data()));
-    }
+    caffe_set(count_, val, static_cast<Dtype*>(connectivity_->mutable_cpu_data()));
 }
 
 template <typename Dtype>

@@ -14,7 +14,7 @@ namespace caffe {
 template <typename Dtype>
 BaseDataLayer<Dtype>::BaseDataLayer(const LayerParameter& param)
     : Layer<Dtype>(param),
-      transform_param_(param.transform_param()), rand_seed_(0) {
+      transform_param_(param.transform_param()) {
 }
 
 template <typename Dtype>
@@ -27,7 +27,7 @@ void BaseDataLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
   }
   data_transformer_.reset(
       new DataTransformer<Dtype>(transform_param_, this->phase_));
-  data_transformer_->InitRand(this->rand_seed_);
+  data_transformer_->InitRand();
   // The subclasses should setup the size of bottom and top
   DataLayerSetUp(bottom, top);
 }
@@ -68,7 +68,7 @@ void BasePrefetchingDataLayer<Dtype>::LayerSetUp(
   }
 #endif
   DLOG(INFO) << "Initializing prefetch";
-  this->data_transformer_->InitRand(this->rand_seed_);
+  this->data_transformer_->InitRand();
   StartInternalThread();
   DLOG(INFO) << "Prefetch initialized.";
 }

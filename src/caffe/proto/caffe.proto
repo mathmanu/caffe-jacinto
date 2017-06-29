@@ -296,6 +296,12 @@ message SolverParameter {
   optional SparseMode sparse_mode = 52 [default = SPARSE_NONE];  
   optional int32 display_quantization = 53 [default = 2000];
   optional bool insert_quantization_param = 55 [default = false];
+
+  optional float sparsity_target = 62 [default = 0.0]; //desired sparsity as a fraction
+  optional float sparsity_step_factor = 63 [default = 0.01];  //sprsity step factor. 0.01 is 1%
+  optional int32 sparsity_step_iter = 64 [default = 1000];  //sprsity step increment iterations
+  optional int32 sparsity_start_iter = 65 [default = 0];  //sprsity start iteration  
+  optional float sparsity_start_factor = 66 [default = 0.0];  //sprsity start factor
 }
 
 // A message that stores the solver snapshots
@@ -541,6 +547,11 @@ message TransformationParameter {
   optional bool force_gray = 7 [default = false];
   // Run the transform (synchronously) on the GPU
   optional bool use_gpu_transform = 8 [default = false];
+  // If non-negative, the seed with which the transformer's
+  // random number generator would be initialized -- useful for reproducible results.
+  // Otherwise, (and by default) initialize using a seed derived from the system clock.
+  optional int64 random_seed = 9 [default = -1];
+
   optional bool display = 12 [default = false];
   
   optional int32 num_labels = 16 [default = 0];  
@@ -932,7 +943,6 @@ message DataParameter {
   // cpu logical cores / number of GPUs
   optional uint32 threads  = 11 [default = 0];
   
-  optional uint32 rand_seed = 24 [default = 0];
 }
 
 message DropoutParameter {

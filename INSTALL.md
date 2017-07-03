@@ -30,7 +30,11 @@ The installation instructions for Ubuntu 14.04 can be summarized as follows (the
  * *make* (Instead, one can also do "make -j50" to speed up the compilaiton)
  * *make pycaffe* (To compile the python bindings)
 
-5. Appendix: Caffe's original instructions
+5. PYTHONPATH
+ * Add pycaffe to your PYTHONPATH environment variable. This can be done by adding it in your .bashrc. (if you are using bash shell). For exampe if caffe-jacinto is located in the path /user/tomato/work/caffe-jacinto, then your .bashrc should have a line that starts with:
+export PYTHONPATH=/user/tomato/work/caffe-jacinto/python
+ 
+6. Appendix: Caffe's original instructions
  * See http://caffe.berkeleyvision.org/installation.html for the latest
 installation instructions.
  * Check the users group in case you need help:

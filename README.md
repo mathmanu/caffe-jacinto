@@ -3,9 +3,12 @@
 
 Caffe-jacinto is a fork of [NVIDIA/caffe](https://github.com/NVIDIA/caffe), which in-turn is derived from [BVLC/Caffe](https://github.com/BVLC/caffe). The modifications in this fork enable training of sparse, quantized CNN models - resulting in low complexity models that can be used in embedded platforms. 
 
-For example, the semantic segmentation example (see below) shows how to train a model that is nearly 80% sparse (only 20% non-zero coefficients) and 8-bit quantized. This reduces the complexity of convolution layers by <b>5x</b>. An inference engine designed to efficiently take advantage of sparsity can run <b>significantly faster</b> by using such a model. 
+For example, the semantic segmentation example shows how to train a model that is nearly 80% sparse (only 20% non-zero coefficients) and 8-bit quantized. This reduces the complexity of convolution layers by <b>5x</b>. An inference engine designed to efficiently take advantage of sparsity can run <b>significantly faster</b> by using such a model. 
 
 Care has to be taken to strike the right balance between quality and speedup. We have obtained more than 4x overall speedup for CNN inference on embedded device by applying sparsity. Since 8-bit multiplier is sufficient (instead of floating point), the speedup can be even higher on some platforms.
+
+### Prerequisite
+* The scripts for training and infering models using caffe-jacinto is placed in [caffe-jacinto-models](https://github.com/tidsp/caffe-jacinto-models). Please see it's documentation before proceeding further.
 
 ### Installation
 * After cloning the source code, switch to the branch caffe-0.15, if it is not checked out already.
@@ -15,33 +18,22 @@ Care has to be taken to strike the right balance between quality and speedup. We
 
 ### Features
 
-New layers and options have been added to support sparsity and quantization. A brief explanation is given in this section, but more details can be found by [clicking here](FEATURES.md).
+New layers and options have been added to support sparsity and quantization. 
 
 Note that Caffe-jacinto does not directly support any embedded/low-power device. But the models trained by it can be used for fast inference on such a device due to the sparsity and quantization.
 
 ###### Additional layers
-* ImageLabelData and IOUAccuracy layers have been added to train for semantic segmentation.
+* ImageLabelData and ImageLabelListData layers have been added to support training for semantic segmentation.
 
 ###### Sparsity
-* Measuring sparsity in convolution layers while training is in progress. 
-* Thresholding tool to zero-out some convolution weights in each layer to attain certain sparsity in each layer.
-* Sparse training methods: zeroing out of small coefficients during training, or fine tuning without updating the zero coefficients - similar to caffe-scnn [paper](https://arxiv.org/abs/1608.03665), [code](https://github.com/wenwei202/caffe/tree/scnn)
+* One major feature is quickly and accurately introducing sparsity in the coefficients. These include  zeroing out of small coefficients during training, training without updating the zero coefficients (sparse update). 
+* See another work that uses sparse update: caffe-scnn [paper](https://arxiv.org/abs/1608.03665), [code](https://github.com/wenwei202/caffe/tree/scnn)
 
 ###### Quantization
-* Collecting statistics (range of weights) to enable quantization
 * Dynamic -8 bit fixed point quantization, improved from Ristretto [paper](https://arxiv.org/abs/1605.06402), [code](https://github.com/pmgysel/caffe)
 
-###### Absorbing Batch Normalization into convolution weights
-* A tool is provided to absorb batch norm values into convolution weights. This may help to speedup inference. This will also help if Batch Norm layers are not supported in an embedded implementation.
-
 ### Examples
-###### Semantic segmentation:
-* Note that ImageNet training (see below) is recommended before doing this segmentation training to create the pre-trained weights. The segmentation training will read the ImageNet trained caffemodel for doing the fine tuning on segmentation. However it is possible to directly do segmentation training without ImageNet training, but the quality might be inferior.
-* [Train sparse, quantized CNN for semantic segmentation](examples/tidsp/docs/Cityscapes_Segmentation_README.md) on the cityscapes dataset. Inference script is also provided to test out the final model.
-
-###### Classification:
-* [Training on ILSVRC ImageNet dataset](examples/tidsp/docs/Imagenet_Classification_README.md). The 1000 class ImageNet trained weights is useful for fine tuning other tasks.
-* [Train sparse, quantized CNN on cifar10 dataset](examples/tidsp/docs/Cifar10_Classification_README.md) for classification. Note that this is just a toy example and no inference script is provided to test the final model.
+See [caffe-jacinto-models](https://github.com/tidsp/caffe-jacinto-models) for several examples.
 
 <br>
 The following sections are kept as it is from the original Caffe.

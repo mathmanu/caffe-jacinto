@@ -365,6 +365,8 @@ void Solver<Dtype>::ThresholdNet() {
   if (Caffe::root_solver()) {
     if(param_.sparsity_target() > 0.0 && sparsity_factor_ < param_.sparsity_target()) {
       if((iter_ % param_.sparsity_step_iter())==0 && iter_ >= param_.sparsity_start_iter()) {
+        this->mtx.lock();
+
         sparsity_factor_ += param_.sparsity_step_factor();
         float threshold_fraction_low = sparsity_factor_/2;
         float threshold_fraction_mid = sparsity_factor_;
@@ -381,6 +383,8 @@ void Solver<Dtype>::ThresholdNet() {
 
         //LOG(INFO) << "Sparsity after threshold:";
         //this->DisplaySparsity();
+
+        this->mtx.unlock();
       }
     }
 

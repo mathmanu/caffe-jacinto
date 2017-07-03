@@ -349,7 +349,7 @@ template<typename Dtype>
 void P2PSync<Dtype>::divide_batch_size(NetParameter* net) {
   int solver_count = Caffe::solver_count();
   for (int i = 0; i < net->layer_size(); ++i) {
-    string m = "Batch size must be divisible by the number of solvers (GPUs)";
+    string m = "Batch size will be changed to be divisible by the number of solvers (GPUs)";
     if (net->layer(i).has_data_param()) {
       if (net->layer(i).data_param().has_batch_size()) {
         uint32_t total = net->layer(i).data_param().batch_size();

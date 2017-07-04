@@ -362,35 +362,26 @@ void Solver<Dtype>::Step(int iters) {
 template<typename Dtype>
 void Solver<Dtype>::ThresholdNet() {
   //induce incremental sparsity
-  if (Caffe::root_solver()) {
-    if(param_.sparsity_target() > 0.0 && sparsity_factor_ < param_.sparsity_target()) {
-      if((iter_ % param_.sparsity_step_iter())==0 && iter_ >= param_.sparsity_start_iter()) {
-        this->mtx.lock();
+  if (param_.sparse_mode() != SPARSE_NONE) {
+    if(param_.sparsity_target() > 0.0 && sparsity_factor_ < param_.sparsity_target() &&
+        iter_ >= param_.sparsity_start_iter() && (iter_ % param_.sparsity_step_iter())==0) {
+      this->sparsity_factor_ += param_.sparsity_step_factor();
 
-        sparsity_factor_ += param_.sparsity_step_factor();
-        float threshold_fraction_low = sparsity_factor_/2;
-        float threshold_fraction_mid = sparsity_factor_;
-        float threshold_fraction_high = sparsity_factor_;
-        float threshold_value_maxratio = 0.2;
-        float threshold_value_max = 0.2;
-        float threshold_step_factor = 1e-6;
+      float threshold_fraction_low = sparsity_factor_/2;
+      float threshold_fraction_mid = sparsity_factor_;
+      float threshold_fraction_high = sparsity_factor_;
+      float threshold_value_maxratio = 0.2;
+      float threshold_value_max = 0.2;
+      float threshold_step_factor = 1e-6;
 
-        LOG(INFO) << "Finding and applying thresholds. Target sparsity = " << sparsity_factor_;
-        net_->FindAndApplyThresholdNet(threshold_fraction_low, threshold_fraction_mid, threshold_fraction_high,
-            threshold_value_maxratio, threshold_value_max, threshold_step_factor, false);
+      LOG_IF(INFO, Caffe::root_solver()) << "Finding and applying sparsity: " << this->sparsity_factor_;
+      net_->FindAndApplyThresholdNet(threshold_fraction_low, threshold_fraction_mid, threshold_fraction_high,
+          threshold_value_maxratio, threshold_value_max, threshold_step_factor, false);
 
-        this->StoreSparseModeConnectivity();
-
-        //LOG(INFO) << "Sparsity after threshold:";
-        //this->DisplaySparsity();
-
-        this->mtx.unlock();
-      }
+      this->StoreSparseModeConnectivity();
     }
 
-    if(param_.sparse_mode() != SPARSE_NONE) {
-      net_->ApplySparseModeConnectivity();
-    }
+    net_->ApplySparseModeConnectivity();
   }
 }
 

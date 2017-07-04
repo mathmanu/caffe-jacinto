@@ -1821,7 +1821,7 @@ void Net<Dtype>::ApplySparseModeConnectivity() {
 
 template <typename Dtype>
 void Net<Dtype>::StoreSparseModeConnectivity(SparseMode mode) {
-  LOG(INFO) << "All zero weights of convolution layers are frozen";
+  LOG_IF(INFO, Caffe::root_solver()) << "All zero weights of convolution layers are frozen";
   if(mode != SPARSE_NONE) {
     for(int i=0; i<layers_.size(); i++) {
       if(layers_[i]->type() == std::string("Convolution")) {

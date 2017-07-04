@@ -3,7 +3,6 @@
 #include <boost/function.hpp>
 #include <string>
 #include <vector>
-#include <mutex>
 
 #include "caffe/net.hpp"
 #include "caffe/solver_factory.hpp"
@@ -151,7 +150,6 @@ public:
   float iterations_last_;
 
   float sparsity_factor_;
-  std::mutex mtx;
   
   DISABLE_COPY_AND_ASSIGN(Solver);
 };

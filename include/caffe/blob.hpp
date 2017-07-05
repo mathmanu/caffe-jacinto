@@ -250,11 +250,11 @@ class Blob {
   Dtype* mutable_gpu_connectivity();
   void Update();
 
-  void Zerout(const Dtype threshold);
-  Dtype max() const;
-  Dtype min() const;
+  void Zerout(const Dtype threshold, const int start_index, const int count);
+  Dtype max(const int start_index, const int count) const;
+  Dtype min(const int start_index, const int count) const;
   inline void Connect(){ InitializeConnectivity(); }
-  int count_zero(const Dtype threshold) const;
+  int count_zero(const Dtype threshold, const int start_index, const int count) const;
   
   void FromProto(const BlobProto& proto, bool reshape = true, bool ignore_shape_mismatch = false);
   void ToProto(BlobProto* proto, bool write_diff = false) const;

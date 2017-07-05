@@ -266,22 +266,24 @@ void Blob<Dtype>::Update() {
 }
 
 template <typename Dtype>
-void Blob<Dtype>::Zerout(const Dtype threshold) {
+void Blob<Dtype>::Zerout(const Dtype threshold, const int start_index, const int count) {
   // Zero out elements whose values are smaller than thre.
+  int n = count? count : this->count();
+	  
   switch (data_->head()) {
   case SyncedMemory::HEAD_AT_CPU:
     // perform computation on CPU
-      caffe_cpu_zerout(count_, threshold,
-          static_cast<const Dtype*>(data_->cpu_data()),
-          static_cast<Dtype*>(data_->mutable_cpu_data()));
+      caffe_cpu_zerout(n, threshold,
+          static_cast<const Dtype*>(data_->cpu_data())+start_index,
+          static_cast<Dtype*>(data_->mutable_cpu_data())+start_index);
     break;
   case SyncedMemory::HEAD_AT_GPU:
   case SyncedMemory::SYNCED:
 #ifndef CPU_ONLY
     // perform zerout on GPU
-	  caffe_gpu_zerout(count_, threshold,
-	      static_cast<const Dtype*>(data_->gpu_data()),
-	      static_cast<Dtype*>(data_->mutable_gpu_data()));
+	  caffe_gpu_zerout(n, threshold,
+	      static_cast<const Dtype*>(data_->gpu_data())+start_index,
+	      static_cast<Dtype*>(data_->mutable_gpu_data())+start_index);
 #else
     NO_GPU;
 #endif
@@ -292,11 +294,16 @@ void Blob<Dtype>::Zerout(const Dtype threshold) {
 }
 
 template<typename Dtype>
-Dtype Blob<Dtype>::max() const {
+Dtype Blob<Dtype>::max(const int start_index, const int count) const {
 	//CHECK(data_->head() == SyncedMemory::HEAD_AT_CPU || data_->head() == SyncedMemory::SYNCED) << "Blob head is not CPU";
 	if (!data_) {
 		return 0;
 	}
+	
+	int n = count? count : this->count();
+	int start = start_index;
+	int end = start + n;
+	
 	// We will perform update based on where the data is located.
 	switch (data_->head()) {
 	case SyncedMemory::HEAD_AT_CPU:
@@ -304,7 +311,7 @@ Dtype Blob<Dtype>::max() const {
 		// perform computation on CPU
 		const Dtype* data = this->cpu_data();
 		Dtype max_val = std::numeric_limits<Dtype>::min();
-		for (int i = 0; i < this->count(); ++i) {
+		for (int i = start; i < end; ++i) {
 			max_val = std::max(max_val, (Dtype) data[i]);
 		}
 		return max_val;
@@ -315,8 +322,8 @@ Dtype Blob<Dtype>::max() const {
 	{
 #ifndef CPU_ONLY
 		// perform computation on GPU
-		Dtype result = caffe_gpu_max<Dtype>(count_,
-				static_cast<const Dtype*>(this->gpu_data()));
+		Dtype result = caffe_gpu_max<Dtype>(n,
+				static_cast<const Dtype*>(this->gpu_data())+start_index);
 		return result;
 #else
 		NO_GPU;
@@ -330,11 +337,16 @@ Dtype Blob<Dtype>::max() const {
 }
 
 template<typename Dtype>
-Dtype Blob<Dtype>::min() const {
+Dtype Blob<Dtype>::min(const int start_index, const int count) const {
 	//CHECK(data_->head() == SyncedMemory::HEAD_AT_CPU || data_->head() == SyncedMemory::SYNCED) << "Blob head is not CPU";
 	if (!data_) {
 		return 0;
 	}
+	
+	int n = count? count : this->count();
+	int start = start_index;
+	int end = start + n;
+		
 	// We will perform update based on where the data is located.
 	switch (data_->head()) {
 	case SyncedMemory::HEAD_AT_CPU:
@@ -342,7 +354,7 @@ Dtype Blob<Dtype>::min() const {
 		// perform computation on CPU
 		const Dtype* data = this->cpu_data();
 		Dtype min_val = std::numeric_limits<Dtype>::max();
-		for (int i = 0; i < this->count(); ++i) {
+		for (int i = start; i < end; ++i) {
 			min_val = std::min(min_val, (Dtype) data[i]);
 		}
 		return min_val;
@@ -353,8 +365,8 @@ Dtype Blob<Dtype>::min() const {
 	{
 #ifndef CPU_ONLY
 		// perform computation on GPU
-		Dtype result = caffe_gpu_min<Dtype>(count_,
-				static_cast<const Dtype*>(this->gpu_data()));
+		Dtype result = caffe_gpu_min<Dtype>(n,
+				static_cast<const Dtype*>(this->gpu_data())+start_index);
 		return result;
 #else
 		NO_GPU;
@@ -403,12 +415,16 @@ void Blob<Dtype>::StoreSparseModeConnectivity(const SparseMode mode) {
 }
 
 template<typename Dtype>
-int Blob<Dtype>::count_zero(const Dtype threshold) const {
+int Blob<Dtype>::count_zero(const Dtype threshold, const int start_index, const int count) const {
 	//CHECK(data_->head() == SyncedMemory::HEAD_AT_CPU || data_->head() == SyncedMemory::SYNCED) << "Blob head is not CPU";
 	if (!data_) {
 		return 0;
 	}
 
+	int n = count? count : this->count();
+	int start = start_index;
+	int end = start + n;
+	
 	// We will perform update based on where the data is located.
 	switch (data_->head()) {
 	case SyncedMemory::HEAD_AT_CPU:
@@ -416,7 +432,7 @@ int Blob<Dtype>::count_zero(const Dtype threshold) const {
 		// perform computation on CPU
 		const Dtype* data = this->cpu_data();
 		int zero_num = 0;
-		for (int i = 0; i < this->count(); i++) {
+		for (int i = start; i < end; i++) {
 			if (std::fabs(data[i]) <= threshold) {
 				zero_num++;
 			}
@@ -428,8 +444,8 @@ int Blob<Dtype>::count_zero(const Dtype threshold) const {
 	{
 #ifndef CPU_ONLY
 		// perform computation on GPU
-		int zero_num = caffe_gpu_count_zero<Dtype>(count_,
-				static_cast<const Dtype*>(this->gpu_data()), threshold);
+		int zero_num = caffe_gpu_count_zero<Dtype>(n,
+				static_cast<const Dtype*>(this->gpu_data())+start_index, threshold);
 		return zero_num;
 #else
 		NO_GPU;

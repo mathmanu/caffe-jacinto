@@ -374,7 +374,7 @@ void Solver<Dtype>::ThresholdNet() {
       float threshold_step_factor = 1e-6;
 
       LOG_IF(INFO, Caffe::root_solver()) << "Finding and applying sparsity: " << this->sparsity_factor_;
-      net_->FindAndApplyThresholdNet(threshold_fraction_low, threshold_fraction_mid, threshold_fraction_high,
+      net_->FindAndApplyChannelThresholdNet(threshold_fraction_low, threshold_fraction_mid, threshold_fraction_high,
           threshold_value_maxratio, threshold_value_max, threshold_step_factor, false);
 
       this->StoreSparseModeConnectivity();

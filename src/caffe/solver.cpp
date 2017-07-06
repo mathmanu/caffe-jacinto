@@ -363,9 +363,8 @@ template<typename Dtype>
 void Solver<Dtype>::ThresholdNet() {
   //induce incremental sparsity
   if (param_.sparse_mode() != SPARSE_NONE) {
-    if(param_.sparsity_target() > 0.0 && sparsity_factor_ < param_.sparsity_target() &&
+    if(param_.sparsity_target() > 0.0 && sparsity_factor_ <= param_.sparsity_target() &&
         iter_ >= param_.sparsity_start_iter() && (iter_ % param_.sparsity_step_iter())==0) {
-      this->sparsity_factor_ += param_.sparsity_step_factor();
 
       float threshold_fraction_low = sparsity_factor_/2;
       float threshold_fraction_mid = sparsity_factor_;
@@ -379,6 +378,8 @@ void Solver<Dtype>::ThresholdNet() {
           threshold_value_maxratio, threshold_value_max, threshold_step_factor, false);
 
       this->StoreSparseModeConnectivity();
+
+      this->sparsity_factor_ += param_.sparsity_step_factor();
     }
 
     net_->ApplySparseModeConnectivity();

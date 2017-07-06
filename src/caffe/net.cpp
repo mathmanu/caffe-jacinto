@@ -856,7 +856,7 @@ int Net<Dtype>::GetSparsity(std::map<std::string, std::pair<int,int> >& sparsity
   int max_params_to_check = 1;
   for (int layer_id = 0; layer_id < layers_.size(); ++layer_id) {	
       const LayerParameter& layer_param = layers_[layer_id]->layer_param();  
-      if(layer_param.type() == "Convolution" || layer_param.type() == "InnerProduct") {
+      if(layer_param.type() == "Convolution" /*|| layer_param.type() == "InnerProduct"*/) {
           int num_params_to_check = std::min<int>(max_params_to_check, layers_[layer_id]->blobs().size());
 		  for (int param_id = 0; param_id < num_params_to_check;++param_id) {
 		    const Blob<Dtype>& blob = *layers_[layer_id]->blobs()[param_id];

@@ -36,8 +36,12 @@ void ImageLabelDataLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
   int input_threads = this->layer_param_.image_label_data_param().threads();
   int threads = has_threads? std::min<int>(std::max<int>(input_threads, 1), 8) : 2;
 
-  unsigned int random_seed = caffe_rng_rand();
   int num_mean_values = this->layer_param_.transform_param().mean_value_size();
+
+  InitRand(caffe_rng_rand());
+
+  unsigned int random_seed = this->layer_param_.transform_param().has_random_seed()? 
+     this->layer_param_.transform_param().random_seed() : caffe_rng_rand();
   
   LayerParameter data_param(this->layer_param_);
   data_param.mutable_transform_param()->set_crop_size(this->layer_param_.transform_param().crop_size());
@@ -47,13 +51,14 @@ void ImageLabelDataLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
     data_param.mutable_transform_param()->add_mean_value(this->layer_param_.transform_param().mean_value(i));
   }
   data_param.mutable_transform_param()->set_random_seed(random_seed);  
+  data_param.mutable_data_param()->set_shuffle(this->layer_param_.image_label_data_param().shuffle());    
   data_param.mutable_data_param()->set_source(this->layer_param_.image_label_data_param().image_list_path());
   data_param.mutable_data_param()->set_batch_size(this->layer_param_.image_label_data_param().batch_size());
   data_param.mutable_data_param()->set_backend(static_cast<DataParameter_DB>(this->layer_param_.image_label_data_param().backend()));
   if(has_threads) {
     data_param.mutable_data_param()->set_threads(threads);
   }
-	
+  
   LayerParameter label_param(this->layer_param_);
   label_param.mutable_transform_param()->set_crop_size(this->layer_param_.transform_param().crop_size());
   label_param.mutable_transform_param()->set_mirror(this->layer_param_.transform_param().mirror());
@@ -62,8 +67,8 @@ void ImageLabelDataLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
   for(int i=0; i<num_mean_values; i++) {
     label_param.mutable_transform_param()->add_mean_value(0);
   }
-  
   label_param.mutable_transform_param()->set_random_seed(random_seed);  
+  label_param.mutable_data_param()->set_shuffle(this->layer_param_.image_label_data_param().shuffle());   
   label_param.mutable_data_param()->set_source(this->layer_param_.image_label_data_param().label_list_path());
   label_param.mutable_data_param()->set_batch_size(this->layer_param_.image_label_data_param().batch_size());
   label_param.mutable_data_param()->set_backend(static_cast<DataParameter_DB>(this->layer_param_.image_label_data_param().backend()));

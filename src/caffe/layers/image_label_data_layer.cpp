@@ -51,7 +51,8 @@ void ImageLabelDataLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
     data_param.mutable_transform_param()->add_mean_value(this->layer_param_.transform_param().mean_value(i));
   }
   data_param.mutable_transform_param()->set_random_seed(random_seed);  
-  data_param.mutable_data_param()->set_shuffle(this->layer_param_.image_label_data_param().shuffle());    
+  //shuffle is handled in this class
+  //data_param.mutable_data_param()->set_shuffle(this->layer_param_.image_label_data_param().shuffle());
   data_param.mutable_data_param()->set_source(this->layer_param_.image_label_data_param().image_list_path());
   data_param.mutable_data_param()->set_batch_size(this->layer_param_.image_label_data_param().batch_size());
   data_param.mutable_data_param()->set_backend(static_cast<DataParameter_DB>(this->layer_param_.image_label_data_param().backend()));
@@ -68,7 +69,8 @@ void ImageLabelDataLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
     label_param.mutable_transform_param()->add_mean_value(0);
   }
   label_param.mutable_transform_param()->set_random_seed(random_seed);  
-  label_param.mutable_data_param()->set_shuffle(this->layer_param_.image_label_data_param().shuffle());   
+  //shuffle is handled in this class
+  //label_param.mutable_data_param()->set_shuffle(this->layer_param_.image_label_data_param().shuffle());
   label_param.mutable_data_param()->set_source(this->layer_param_.image_label_data_param().label_list_path());
   label_param.mutable_data_param()->set_batch_size(this->layer_param_.image_label_data_param().batch_size());
   label_param.mutable_data_param()->set_backend(static_cast<DataParameter_DB>(this->layer_param_.image_label_data_param().backend()));

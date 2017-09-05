@@ -35,7 +35,7 @@ The installation instructions for Ubuntu 14.04 can be summarized as follows (the
  export CAFFE_ROOT=/user/tomato/work/caffe-jacinto
  * Do not forget to source it after editing.
  source ~/.bashrc
- * Note: If you would like to use this scripts with any other caffe version other than caffe-jacinto, you can set the CAFFE_HOME environment variable to that path.
+ * Note: If you would like to use this scripts with any other caffe version other than caffe-jacinto, you can set the CAFFE_ROOT environment variable to that path.
  
 5. PYTHONPATH
  * Add pycaffe to your PYTHONPATH environment variable. This can be done by adding it in your .bashrc. (if you are using bash shell). For exampe if caffe-jacinto is located in the path /user/tomato/work/caffe-jacinto, then your .bashrc should have a line that looks like this:

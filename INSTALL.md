@@ -30,9 +30,16 @@ The installation instructions for Ubuntu 14.04 can be summarized as follows (the
  * *make* (Instead, one can also do "make -j50" to speed up the compilaiton)
  * *make pycaffe* (To compile the python bindings)
 
+5. CAFFE_ROOT
+ * Set the environmet variable CAFFE_ROOT to the caffe-jacinto path. i.e. if caffe-jacinto is located in /user/tomato/work/caffe-jacinto, the add the following entry in your ~/.bashrc
+ export CAFFE_ROOT=/user/tomato/work/caffe-jacinto
+ * Do not forget to source it after editing.
+ source ~/.bashrc
+ * Note: If you would like to use this scripts with any other caffe version other than caffe-jacinto, you can set the CAFFE_HOME environment variable to that path.
+ 
 5. PYTHONPATH
  * Add pycaffe to your PYTHONPATH environment variable. This can be done by adding it in your .bashrc. (if you are using bash shell). For exampe if caffe-jacinto is located in the path /user/tomato/work/caffe-jacinto, then your .bashrc should have a line that looks like this:
-export PYTHONPATH=:/user/tomato/work/caffe-jacinto/python:$PYTHONPATH
+export PYTHONPATH=:$CAFFE_ROOT/python:$PYTHONPATH
 * Source .bashrc and make sure everything is alright:
 source ~/.bashrc
 echo $PYTHONPATH

@@ -37,7 +37,7 @@ The installation instructions for Ubuntu 14.04 can be summarized as follows (the
  source ~/.bashrc
  * Note: If you would like to use this scripts with any other caffe version other than caffe-jacinto, you can set the CAFFE_ROOT environment variable to that path.
  
-5. PYTHONPATH
+6. PYTHONPATH
  * Add pycaffe to your PYTHONPATH environment variable. This can be done by adding it in your .bashrc. (if you are using bash shell). For exampe if caffe-jacinto is located in the path /user/tomato/work/caffe-jacinto, then your .bashrc should have a line that looks like this:
 export PYTHONPATH=:$CAFFE_ROOT/python:$PYTHONPATH
 * Source .bashrc and make sure everything is alright:
@@ -45,7 +45,7 @@ source ~/.bashrc
 echo $PYTHONPATH
 * Note if you face an issue with importing a module that is present in the current folder, that is probably because PYTHONPATH is set incorrectly. If this issue occurs, make sure that PYTHONPATH either starts or ends with a : as described [here.](https://stackoverflow.com/questions/33615156/why-does-pythonpath-with-trailing-colon-add-current-directory-to-sys-path)
  
-6. Appendix: Caffe's original instructions
+7. Appendix: Caffe's original instructions
  * See http://caffe.berkeleyvision.org/installation.html for the latest
 installation instructions.
  * Check the users group in case you need help:

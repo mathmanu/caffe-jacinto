@@ -1945,8 +1945,8 @@ void Net::DisplayQuantizationParams() {
         for(int blob_id=0; blob_id<std::min<int>(num_bottom_vecs, quantization_param.qparam_in_size()); blob_id++) {
           ss << " bitwidth:" << quantization_param.qparam_in(blob_id).bitwidth();
           ss << " fracbits:" << quantization_param.qparam_in(blob_id).fracbits();
-          ss << " scale:" << quantization_param.qparam_in(blob_id).scale() <<
-          ss << " offset:" << quantization_param.qparam_in(blob_id).offset() <<
+          ss << " scale:" << quantization_param.qparam_in(blob_id).scale() ;
+          ss << " offset:" << quantization_param.qparam_in(blob_id).offset() ;
           ss << " unsigned_data:" << quantization_param.qparam_in(blob_id).unsigned_data();
           ss << " min:" << quantization_param.qparam_in(blob_id).min();
           ss << " max:" << quantization_param.qparam_in(blob_id).max();

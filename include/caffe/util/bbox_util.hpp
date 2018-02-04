@@ -519,6 +519,28 @@ void VisualizeBBox(const vector<cv::Mat>& images, const TBlob<Dtype>* detections
                    const string& save_file);
 #endif  // USE_OPENCV
 
+
+//#define LOG_LBL_VAR(lable, variable) (std::cout) << (lable) << " : " << (variable) << " : "
+//#define LOG_LBL_VAR_NL(lable, variable) (std::cout) << (lable) << " : " << (variable) << std::endl
+//#define LOG_VAR(variable) (std::cout) <<#variable": "<<(variable) << " : "
+//#define LOG_VAR_NL(variable) (std::cout) <<#variable": "<<(variable)  <<  (std::endl)
+//#define LOG_LBL_NL(lable)  (std::cout) << (lable) << (std::endl)
+//#define LOG_LBL(lable)  (std::cout) << (lable)
+
+#define LOG_LBL_VAR_E(lable, variable) (std::cout) << (lable) << " : " << (variable) << " : "
+#define LOG_LBL_VAR_NL_E(lable, variable) (std::cout) << (lable) << " : " << (variable) << std::endl
+#define LOG_VAR_E(variable) (std::cout) <<#variable": "<<(variable) << " : "
+#define LOG_VAR_NL_E(variable) (std::cout) <<#variable": "<<(variable)  <<  (std::endl)
+#define LOG_LBL_NL_E(lable)  (std::cout) << (lable) << (std::endl)
+#define LOG_LBL_E(lable)  (std::cout) << (lable)
+
+#define LOG_LBL_VAR(lable, variable)
+#define LOG_LBL_VAR_NL(lable, variable)
+#define LOG_VAR(variable)
+#define LOG_VAR_NL(variable)
+#define LOG_LBL_NL(lable)
+#define LOG_LBL(lable)
+
 }  // namespace caffe
 
 #endif  // CAFFE_UTIL_BBOX_UTIL_H_

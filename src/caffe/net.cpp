@@ -2074,9 +2074,16 @@ void Net::FindAndApplyChannelThresholdNet(float threshold_fraction_low, float th
         LOG(WARNING) << layers_[i]->layer_param().name() << " ni=" << ni << " no=" << no;
       }
 
+      //need to add it as cfg option :FIX_ME:SN
+      const bool no_sparsity_for_small_kernel = true;
+      bool need_sparsity_for_this_layer = true;
+      if (no_sparsity_for_small_kernel)
+        need_sparsity_for_this_layer = ( kernel_shape_data[0] > 2) && (kernel_shape_data[1] > 2);  
+
+
       //apply sparsity only to certain layers. exclude layers with small number of input and outputs
       //also exclude depth-wise separable layers.
-      if((ni>=32 || no >= 32)  && num_group<no) {
+      if((ni>=32 || no >= 32)  && (num_group<no) && need_sparsity_for_this_layer) {
         float threshold_fraction_selected = ((ni>=256 && no >= 512)? threshold_fraction_high :
             ((ni>=32 && no >= 32)? threshold_fraction_mid: threshold_fraction_low));
 

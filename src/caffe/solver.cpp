@@ -341,16 +341,27 @@ void Solver::Step(int iters) {
       PrintRate();
       iterations_last_ = iter_;
     }
-    // Increment the internal iter_ counter -- its value should always indicate
-    // the number of times the weights have been updated.
-    ++iter_;
+
+    if (param_.sparsity_itr_increment_bfr_applying()) {
+      // old implementation
+      // Increment the internal iter_ counter -- its value should always indicate
+      // the number of times the weights have been updated.
+      LOG(INFO) << "sparsity_itr_increment_bfr_applying is true: old behaviour:";
+      ++iter_;
+    }
 
     //apply thresholding for sparsity
     this->ThresholdNet();
     if(Caffe::root_solver() && param_.display_sparsity() > 0 &&
-      (iter_ % param_.display_sparsity()) == 0) {
+      ((iter_ % param_.display_sparsity()) == 0)) {
         LOG(INFO) << "Sparsity after update:";
         net_->DisplaySparsity(true);
+    }
+
+    if (param_.sparsity_itr_increment_bfr_applying() == false) {
+      // Increment the internal iter_ counter -- its value should always indicate
+      // the number of times the weights have been updated.
+      ++iter_;
     }
 
     SolverAction::Enum request = GetRequestedAction();
@@ -405,8 +416,8 @@ void Solver::Reduce(int device, Caffe::Brew mode, uint64_t random_seed,
 void Solver::ThresholdNet() {
   //induce incremental sparsity
   if (param_.sparse_mode() != SPARSE_NONE && Caffe::root_solver()) {
-    if(param_.sparsity_target() > 0.0 && iter_ >= param_.sparsity_start_iter() &&
-        (iter_ % param_.sparsity_step_iter())==0) {
+    if((param_.sparsity_target() > 0.0) && (iter_ >= param_.sparsity_start_iter()) &&
+        ((iter_ % param_.sparsity_step_iter())==0) ) {
       float threshold_fraction_low = this->sparsity_factor_/2;
       float threshold_fraction_mid = this->sparsity_factor_;
       float threshold_fraction_high = this->sparsity_factor_;

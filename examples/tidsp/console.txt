@@ -1,0 +1,3264 @@
+Logging output to training/train-log-2017-04-06_15-27-27.txt
+I0406 15:27:28.079409 23397 caffe.cpp:482] Use GPU with device ID 0
+I0406 15:27:28.080008 23397 caffe.cpp:486] GPU device name: GeForce GTX 1080
+I0406 15:27:28.511358 23397 net.cpp:56] Initializing net from parameters: 
+name: "EXNet_NVIDIA_BN"
+state {
+  phase: TEST
+}
+layer {
+  name: "data"
+  type: "Input"
+  top: "data"
+  phase: TEST
+  input_param {
+    shape {
+      dim: 10
+      dim: 3
+      dim: 224
+      dim: 224
+    }
+  }
+}
+layer {
+  name: "mean_sub_nvidia_bn"
+  type: "BatchNorm"
+  bottom: "data"
+  top: "mean_sub_nvidia_bn"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 0
+    decay_mult: 0
+  }
+  param {
+    lr_mult: 0
+    decay_mult: 0
+  }
+  batch_norm_param {
+    moving_average_fraction: 0.99
+    eps: 0.001
+    scale_filler {
+      type: "constant"
+      value: 1
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+layer {
+  name: "init_conv"
+  type: "Convolution"
+  bottom: "mean_sub_nvidia_bn"
+  top: "init_conv"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 13
+    bias_term: true
+    pad: 1
+    kernel_size: 3
+    stride: 2
+    weight_filler {
+      type: "msra"
+      std: 0.01
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+layer {
+  name: "init_relu"
+  type: "PReLU"
+  bottom: "init_conv"
+  top: "init_conv"
+  param {
+    lr_mult: 1
+    decay_mult: 0
+  }
+  prelu_param {
+    filler {
+      type: "constant"
+      value: 0
+    }
+    channel_shared: false
+  }
+}
+layer {
+  name: "init_max_pool"
+  type: "Pooling"
+  bottom: "mean_sub_nvidia_bn"
+  top: "init_max_pool"
+  pooling_param {
+    pool: MAX
+    kernel_size: 2
+    stride: 2
+  }
+}
+layer {
+  name: "init_concat"
+  type: "Concat"
+  bottom: "init_conv"
+  bottom: "init_max_pool"
+  top: "init_concat"
+  concat_param {
+    axis: 1
+  }
+}
+layer {
+  name: "init_concat_init_concat_0_split"
+  type: "Split"
+  bottom: "init_concat"
+  top: "init_concat_init_concat_0_split_0"
+  top: "init_concat_init_concat_0_split_1"
+}
+layer {
+  name: "bot1_0_proj_conv"
+  type: "Convolution"
+  bottom: "init_concat_init_concat_0_split_0"
+  top: "bot1_0_proj_conv"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 16
+    bias_term: true
+    pad: 0
+    kernel_size: 2
+    stride: 2
+    weight_filler {
+      type: "msra"
+      std: 0.01
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+layer {
+  name: "bot1_0_proj_relu"
+  type: "PReLU"
+  bottom: "bot1_0_proj_conv"
+  top: "bot1_0_proj_conv"
+  param {
+    lr_mult: 1
+    decay_mult: 0
+  }
+  prelu_param {
+    filler {
+      type: "constant"
+      value: 0
+    }
+    channel_shared: false
+  }
+}
+layer {
+  name: "bot1_0_proj_nvidia_bn_bot1_0_proj_relu_0_split"
+  type: "Split"
+  bottom: "bot1_0_proj_conv"
+  top: "bot1_0_proj_nvidia_bn_bot1_0_proj_relu_0_split_0"
+  top: "bot1_0_proj_nvidia_bn_bot1_0_proj_relu_0_split_1"
+}
+layer {
+  name: "bot1_0_main_conv"
+  type: "Convolution"
+  bottom: "bot1_0_proj_nvidia_bn_bot1_0_proj_relu_0_split_0"
+  top: "bot1_0_main_conv"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 16
+    bias_term: true
+    pad: 1
+    kernel_size: 3
+    group: 4
+    stride: 1
+    weight_filler {
+      type: "msra"
+      std: 0.01
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+    dilation: 1
+  }
+}
+layer {
+  name: "bot1_0_main_relu"
+  type: "PReLU"
+  bottom: "bot1_0_main_conv"
+  top: "bot1_0_main_conv"
+  param {
+    lr_mult: 1
+    decay_mult: 0
+  }
+  prelu_param {
+    filler {
+      type: "constant"
+      value: 0
+    }
+    channel_shared: false
+  }
+}
+layer {
+  name: "bot1_0_main_short_circuit_conv"
+  type: "Convolution"
+  bottom: "bot1_0_proj_nvidia_bn_bot1_0_proj_relu_0_split_1"
+  top: "bot1_0_main_short_circuit_conv"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 16
+    bias_term: true
+    pad: 0
+    kernel_size: 1
+    stride: 1
+    weight_filler {
+      type: "msra"
+      std: 0.01
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+layer {
+  name: "bot1_0_main_short_circuit_relu"
+  type: "PReLU"
+  bottom: "bot1_0_main_short_circuit_conv"
+  top: "bot1_0_main_short_circuit_conv"
+  param {
+    lr_mult: 1
+    decay_mult: 0
+  }
+  prelu_param {
+    filler {
+      type: "constant"
+      value: 0
+    }
+    channel_shared: false
+  }
+}
+layer {
+  name: "bot1_0_main_short_circuit_merged"
+  type: "Eltwise"
+  bottom: "bot1_0_main_conv"
+  bottom: "bot1_0_main_short_circuit_conv"
+  top: "bot1_0_main_short_circuit_merged"
+}
+layer {
+  name: "bot1_0_expand_conv"
+  type: "Convolution"
+  bottom: "bot1_0_main_short_circuit_merged"
+  top: "bot1_0_expand_conv"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 64
+    bias_term: true
+    pad: 0
+    kernel_size: 1
+    stride: 1
+    weight_filler {
+      type: "msra"
+      std: 0.01
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+layer {
+  name: "bot1_0_expand_relu"
+  type: "PReLU"
+  bottom: "bot1_0_expand_conv"
+  top: "bot1_0_expand_conv"
+  param {
+    lr_mult: 1
+    decay_mult: 0
+  }
+  prelu_param {
+    filler {
+      type: "constant"
+      value: 0
+    }
+    channel_shared: false
+  }
+}
+layer {
+  name: "bot1_0_aux_br_pool"
+  type: "Pooling"
+  bottom: "init_concat_init_concat_0_split_1"
+  top: "bot1_0_aux_br_pool"
+  pooling_param {
+    pool: MAX
+    kernel_size: 2
+    stride: 2
+    pad: 0
+  }
+}
+layer {
+  name: "bot1_0_p1"
+  type: "Slice"
+  bottom: "bot1_0_expand_conv"
+  top: "bot1_0_p1"
+  top: "bot1_0_p2"
+  slice_param {
+    slice_point: 16
+    axis: 1
+  }
+}
+layer {
+  name: "bot1_0_p1_summed"
+  type: "Eltwise"
+  bottom: "bot1_0_p1"
+  bottom: "bot1_0_aux_br_pool"
+  top: "bot1_0_p1_summed"
+}
+layer {
+  name: "bot1_0"
+  type: "Concat"
+  bottom: "bot1_0_p1_summed"
+  bottom: "bot1_0_p2"
+  top: "bot1_0"
+  concat_param {
+    axis: 1
+  }
+}
+layer {
+  name: "bot1_0_bot1_0_0_split"
+  type: "Split"
+  bottom: "bot1_0"
+  top: "bot1_0_bot1_0_0_split_0"
+  top: "bot1_0_bot1_0_0_split_1"
+}
+layer {
+  name: "bot1_1_proj_conv"
+  type: "Convolution"
+  bottom: "bot1_0_bot1_0_0_split_0"
+  top: "bot1_1_proj_conv"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 16
+    bias_term: true
+    pad: 0
+    kernel_size: 1
+    stride: 1
+    weight_filler {
+      type: "msra"
+      std: 0.01
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+layer {
+  name: "bot1_1_proj_relu"
+  type: "PReLU"
+  bottom: "bot1_1_proj_conv"
+  top: "bot1_1_proj_conv"
+  param {
+    lr_mult: 1
+    decay_mult: 0
+  }
+  prelu_param {
+    filler {
+      type: "constant"
+      value: 0
+    }
+    channel_shared: false
+  }
+}
+layer {
+  name: "bot1_1_proj_nvidia_bn_bot1_1_proj_relu_0_split"
+  type: "Split"
+  bottom: "bot1_1_proj_conv"
+  top: "bot1_1_proj_nvidia_bn_bot1_1_proj_relu_0_split_0"
+  top: "bot1_1_proj_nvidia_bn_bot1_1_proj_relu_0_split_1"
+}
+layer {
+  name: "bot1_1_main_conv"
+  type: "Convolution"
+  bottom: "bot1_1_proj_nvidia_bn_bot1_1_proj_relu_0_split_0"
+  top: "bot1_1_main_conv"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 16
+    bias_term: true
+    pad: 1
+    kernel_size: 3
+    group: 4
+    stride: 1
+    weight_filler {
+      type: "msra"
+      std: 0.01
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+    dilation: 1
+  }
+}
+layer {
+  name: "bot1_1_main_relu"
+  type: "PReLU"
+  bottom: "bot1_1_main_conv"
+  top: "bot1_1_main_conv"
+  param {
+    lr_mult: 1
+    decay_mult: 0
+  }
+  prelu_param {
+    filler {
+      type: "constant"
+      value: 0
+    }
+    channel_shared: false
+  }
+}
+layer {
+  name: "bot1_1_main_short_circuit_conv"
+  type: "Convolution"
+  bottom: "bot1_1_proj_nvidia_bn_bot1_1_proj_relu_0_split_1"
+  top: "bot1_1_main_short_circuit_conv"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 16
+    bias_term: true
+    pad: 0
+    kernel_size: 1
+    stride: 1
+    weight_filler {
+      type: "msra"
+      std: 0.01
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+layer {
+  name: "bot1_1_main_short_circuit_relu"
+  type: "PReLU"
+  bottom: "bot1_1_main_short_circuit_conv"
+  top: "bot1_1_main_short_circuit_conv"
+  param {
+    lr_mult: 1
+    decay_mult: 0
+  }
+  prelu_param {
+    filler {
+      type: "constant"
+      value: 0
+    }
+    channel_shared: false
+  }
+}
+layer {
+  name: "bot1_1_main_short_circuit_merged"
+  type: "Eltwise"
+  bottom: "bot1_1_main_conv"
+  bottom: "bot1_1_main_short_circuit_conv"
+  top: "bot1_1_main_short_circuit_merged"
+}
+layer {
+  name: "bot1_1_expand_conv"
+  type: "Convolution"
+  bottom: "bot1_1_main_short_circuit_merged"
+  top: "bot1_1_expand_conv"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 128
+    bias_term: true
+    pad: 0
+    kernel_size: 1
+    stride: 1
+    weight_filler {
+      type: "msra"
+      std: 0.01
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+layer {
+  name: "bot1_1_expand_relu"
+  type: "PReLU"
+  bottom: "bot1_1_expand_conv"
+  top: "bot1_1_expand_conv"
+  param {
+    lr_mult: 1
+    decay_mult: 0
+  }
+  prelu_param {
+    filler {
+      type: "constant"
+      value: 0
+    }
+    channel_shared: false
+  }
+}
+layer {
+  name: "bot1_1_p1"
+  type: "Slice"
+  bottom: "bot1_1_expand_conv"
+  top: "bot1_1_p1"
+  top: "bot1_1_p2"
+  slice_param {
+    slice_point: 64
+    axis: 1
+  }
+}
+layer {
+  name: "bot1_1_p1_summed"
+  type: "Eltwise"
+  bottom: "bot1_1_p1"
+  bottom: "bot1_0_bot1_0_0_split_1"
+  top: "bot1_1_p1_summed"
+}
+layer {
+  name: "bot1_1"
+  type: "Concat"
+  bottom: "bot1_1_p1_summed"
+  bottom: "bot1_1_p2"
+  top: "bot1_1"
+  concat_param {
+    axis: 1
+  }
+}
+layer {
+  name: "bot1_1_bot1_1_0_split"
+  type: "Split"
+  bottom: "bot1_1"
+  top: "bot1_1_bot1_1_0_split_0"
+  top: "bot1_1_bot1_1_0_split_1"
+}
+layer {
+  name: "bot1_2_proj_conv"
+  type: "Convolution"
+  bottom: "bot1_1_bot1_1_0_split_0"
+  top: "bot1_2_proj_conv"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 32
+    bias_term: true
+    pad: 0
+    kernel_size: 1
+    stride: 1
+    weight_filler {
+      type: "msra"
+      std: 0.01
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+layer {
+  name: "bot1_2_proj_relu"
+  type: "PReLU"
+  bottom: "bot1_2_proj_conv"
+  top: "bot1_2_proj_conv"
+  param {
+    lr_mult: 1
+    decay_mult: 0
+  }
+  prelu_param {
+    filler {
+      type: "constant"
+      value: 0
+    }
+    channel_shared: false
+  }
+}
+layer {
+  name: "bot1_2_proj_nvidia_bn_bot1_2_proj_relu_0_split"
+  type: "Split"
+  bottom: "bot1_2_proj_conv"
+  top: "bot1_2_proj_nvidia_bn_bot1_2_proj_relu_0_split_0"
+  top: "bot1_2_proj_nvidia_bn_bot1_2_proj_relu_0_split_1"
+}
+layer {
+  name: "bot1_2_main_conv"
+  type: "Convolution"
+  bottom: "bot1_2_proj_nvidia_bn_bot1_2_proj_relu_0_split_0"
+  top: "bot1_2_main_conv"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 32
+    bias_term: true
+    pad: 1
+    kernel_size: 3
+    group: 4
+    stride: 1
+    weight_filler {
+      type: "msra"
+      std: 0.01
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+    dilation: 1
+  }
+}
+layer {
+  name: "bot1_2_main_relu"
+  type: "PReLU"
+  bottom: "bot1_2_main_conv"
+  top: "bot1_2_main_conv"
+  param {
+    lr_mult: 1
+    decay_mult: 0
+  }
+  prelu_param {
+    filler {
+      type: "constant"
+      value: 0
+    }
+    channel_shared: false
+  }
+}
+layer {
+  name: "bot1_2_main_short_circuit_conv"
+  type: "Convolution"
+  bottom: "bot1_2_proj_nvidia_bn_bot1_2_proj_relu_0_split_1"
+  top: "bot1_2_main_short_circuit_conv"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 32
+    bias_term: true
+    pad: 0
+    kernel_size: 1
+    stride: 1
+    weight_filler {
+      type: "msra"
+      std: 0.01
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+layer {
+  name: "bot1_2_main_short_circuit_relu"
+  type: "PReLU"
+  bottom: "bot1_2_main_short_circuit_conv"
+  top: "bot1_2_main_short_circuit_conv"
+  param {
+    lr_mult: 1
+    decay_mult: 0
+  }
+  prelu_param {
+    filler {
+      type: "constant"
+      value: 0
+    }
+    channel_shared: false
+  }
+}
+layer {
+  name: "bot1_2_main_short_circuit_merged"
+  type: "Eltwise"
+  bottom: "bot1_2_main_conv"
+  bottom: "bot1_2_main_short_circuit_conv"
+  top: "bot1_2_main_short_circuit_merged"
+}
+layer {
+  name: "bot1_2_expand_conv"
+  type: "Convolution"
+  bottom: "bot1_2_main_short_circuit_merged"
+  top: "bot1_2_expand_conv"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 128
+    bias_term: true
+    pad: 0
+    kernel_size: 1
+    stride: 1
+    weight_filler {
+      type: "msra"
+      std: 0.01
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+layer {
+  name: "bot1_2_expand_relu"
+  type: "PReLU"
+  bottom: "bot1_2_expand_conv"
+  top: "bot1_2_expand_conv"
+  param {
+    lr_mult: 1
+    decay_mult: 0
+  }
+  prelu_param {
+    filler {
+      type: "constant"
+      value: 0
+    }
+    channel_shared: false
+  }
+}
+layer {
+  name: "bot1_2"
+  type: "Eltwise"
+  bottom: "bot1_2_expand_conv"
+  bottom: "bot1_1_bot1_1_0_split_1"
+  top: "bot1_2"
+}
+layer {
+  name: "bot1_2_bot1_2_0_split"
+  type: "Split"
+  bottom: "bot1_2"
+  top: "bot1_2_bot1_2_0_split_0"
+  top: "bot1_2_bot1_2_0_split_1"
+}
+layer {
+  name: "bot2_0_proj_conv"
+  type: "Convolution"
+  bottom: "bot1_2_bot1_2_0_split_0"
+  top: "bot2_0_proj_conv"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 32
+    bias_term: true
+    pad: 0
+    kernel_size: 2
+    stride: 2
+    weight_filler {
+      type: "msra"
+      std: 0.01
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+layer {
+  name: "bot2_0_proj_relu"
+  type: "PReLU"
+  bottom: "bot2_0_proj_conv"
+  top: "bot2_0_proj_conv"
+  param {
+    lr_mult: 1
+    decay_mult: 0
+  }
+  prelu_param {
+    filler {
+      type: "constant"
+      value: 0
+    }
+    channel_shared: false
+  }
+}
+layer {
+  name: "bot2_0_proj_nvidia_bn_bot2_0_proj_relu_0_split"
+  type: "Split"
+  bottom: "bot2_0_proj_conv"
+  top: "bot2_0_proj_nvidia_bn_bot2_0_proj_relu_0_split_0"
+  top: "bot2_0_proj_nvidia_bn_bot2_0_proj_relu_0_split_1"
+}
+layer {
+  name: "bot2_0_main_conv"
+  type: "Convolution"
+  bottom: "bot2_0_proj_nvidia_bn_bot2_0_proj_relu_0_split_0"
+  top: "bot2_0_main_conv"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 32
+    bias_term: true
+    pad: 2
+    kernel_size: 3
+    group: 4
+    stride: 1
+    weight_filler {
+      type: "msra"
+      std: 0.01
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+    dilation: 2
+  }
+}
+layer {
+  name: "bot2_0_main_relu"
+  type: "PReLU"
+  bottom: "bot2_0_main_conv"
+  top: "bot2_0_main_conv"
+  param {
+    lr_mult: 1
+    decay_mult: 0
+  }
+  prelu_param {
+    filler {
+      type: "constant"
+      value: 0
+    }
+    channel_shared: false
+  }
+}
+layer {
+  name: "bot2_0_main_short_circuit_conv"
+  type: "Convolution"
+  bottom: "bot2_0_proj_nvidia_bn_bot2_0_proj_relu_0_split_1"
+  top: "bot2_0_main_short_circuit_conv"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 32
+    bias_term: true
+    pad: 0
+    kernel_size: 1
+    stride: 1
+    weight_filler {
+      type: "msra"
+      std: 0.01
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+layer {
+  name: "bot2_0_main_short_circuit_relu"
+  type: "PReLU"
+  bottom: "bot2_0_main_short_circuit_conv"
+  top: "bot2_0_main_short_circuit_conv"
+  param {
+    lr_mult: 1
+    decay_mult: 0
+  }
+  prelu_param {
+    filler {
+      type: "constant"
+      value: 0
+    }
+    channel_shared: false
+  }
+}
+layer {
+  name: "bot2_0_main_short_circuit_merged"
+  type: "Eltwise"
+  bottom: "bot2_0_main_conv"
+  bottom: "bot2_0_main_short_circuit_conv"
+  top: "bot2_0_main_short_circuit_merged"
+}
+layer {
+  name: "bot2_0_expand_conv"
+  type: "Convolution"
+  bottom: "bot2_0_main_short_circuit_merged"
+  top: "bot2_0_expand_conv"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 256
+    bias_term: true
+    pad: 0
+    kernel_size: 1
+    stride: 1
+    weight_filler {
+      type: "msra"
+      std: 0.01
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+layer {
+  name: "bot2_0_expand_relu"
+  type: "PReLU"
+  bottom: "bot2_0_expand_conv"
+  top: "bot2_0_expand_conv"
+  param {
+    lr_mult: 1
+    decay_mult: 0
+  }
+  prelu_param {
+    filler {
+      type: "constant"
+      value: 0
+    }
+    channel_shared: false
+  }
+}
+layer {
+  name: "bot2_0_aux_br_pool"
+  type: "Pooling"
+  bottom: "bot1_2_bot1_2_0_split_1"
+  top: "bot2_0_aux_br_pool"
+  pooling_param {
+    pool: MAX
+    kernel_size: 2
+    stride: 2
+    pad: 0
+  }
+}
+layer {
+  name: "bot2_0_p1"
+  type: "Slice"
+  bottom: "bot2_0_expand_conv"
+  top: "bot2_0_p1"
+  top: "bot2_0_p2"
+  slice_param {
+    slice_point: 128
+    axis: 1
+  }
+}
+layer {
+  name: "bot2_0_p1_summed"
+  type: "Eltwise"
+  bottom: "bot2_0_p1"
+  bottom: "bot2_0_aux_br_pool"
+  top: "bot2_0_p1_summed"
+}
+layer {
+  name: "bot2_0"
+  type: "Concat"
+  bottom: "bot2_0_p1_summed"
+  bottom: "bot2_0_p2"
+  top: "bot2_0"
+  concat_param {
+    axis: 1
+  }
+}
+layer {
+  name: "bot2_0_bot2_0_0_split"
+  type: "Split"
+  bottom: "bot2_0"
+  top: "bot2_0_bot2_0_0_split_0"
+  top: "bot2_0_bot2_0_0_split_1"
+}
+layer {
+  name: "bot2_1_proj_conv"
+  type: "Convolution"
+  bottom: "bot2_0_bot2_0_0_split_0"
+  top: "bot2_1_proj_conv"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 64
+    bias_term: true
+    pad: 0
+    kernel_size: 1
+    stride: 1
+    weight_filler {
+      type: "msra"
+      std: 0.01
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+layer {
+  name: "bot2_1_proj_relu"
+  type: "PReLU"
+  bottom: "bot2_1_proj_conv"
+  top: "bot2_1_proj_conv"
+  param {
+    lr_mult: 1
+    decay_mult: 0
+  }
+  prelu_param {
+    filler {
+      type: "constant"
+      value: 0
+    }
+    channel_shared: false
+  }
+}
+layer {
+  name: "bot2_1_proj_nvidia_bn_bot2_1_proj_relu_0_split"
+  type: "Split"
+  bottom: "bot2_1_proj_conv"
+  top: "bot2_1_proj_nvidia_bn_bot2_1_proj_relu_0_split_0"
+  top: "bot2_1_proj_nvidia_bn_bot2_1_proj_relu_0_split_1"
+}
+layer {
+  name: "bot2_1_main_conv"
+  type: "Convolution"
+  bottom: "bot2_1_proj_nvidia_bn_bot2_1_proj_relu_0_split_0"
+  top: "bot2_1_main_conv"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 64
+    bias_term: true
+    pad: 2
+    kernel_size: 3
+    group: 4
+    stride: 1
+    weight_filler {
+      type: "msra"
+      std: 0.01
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+    dilation: 2
+  }
+}
+layer {
+  name: "bot2_1_main_relu"
+  type: "PReLU"
+  bottom: "bot2_1_main_conv"
+  top: "bot2_1_main_conv"
+  param {
+    lr_mult: 1
+    decay_mult: 0
+  }
+  prelu_param {
+    filler {
+      type: "constant"
+      value: 0
+    }
+    channel_shared: false
+  }
+}
+layer {
+  name: "bot2_1_main_short_circuit_conv"
+  type: "Convolution"
+  bottom: "bot2_1_proj_nvidia_bn_bot2_1_proj_relu_0_split_1"
+  top: "bot2_1_main_short_circuit_conv"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 64
+    bias_term: true
+    pad: 0
+    kernel_size: 1
+    stride: 1
+    weight_filler {
+      type: "msra"
+      std: 0.01
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+layer {
+  name: "bot2_1_main_short_circuit_relu"
+  type: "PReLU"
+  bottom: "bot2_1_main_short_circuit_conv"
+  top: "bot2_1_main_short_circuit_conv"
+  param {
+    lr_mult: 1
+    decay_mult: 0
+  }
+  prelu_param {
+    filler {
+      type: "constant"
+      value: 0
+    }
+    channel_shared: false
+  }
+}
+layer {
+  name: "bot2_1_main_short_circuit_merged"
+  type: "Eltwise"
+  bottom: "bot2_1_main_conv"
+  bottom: "bot2_1_main_short_circuit_conv"
+  top: "bot2_1_main_short_circuit_merged"
+}
+layer {
+  name: "bot2_1_expand_conv"
+  type: "Convolution"
+  bottom: "bot2_1_main_short_circuit_merged"
+  top: "bot2_1_expand_conv"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 256
+    bias_term: true
+    pad: 0
+    kernel_size: 1
+    stride: 1
+    weight_filler {
+      type: "msra"
+      std: 0.01
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+layer {
+  name: "bot2_1_expand_relu"
+  type: "PReLU"
+  bottom: "bot2_1_expand_conv"
+  top: "bot2_1_expand_conv"
+  param {
+    lr_mult: 1
+    decay_mult: 0
+  }
+  prelu_param {
+    filler {
+      type: "constant"
+      value: 0
+    }
+    channel_shared: false
+  }
+}
+layer {
+  name: "bot2_1"
+  type: "Eltwise"
+  bottom: "bot2_1_expand_conv"
+  bottom: "bot2_0_bot2_0_0_split_1"
+  top: "bot2_1"
+}
+layer {
+  name: "bot2_1_bot2_1_0_split"
+  type: "Split"
+  bottom: "bot2_1"
+  top: "bot2_1_bot2_1_0_split_0"
+  top: "bot2_1_bot2_1_0_split_1"
+}
+layer {
+  name: "bot2_2_proj_conv"
+  type: "Convolution"
+  bottom: "bot2_1_bot2_1_0_split_0"
+  top: "bot2_2_proj_conv"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 64
+    bias_term: true
+    pad: 0
+    kernel_size: 1
+    stride: 1
+    weight_filler {
+      type: "msra"
+      std: 0.01
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+layer {
+  name: "bot2_2_proj_relu"
+  type: "PReLU"
+  bottom: "bot2_2_proj_conv"
+  top: "bot2_2_proj_conv"
+  param {
+    lr_mult: 1
+    decay_mult: 0
+  }
+  prelu_param {
+    filler {
+      type: "constant"
+      value: 0
+    }
+    channel_shared: false
+  }
+}
+layer {
+  name: "bot2_2_proj_nvidia_bn_bot2_2_proj_relu_0_split"
+  type: "Split"
+  bottom: "bot2_2_proj_conv"
+  top: "bot2_2_proj_nvidia_bn_bot2_2_proj_relu_0_split_0"
+  top: "bot2_2_proj_nvidia_bn_bot2_2_proj_relu_0_split_1"
+}
+layer {
+  name: "bot2_2_main_conv"
+  type: "Convolution"
+  bottom: "bot2_2_proj_nvidia_bn_bot2_2_proj_relu_0_split_0"
+  top: "bot2_2_main_conv"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 64
+    bias_term: true
+    pad: 2
+    kernel_size: 3
+    group: 4
+    stride: 1
+    weight_filler {
+      type: "msra"
+      std: 0.01
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+    dilation: 2
+  }
+}
+layer {
+  name: "bot2_2_main_relu"
+  type: "PReLU"
+  bottom: "bot2_2_main_conv"
+  top: "bot2_2_main_conv"
+  param {
+    lr_mult: 1
+    decay_mult: 0
+  }
+  prelu_param {
+    filler {
+      type: "constant"
+      value: 0
+    }
+    channel_shared: false
+  }
+}
+layer {
+  name: "bot2_2_main_short_circuit_conv"
+  type: "Convolution"
+  bottom: "bot2_2_proj_nvidia_bn_bot2_2_proj_relu_0_split_1"
+  top: "bot2_2_main_short_circuit_conv"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 64
+    bias_term: true
+    pad: 0
+    kernel_size: 1
+    stride: 1
+    weight_filler {
+      type: "msra"
+      std: 0.01
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+layer {
+  name: "bot2_2_main_short_circuit_relu"
+  type: "PReLU"
+  bottom: "bot2_2_main_short_circuit_conv"
+  top: "bot2_2_main_short_circuit_conv"
+  param {
+    lr_mult: 1
+    decay_mult: 0
+  }
+  prelu_param {
+    filler {
+      type: "constant"
+      value: 0
+    }
+    channel_shared: false
+  }
+}
+layer {
+  name: "bot2_2_main_short_circuit_merged"
+  type: "Eltwise"
+  bottom: "bot2_2_main_conv"
+  bottom: "bot2_2_main_short_circuit_conv"
+  top: "bot2_2_main_short_circuit_merged"
+}
+layer {
+  name: "bot2_2_expand_conv"
+  type: "Convolution"
+  bottom: "bot2_2_main_short_circuit_merged"
+  top: "bot2_2_expand_conv"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 256
+    bias_term: true
+    pad: 0
+    kernel_size: 1
+    stride: 1
+    weight_filler {
+      type: "msra"
+      std: 0.01
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+layer {
+  name: "bot2_2_expand_relu"
+  type: "PReLU"
+  bottom: "bot2_2_expand_conv"
+  top: "bot2_2_expand_conv"
+  param {
+    lr_mult: 1
+    decay_mult: 0
+  }
+  prelu_param {
+    filler {
+      type: "constant"
+      value: 0
+    }
+    channel_shared: false
+  }
+}
+layer {
+  name: "bot2_2"
+  type: "Eltwise"
+  bottom: "bot2_2_expand_conv"
+  bottom: "bot2_1_bot2_1_0_split_1"
+  top: "bot2_2"
+}
+layer {
+  name: "bot2_2_bot2_2_0_split"
+  type: "Split"
+  bottom: "bot2_2"
+  top: "bot2_2_bot2_2_0_split_0"
+  top: "bot2_2_bot2_2_0_split_1"
+}
+layer {
+  name: "bot3_0_proj_conv"
+  type: "Convolution"
+  bottom: "bot2_2_bot2_2_0_split_0"
+  top: "bot3_0_proj_conv"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 64
+    bias_term: true
+    pad: 0
+    kernel_size: 2
+    stride: 2
+    weight_filler {
+      type: "msra"
+      std: 0.01
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+layer {
+  name: "bot3_0_proj_relu"
+  type: "PReLU"
+  bottom: "bot3_0_proj_conv"
+  top: "bot3_0_proj_conv"
+  param {
+    lr_mult: 1
+    decay_mult: 0
+  }
+  prelu_param {
+    filler {
+      type: "constant"
+      value: 0
+    }
+    channel_shared: false
+  }
+}
+layer {
+  name: "bot3_0_proj_nvidia_bn_bot3_0_proj_relu_0_split"
+  type: "Split"
+  bottom: "bot3_0_proj_conv"
+  top: "bot3_0_proj_nvidia_bn_bot3_0_proj_relu_0_split_0"
+  top: "bot3_0_proj_nvidia_bn_bot3_0_proj_relu_0_split_1"
+}
+layer {
+  name: "bot3_0_main_conv"
+  type: "Convolution"
+  bottom: "bot3_0_proj_nvidia_bn_bot3_0_proj_relu_0_split_0"
+  top: "bot3_0_main_conv"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 64
+    bias_term: true
+    pad: 4
+    kernel_size: 3
+    group: 4
+    stride: 1
+    weight_filler {
+      type: "msra"
+      std: 0.01
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+    dilation: 4
+  }
+}
+layer {
+  name: "bot3_0_main_relu"
+  type: "PReLU"
+  bottom: "bot3_0_main_conv"
+  top: "bot3_0_main_conv"
+  param {
+    lr_mult: 1
+    decay_mult: 0
+  }
+  prelu_param {
+    filler {
+      type: "constant"
+      value: 0
+    }
+    channel_shared: false
+  }
+}
+layer {
+  name: "bot3_0_main_short_circuit_conv"
+  type: "Convolution"
+  bottom: "bot3_0_proj_nvidia_bn_bot3_0_proj_relu_0_split_1"
+  top: "bot3_0_main_short_circuit_conv"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 64
+    bias_term: true
+    pad: 0
+    kernel_size: 1
+    stride: 1
+    weight_filler {
+      type: "msra"
+      std: 0.01
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+layer {
+  name: "bot3_0_main_short_circuit_relu"
+  type: "PReLU"
+  bottom: "bot3_0_main_short_circuit_conv"
+  top: "bot3_0_main_short_circuit_conv"
+  param {
+    lr_mult: 1
+    decay_mult: 0
+  }
+  prelu_param {
+    filler {
+      type: "constant"
+      value: 0
+    }
+    channel_shared: false
+  }
+}
+layer {
+  name: "bot3_0_main_short_circuit_merged"
+  type: "Eltwise"
+  bottom: "bot3_0_main_conv"
+  bottom: "bot3_0_main_short_circuit_conv"
+  top: "bot3_0_main_short_circuit_merged"
+}
+layer {
+  name: "bot3_0_expand_conv"
+  type: "Convolution"
+  bottom: "bot3_0_main_short_circuit_merged"
+  top: "bot3_0_expand_conv"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 512
+    bias_term: true
+    pad: 0
+    kernel_size: 1
+    stride: 1
+    weight_filler {
+      type: "msra"
+      std: 0.01
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+layer {
+  name: "bot3_0_expand_relu"
+  type: "PReLU"
+  bottom: "bot3_0_expand_conv"
+  top: "bot3_0_expand_conv"
+  param {
+    lr_mult: 1
+    decay_mult: 0
+  }
+  prelu_param {
+    filler {
+      type: "constant"
+      value: 0
+    }
+    channel_shared: false
+  }
+}
+layer {
+  name: "bot3_0_aux_br_pool"
+  type: "Pooling"
+  bottom: "bot2_2_bot2_2_0_split_1"
+  top: "bot3_0_aux_br_pool"
+  pooling_param {
+    pool: MAX
+    kernel_size: 2
+    stride: 2
+    pad: 0
+  }
+}
+layer {
+  name: "bot3_0_p1"
+  type: "Slice"
+  bottom: "bot3_0_expand_conv"
+  top: "bot3_0_p1"
+  top: "bot3_0_p2"
+  slice_param {
+    slice_point: 256
+    axis: 1
+  }
+}
+layer {
+  name: "bot3_0_p1_summed"
+  type: "Eltwise"
+  bottom: "bot3_0_p1"
+  bottom: "bot3_0_aux_br_pool"
+  top: "bot3_0_p1_summed"
+}
+layer {
+  name: "bot3_0"
+  type: "Concat"
+  bottom: "bot3_0_p1_summed"
+  bottom: "bot3_0_p2"
+  top: "bot3_0"
+  concat_param {
+    axis: 1
+  }
+}
+layer {
+  name: "bot3_0_bot3_0_0_split"
+  type: "Split"
+  bottom: "bot3_0"
+  top: "bot3_0_bot3_0_0_split_0"
+  top: "bot3_0_bot3_0_0_split_1"
+}
+layer {
+  name: "bot3_1_proj_conv"
+  type: "Convolution"
+  bottom: "bot3_0_bot3_0_0_split_0"
+  top: "bot3_1_proj_conv"
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  convolution_param {
+    num_output: 128
+    bias_term: true
+    pad: 0
+    kernel_size: 1
+    stride: 1
+    weight_filler {
+      type: "msra"
+      std: 0.01
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+ 
+I0406 15:27:28.512173 23397 layer_factory.hpp:77] Creating layer data
+I0406 15:27:28.512198 23397 net.cpp:98] Creating Layer data
+I0406 15:27:28.512207 23397 net.cpp:413] data -> data
+I0406 15:27:28.513170 23397 net.cpp:148] Setting up data
+I0406 15:27:28.513192 23397 net.cpp:155] Top shape: 10 3 224 224 (1505280)
+I0406 15:27:28.513198 23397 net.cpp:163] Memory required for data: 6021120
+I0406 15:27:28.513206 23397 layer_factory.hpp:77] Creating layer mean_sub_nvidia_bn
+I0406 15:27:28.513227 23397 net.cpp:98] Creating Layer mean_sub_nvidia_bn
+I0406 15:27:28.513249 23397 net.cpp:439] mean_sub_nvidia_bn <- data
+I0406 15:27:28.513259 23397 net.cpp:413] mean_sub_nvidia_bn -> mean_sub_nvidia_bn
+I0406 15:27:28.514706 23397 net.cpp:148] Setting up mean_sub_nvidia_bn
+I0406 15:27:28.514727 23397 net.cpp:155] Top shape: 10 3 224 224 (1505280)
+I0406 15:27:28.514734 23397 net.cpp:163] Memory required for data: 12042240
+I0406 15:27:28.514761 23397 layer_factory.hpp:77] Creating layer mean_sub_nvidia_bn_mean_sub_nvidia_bn_0_split
+I0406 15:27:28.514775 23397 net.cpp:98] Creating Layer mean_sub_nvidia_bn_mean_sub_nvidia_bn_0_split
+I0406 15:27:28.514787 23397 net.cpp:439] mean_sub_nvidia_bn_mean_sub_nvidia_bn_0_split <- mean_sub_nvidia_bn
+I0406 15:27:28.514796 23397 net.cpp:413] mean_sub_nvidia_bn_mean_sub_nvidia_bn_0_split -> mean_sub_nvidia_bn_mean_sub_nvidia_bn_0_split_0
+I0406 15:27:28.514808 23397 net.cpp:413] mean_sub_nvidia_bn_mean_sub_nvidia_bn_0_split -> mean_sub_nvidia_bn_mean_sub_nvidia_bn_0_split_1
+I0406 15:27:28.514855 23397 net.cpp:148] Setting up mean_sub_nvidia_bn_mean_sub_nvidia_bn_0_split
+I0406 15:27:28.514868 23397 net.cpp:155] Top shape: 10 3 224 224 (1505280)
+I0406 15:27:28.514873 23397 net.cpp:155] Top shape: 10 3 224 224 (1505280)
+I0406 15:27:28.514878 23397 net.cpp:163] Memory required for data: 24084480
+I0406 15:27:28.514883 23397 layer_factory.hpp:77] Creating layer init_conv
+I0406 15:27:28.514901 23397 net.cpp:98] Creating Layer init_conv
+I0406 15:27:28.514909 23397 net.cpp:439] init_conv <- mean_sub_nvidia_bn_mean_sub_nvidia_bn_0_split_0
+I0406 15:27:28.514919 23397 net.cpp:413] init_conv -> init_conv
+I0406 15:27:28.517329 23397 net.cpp:148] Setting up init_conv
+I0406 15:27:28.517366 23397 net.cpp:155] Top shape: 10 13 112 112 (1630720)
+I0406 15:27:28.517372 23397 net.cpp:163] Memory required for data: 30607360
+I0406 15:27:28.517380 23397 layer_factory.hpp:77] Creating layer init_relu
+I0406 15:27:28.517398 23397 net.cpp:98] Creating Layer init_relu
+I0406 15:27:28.517405 23397 net.cpp:439] init_relu <- init_conv
+I0406 15:27:28.517411 23397 net.cpp:400] init_relu -> init_conv (in-place)
+I0406 15:27:28.518497 23397 net.cpp:148] Setting up init_relu
+I0406 15:27:28.518528 23397 net.cpp:155] Top shape: 10 13 112 112 (1630720)
+I0406 15:27:28.518534 23397 net.cpp:163] Memory required for data: 37130240
+I0406 15:27:28.518542 23397 layer_factory.hpp:77] Creating layer init_max_pool
+I0406 15:27:28.518554 23397 net.cpp:98] Creating Layer init_max_pool
+I0406 15:27:28.518560 23397 net.cpp:439] init_max_pool <- mean_sub_nvidia_bn_mean_sub_nvidia_bn_0_split_1
+I0406 15:27:28.518568 23397 net.cpp:413] init_max_pool -> init_max_pool
+I0406 15:27:28.518621 23397 net.cpp:148] Setting up init_max_pool
+I0406 15:27:28.518635 23397 net.cpp:155] Top shape: 10 3 112 112 (376320)
+I0406 15:27:28.518640 23397 net.cpp:163] Memory required for data: 38635520
+I0406 15:27:28.518646 23397 layer_factory.hpp:77] Creating layer init_concat
+I0406 15:27:28.518662 23397 net.cpp:98] Creating Layer init_concat
+I0406 15:27:28.518671 23397 net.cpp:439] init_concat <- init_conv
+I0406 15:27:28.518676 23397 net.cpp:439] init_concat <- init_max_pool
+I0406 15:27:28.518683 23397 net.cpp:413] init_concat -> init_concat
+I0406 15:27:28.518712 23397 net.cpp:148] Setting up init_concat
+I0406 15:27:28.518721 23397 net.cpp:155] Top shape: 10 16 112 112 (2007040)
+I0406 15:27:28.518725 23397 net.cpp:163] Memory required for data: 46663680
+I0406 15:27:28.518730 23397 layer_factory.hpp:77] Creating layer init_concat_init_concat_0_split
+I0406 15:27:28.518738 23397 net.cpp:98] Creating Layer init_concat_init_concat_0_split
+I0406 15:27:28.518745 23397 net.cpp:439] init_concat_init_concat_0_split <- init_concat
+I0406 15:27:28.518751 23397 net.cpp:413] init_concat_init_concat_0_split -> init_concat_init_concat_0_split_0
+I0406 15:27:28.518759 23397 net.cpp:413] init_concat_init_concat_0_split -> init_concat_init_concat_0_split_1
+I0406 15:27:28.518795 23397 net.cpp:148] Setting up init_concat_init_concat_0_split
+I0406 15:27:28.518803 23397 net.cpp:155] Top shape: 10 16 112 112 (2007040)
+I0406 15:27:28.518810 23397 net.cpp:155] Top shape: 10 16 112 112 (2007040)
+I0406 15:27:28.518815 23397 net.cpp:163] Memory required for data: 62720000
+I0406 15:27:28.518821 23397 layer_factory.hpp:77] Creating layer bot1_0_proj_conv
+I0406 15:27:28.518836 23397 net.cpp:98] Creating Layer bot1_0_proj_conv
+I0406 15:27:28.518842 23397 net.cpp:439] bot1_0_proj_conv <- init_concat_init_concat_0_split_0
+I0406 15:27:28.518851 23397 net.cpp:413] bot1_0_proj_conv -> bot1_0_proj_conv
+I0406 15:27:28.520006 23397 net.cpp:148] Setting up bot1_0_proj_conv
+I0406 15:27:28.520026 23397 net.cpp:155] Top shape: 10 16 56 56 (501760)
+I0406 15:27:28.520032 23397 net.cpp:163] Memory required for data: 64727040
+I0406 15:27:28.520043 23397 layer_factory.hpp:77] Creating layer bot1_0_proj_relu
+I0406 15:27:28.520054 23397 net.cpp:98] Creating Layer bot1_0_proj_relu
+I0406 15:27:28.520061 23397 net.cpp:439] bot1_0_proj_relu <- bot1_0_proj_conv
+I0406 15:27:28.520071 23397 net.cpp:400] bot1_0_proj_relu -> bot1_0_proj_conv (in-place)
+I0406 15:27:28.520206 23397 net.cpp:148] Setting up bot1_0_proj_relu
+I0406 15:27:28.520218 23397 net.cpp:155] Top shape: 10 16 56 56 (501760)
+I0406 15:27:28.520223 23397 net.cpp:163] Memory required for data: 66734080
+I0406 15:27:28.520229 23397 layer_factory.hpp:77] Creating layer bot1_0_proj_nvidia_bn_bot1_0_proj_relu_0_split
+I0406 15:27:28.520238 23397 net.cpp:98] Creating Layer bot1_0_proj_nvidia_bn_bot1_0_proj_relu_0_split
+I0406 15:27:28.520243 23397 net.cpp:439] bot1_0_proj_nvidia_bn_bot1_0_proj_relu_0_split <- bot1_0_proj_conv
+I0406 15:27:28.520251 23397 net.cpp:413] bot1_0_proj_nvidia_bn_bot1_0_proj_relu_0_split -> bot1_0_proj_nvidia_bn_bot1_0_proj_relu_0_split_0
+I0406 15:27:28.520262 23397 net.cpp:413] bot1_0_proj_nvidia_bn_bot1_0_proj_relu_0_split -> bot1_0_proj_nvidia_bn_bot1_0_proj_relu_0_split_1
+I0406 15:27:28.520298 23397 net.cpp:148] Setting up bot1_0_proj_nvidia_bn_bot1_0_proj_relu_0_split
+I0406 15:27:28.520306 23397 net.cpp:155] Top shape: 10 16 56 56 (501760)
+I0406 15:27:28.520313 23397 net.cpp:155] Top shape: 10 16 56 56 (501760)
+I0406 15:27:28.520318 23397 net.cpp:163] Memory required for data: 70748160
+I0406 15:27:28.520323 23397 layer_factory.hpp:77] Creating layer bot1_0_main_conv
+I0406 15:27:28.520351 23397 net.cpp:98] Creating Layer bot1_0_main_conv
+I0406 15:27:28.520359 23397 net.cpp:439] bot1_0_main_conv <- bot1_0_proj_nvidia_bn_bot1_0_proj_relu_0_split_0
+I0406 15:27:28.520367 23397 net.cpp:413] bot1_0_main_conv -> bot1_0_main_conv
+I0406 15:27:28.520619 23397 net.cpp:148] Setting up bot1_0_main_conv
+I0406 15:27:28.520632 23397 net.cpp:155] Top shape: 10 16 56 56 (501760)
+I0406 15:27:28.520637 23397 net.cpp:163] Memory required for data: 72755200
+I0406 15:27:28.520643 23397 layer_factory.hpp:77] Creating layer bot1_0_main_relu
+I0406 15:27:28.520655 23397 net.cpp:98] Creating Layer bot1_0_main_relu
+I0406 15:27:28.520663 23397 net.cpp:439] bot1_0_main_relu <- bot1_0_main_conv
+I0406 15:27:28.520670 23397 net.cpp:400] bot1_0_main_relu -> bot1_0_main_conv (in-place)
+I0406 15:27:28.520797 23397 net.cpp:148] Setting up bot1_0_main_relu
+I0406 15:27:28.520808 23397 net.cpp:155] Top shape: 10 16 56 56 (501760)
+I0406 15:27:28.520812 23397 net.cpp:163] Memory required for data: 74762240
+I0406 15:27:28.520819 23397 layer_factory.hpp:77] Creating layer bot1_0_main_short_circuit_conv
+I0406 15:27:28.520833 23397 net.cpp:98] Creating Layer bot1_0_main_short_circuit_conv
+I0406 15:27:28.520840 23397 net.cpp:439] bot1_0_main_short_circuit_conv <- bot1_0_proj_nvidia_bn_bot1_0_proj_relu_0_split_1
+I0406 15:27:28.520849 23397 net.cpp:413] bot1_0_main_short_circuit_conv -> bot1_0_main_short_circuit_conv
+I0406 15:27:28.521081 23397 net.cpp:148] Setting up bot1_0_main_short_circuit_conv
+I0406 15:27:28.521093 23397 net.cpp:155] Top shape: 10 16 56 56 (501760)
+I0406 15:27:28.521098 23397 net.cpp:163] Memory required for data: 76769280
+I0406 15:27:28.521106 23397 layer_factory.hpp:77] Creating layer bot1_0_main_short_circuit_relu
+I0406 15:27:28.521117 23397 net.cpp:98] Creating Layer bot1_0_main_short_circuit_relu
+I0406 15:27:28.521126 23397 net.cpp:439] bot1_0_main_short_circuit_relu <- bot1_0_main_short_circuit_conv
+I0406 15:27:28.521133 23397 net.cpp:400] bot1_0_main_short_circuit_relu -> bot1_0_main_short_circuit_conv (in-place)
+I0406 15:27:28.521257 23397 net.cpp:148] Setting up bot1_0_main_short_circuit_relu
+I0406 15:27:28.521268 23397 net.cpp:155] Top shape: 10 16 56 56 (501760)
+I0406 15:27:28.521273 23397 net.cpp:163] Memory required for data: 78776320
+I0406 15:27:28.521282 23397 layer_factory.hpp:77] Creating layer bot1_0_main_short_circuit_merged
+I0406 15:27:28.521298 23397 net.cpp:98] Creating Layer bot1_0_main_short_circuit_merged
+I0406 15:27:28.521306 23397 net.cpp:439] bot1_0_main_short_circuit_merged <- bot1_0_main_conv
+I0406 15:27:28.521312 23397 net.cpp:439] bot1_0_main_short_circuit_merged <- bot1_0_main_short_circuit_conv
+I0406 15:27:28.521318 23397 net.cpp:413] bot1_0_main_short_circuit_merged -> bot1_0_main_short_circuit_merged
+I0406 15:27:28.521351 23397 net.cpp:148] Setting up bot1_0_main_short_circuit_merged
+I0406 15:27:28.521360 23397 net.cpp:155] Top shape: 10 16 56 56 (501760)
+I0406 15:27:28.521365 23397 net.cpp:163] Memory required for data: 80783360
+I0406 15:27:28.521370 23397 layer_factory.hpp:77] Creating layer bot1_0_expand_conv
+I0406 15:27:28.521384 23397 net.cpp:98] Creating Layer bot1_0_expand_conv
+I0406 15:27:28.521390 23397 net.cpp:439] bot1_0_expand_conv <- bot1_0_main_short_circuit_merged
+I0406 15:27:28.521399 23397 net.cpp:413] bot1_0_expand_conv -> bot1_0_expand_conv
+I0406 15:27:28.521667 23397 net.cpp:148] Setting up bot1_0_expand_conv
+I0406 15:27:28.521680 23397 net.cpp:155] Top shape: 10 64 56 56 (2007040)
+I0406 15:27:28.521685 23397 net.cpp:163] Memory required for data: 88811520
+I0406 15:27:28.521695 23397 layer_factory.hpp:77] Creating layer bot1_0_expand_relu
+I0406 15:27:28.521703 23397 net.cpp:98] Creating Layer bot1_0_expand_relu
+I0406 15:27:28.521711 23397 net.cpp:439] bot1_0_expand_relu <- bot1_0_expand_conv
+I0406 15:27:28.521718 23397 net.cpp:400] bot1_0_expand_relu -> bot1_0_expand_conv (in-place)
+I0406 15:27:28.521944 23397 net.cpp:148] Setting up bot1_0_expand_relu
+I0406 15:27:28.521955 23397 net.cpp:155] Top shape: 10 64 56 56 (2007040)
+I0406 15:27:28.521970 23397 net.cpp:163] Memory required for data: 96839680
+I0406 15:27:28.521978 23397 layer_factory.hpp:77] Creating layer bot1_0_aux_br_pool
+I0406 15:27:28.521986 23397 net.cpp:98] Creating Layer bot1_0_aux_br_pool
+I0406 15:27:28.521994 23397 net.cpp:439] bot1_0_aux_br_pool <- init_concat_init_concat_0_split_1
+I0406 15:27:28.522001 23397 net.cpp:413] bot1_0_aux_br_pool -> bot1_0_aux_br_pool
+I0406 15:27:28.522044 23397 net.cpp:148] Setting up bot1_0_aux_br_pool
+I0406 15:27:28.522054 23397 net.cpp:155] Top shape: 10 16 56 56 (501760)
+I0406 15:27:28.522058 23397 net.cpp:163] Memory required for data: 98846720
+I0406 15:27:28.522063 23397 layer_factory.hpp:77] Creating layer bot1_0_p1
+I0406 15:27:28.522073 23397 net.cpp:98] Creating Layer bot1_0_p1
+I0406 15:27:28.522080 23397 net.cpp:439] bot1_0_p1 <- bot1_0_expand_conv
+I0406 15:27:28.522088 23397 net.cpp:413] bot1_0_p1 -> bot1_0_p1
+I0406 15:27:28.522099 23397 net.cpp:413] bot1_0_p1 -> bot1_0_p2
+I0406 15:27:28.522137 23397 net.cpp:148] Setting up bot1_0_p1
+I0406 15:27:28.522147 23397 net.cpp:155] Top shape: 10 16 56 56 (501760)
+I0406 15:27:28.522153 23397 net.cpp:155] Top shape: 10 48 56 56 (1505280)
+I0406 15:27:28.522161 23397 net.cpp:163] Memory required for data: 106874880
+I0406 15:27:28.522164 23397 layer_factory.hpp:77] Creating layer bot1_0_p1_summed
+I0406 15:27:28.522171 23397 net.cpp:98] Creating Layer bot1_0_p1_summed
+I0406 15:27:28.522179 23397 net.cpp:439] bot1_0_p1_summed <- bot1_0_p1
+I0406 15:27:28.522184 23397 net.cpp:439] bot1_0_p1_summed <- bot1_0_aux_br_pool
+I0406 15:27:28.522192 23397 net.cpp:413] bot1_0_p1_summed -> bot1_0_p1_summed
+I0406 15:27:28.522215 23397 net.cpp:148] Setting up bot1_0_p1_summed
+I0406 15:27:28.522224 23397 net.cpp:155] Top shape: 10 16 56 56 (501760)
+I0406 15:27:28.522228 23397 net.cpp:163] Memory required for data: 108881920
+I0406 15:27:28.522233 23397 layer_factory.hpp:77] Creating layer bot1_0
+I0406 15:27:28.522240 23397 net.cpp:98] Creating Layer bot1_0
+I0406 15:27:28.522248 23397 net.cpp:439] bot1_0 <- bot1_0_p1_summed
+I0406 15:27:28.522253 23397 net.cpp:439] bot1_0 <- bot1_0_p2
+I0406 15:27:28.522261 23397 net.cpp:413] bot1_0 -> bot1_0
+I0406 15:27:28.522284 23397 net.cpp:148] Setting up bot1_0
+I0406 15:27:28.522294 23397 net.cpp:155] Top shape: 10 64 56 56 (2007040)
+I0406 15:27:28.522297 23397 net.cpp:163] Memory required for data: 116910080
+I0406 15:27:28.522302 23397 layer_factory.hpp:77] Creating layer bot1_0_bot1_0_0_split
+I0406 15:27:28.522308 23397 net.cpp:98] Creating Layer bot1_0_bot1_0_0_split
+I0406 15:27:28.522315 23397 net.cpp:439] bot1_0_bot1_0_0_split <- bot1_0
+I0406 15:27:28.522322 23397 net.cpp:413] bot1_0_bot1_0_0_split -> bot1_0_bot1_0_0_split_0
+I0406 15:27:28.522332 23397 net.cpp:413] bot1_0_bot1_0_0_split -> bot1_0_bot1_0_0_split_1
+I0406 15:27:28.522364 23397 net.cpp:148] Setting up bot1_0_bot1_0_0_split
+I0406 15:27:28.522373 23397 net.cpp:155] Top shape: 10 64 56 56 (2007040)
+I0406 15:27:28.522378 23397 net.cpp:155] Top shape: 10 64 56 56 (2007040)
+I0406 15:27:28.522383 23397 net.cpp:163] Memory required for data: 132966400
+I0406 15:27:28.522388 23397 layer_factory.hpp:77] Creating layer bot1_1_proj_conv
+I0406 15:27:28.522399 23397 net.cpp:98] Creating Layer bot1_1_proj_conv
+I0406 15:27:28.522406 23397 net.cpp:439] bot1_1_proj_conv <- bot1_0_bot1_0_0_split_0
+I0406 15:27:28.522413 23397 net.cpp:413] bot1_1_proj_conv -> bot1_1_proj_conv
+I0406 15:27:28.522668 23397 net.cpp:148] Setting up bot1_1_proj_conv
+I0406 15:27:28.522680 23397 net.cpp:155] Top shape: 10 16 56 56 (501760)
+I0406 15:27:28.522686 23397 net.cpp:163] Memory required for data: 134973440
+I0406 15:27:28.522693 23397 layer_factory.hpp:77] Creating layer bot1_1_proj_relu
+I0406 15:27:28.522701 23397 net.cpp:98] Creating Layer bot1_1_proj_relu
+I0406 15:27:28.522709 23397 net.cpp:439] bot1_1_proj_relu <- bot1_1_proj_conv
+I0406 15:27:28.522717 23397 net.cpp:400] bot1_1_proj_relu -> bot1_1_proj_conv (in-place)
+I0406 15:27:28.522845 23397 net.cpp:148] Setting up bot1_1_proj_relu
+I0406 15:27:28.522855 23397 net.cpp:155] Top shape: 10 16 56 56 (501760)
+I0406 15:27:28.522871 23397 net.cpp:163] Memory required for data: 136980480
+I0406 15:27:28.522878 23397 layer_factory.hpp:77] Creating layer bot1_1_proj_nvidia_bn_bot1_1_proj_relu_0_split
+I0406 15:27:28.522886 23397 net.cpp:98] Creating Layer bot1_1_proj_nvidia_bn_bot1_1_proj_relu_0_split
+I0406 15:27:28.522893 23397 net.cpp:439] bot1_1_proj_nvidia_bn_bot1_1_proj_relu_0_split <- bot1_1_proj_conv
+I0406 15:27:28.522902 23397 net.cpp:413] bot1_1_proj_nvidia_bn_bot1_1_proj_relu_0_split -> bot1_1_proj_nvidia_bn_bot1_1_proj_relu_0_split_0
+I0406 15:27:28.522912 23397 net.cpp:413] bot1_1_proj_nvidia_bn_bot1_1_proj_relu_0_split -> bot1_1_proj_nvidia_bn_bot1_1_proj_relu_0_split_1
+I0406 15:27:28.522946 23397 net.cpp:148] Setting up bot1_1_proj_nvidia_bn_bot1_1_proj_relu_0_split
+I0406 15:27:28.522955 23397 net.cpp:155] Top shape: 10 16 56 56 (501760)
+I0406 15:27:28.522961 23397 net.cpp:155] Top shape: 10 16 56 56 (501760)
+I0406 15:27:28.522966 23397 net.cpp:163] Memory required for data: 140994560
+I0406 15:27:28.522971 23397 layer_factory.hpp:77] Creating layer bot1_1_main_conv
+I0406 15:27:28.522985 23397 net.cpp:98] Creating Layer bot1_1_main_conv
+I0406 15:27:28.522992 23397 net.cpp:439] bot1_1_main_conv <- bot1_1_proj_nvidia_bn_bot1_1_proj_relu_0_split_0
+I0406 15:27:28.523001 23397 net.cpp:413] bot1_1_main_conv -> bot1_1_main_conv
+I0406 15:27:28.523241 23397 net.cpp:148] Setting up bot1_1_main_conv
+I0406 15:27:28.523253 23397 net.cpp:155] Top shape: 10 16 56 56 (501760)
+I0406 15:27:28.523258 23397 net.cpp:163] Memory required for data: 143001600
+I0406 15:27:28.523265 23397 layer_factory.hpp:77] Creating layer bot1_1_main_relu
+I0406 15:27:28.523277 23397 net.cpp:98] Creating Layer bot1_1_main_relu
+I0406 15:27:28.523283 23397 net.cpp:439] bot1_1_main_relu <- bot1_1_main_conv
+I0406 15:27:28.523293 23397 net.cpp:400] bot1_1_main_relu -> bot1_1_main_conv (in-place)
+I0406 15:27:28.523422 23397 net.cpp:148] Setting up bot1_1_main_relu
+I0406 15:27:28.523432 23397 net.cpp:155] Top shape: 10 16 56 56 (501760)
+I0406 15:27:28.523437 23397 net.cpp:163] Memory required for data: 145008640
+I0406 15:27:28.523443 23397 layer_factory.hpp:77] Creating layer bot1_1_main_short_circuit_conv
+I0406 15:27:28.523457 23397 net.cpp:98] Creating Layer bot1_1_main_short_circuit_conv
+I0406 15:27:28.523485 23397 net.cpp:439] bot1_1_main_short_circuit_conv <- bot1_1_proj_nvidia_bn_bot1_1_proj_relu_0_split_1
+I0406 15:27:28.523499 23397 net.cpp:413] bot1_1_main_short_circuit_conv -> bot1_1_main_short_circuit_conv
+I0406 15:27:28.523736 23397 net.cpp:148] Setting up bot1_1_main_short_circuit_conv
+I0406 15:27:28.523748 23397 net.cpp:155] Top shape: 10 16 56 56 (501760)
+I0406 15:27:28.523752 23397 net.cpp:163] Memory required for data: 147015680
+I0406 15:27:28.523761 23397 layer_factory.hpp:77] Creating layer bot1_1_main_short_circuit_relu
+I0406 15:27:28.523769 23397 net.cpp:98] Creating Layer bot1_1_main_short_circuit_relu
+I0406 15:27:28.523775 23397 net.cpp:439] bot1_1_main_short_circuit_relu <- bot1_1_main_short_circuit_conv
+I0406 15:27:28.523784 23397 net.cpp:400] bot1_1_main_short_circuit_relu -> bot1_1_main_short_circuit_conv (in-place)
+I0406 15:27:28.523905 23397 net.cpp:148] Setting up bot1_1_main_short_circuit_relu
+I0406 15:27:28.523914 23397 net.cpp:155] Top shape: 10 16 56 56 (501760)
+I0406 15:27:28.523918 23397 net.cpp:163] Memory required for data: 149022720
+I0406 15:27:28.523926 23397 layer_factory.hpp:77] Creating layer bot1_1_main_short_circuit_merged
+I0406 15:27:28.523934 23397 net.cpp:98] Creating Layer bot1_1_main_short_circuit_merged
+I0406 15:27:28.523939 23397 net.cpp:439] bot1_1_main_short_circuit_merged <- bot1_1_main_conv
+I0406 15:27:28.523944 23397 net.cpp:439] bot1_1_main_short_circuit_merged <- bot1_1_main_short_circuit_conv
+I0406 15:27:28.523954 23397 net.cpp:413] bot1_1_main_short_circuit_merged -> bot1_1_main_short_circuit_merged
+I0406 15:27:28.523977 23397 net.cpp:148] Setting up bot1_1_main_short_circuit_merged
+I0406 15:27:28.523986 23397 net.cpp:155] Top shape: 10 16 56 56 (501760)
+I0406 15:27:28.523991 23397 net.cpp:163] Memory required for data: 151029760
+I0406 15:27:28.524008 23397 layer_factory.hpp:77] Creating layer bot1_1_expand_conv
+I0406 15:27:28.524021 23397 net.cpp:98] Creating Layer bot1_1_expand_conv
+I0406 15:27:28.524029 23397 net.cpp:439] bot1_1_expand_conv <- bot1_1_main_short_circuit_merged
+I0406 15:27:28.524039 23397 net.cpp:413] bot1_1_expand_conv -> bot1_1_expand_conv
+I0406 15:27:28.524317 23397 net.cpp:148] Setting up bot1_1_expand_conv
+I0406 15:27:28.524329 23397 net.cpp:155] Top shape: 10 128 56 56 (4014080)
+I0406 15:27:28.524333 23397 net.cpp:163] Memory required for data: 167086080
+I0406 15:27:28.524341 23397 layer_factory.hpp:77] Creating layer bot1_1_expand_relu
+I0406 15:27:28.524353 23397 net.cpp:98] Creating Layer bot1_1_expand_relu
+I0406 15:27:28.524360 23397 net.cpp:439] bot1_1_expand_relu <- bot1_1_expand_conv
+I0406 15:27:28.524369 23397 net.cpp:400] bot1_1_expand_relu -> bot1_1_expand_conv (in-place)
+I0406 15:27:28.525586 23397 net.cpp:148] Setting up bot1_1_expand_relu
+I0406 15:27:28.525604 23397 net.cpp:155] Top shape: 10 128 56 56 (4014080)
+I0406 15:27:28.525609 23397 net.cpp:163] Memory required for data: 183142400
+I0406 15:27:28.525617 23397 layer_factory.hpp:77] Creating layer bot1_1_p1
+I0406 15:27:28.525627 23397 net.cpp:98] Creating Layer bot1_1_p1
+I0406 15:27:28.525632 23397 net.cpp:439] bot1_1_p1 <- bot1_1_expand_conv
+I0406 15:27:28.525642 23397 net.cpp:413] bot1_1_p1 -> bot1_1_p1
+I0406 15:27:28.525653 23397 net.cpp:413] bot1_1_p1 -> bot1_1_p2
+I0406 15:27:28.525694 23397 net.cpp:148] Setting up bot1_1_p1
+I0406 15:27:28.525703 23397 net.cpp:155] Top shape: 10 64 56 56 (2007040)
+I0406 15:27:28.525709 23397 net.cpp:155] Top shape: 10 64 56 56 (2007040)
+I0406 15:27:28.525713 23397 net.cpp:163] Memory required for data: 199198720
+I0406 15:27:28.525718 23397 layer_factory.hpp:77] Creating layer bot1_1_p1_summed
+I0406 15:27:28.525727 23397 net.cpp:98] Creating Layer bot1_1_p1_summed
+I0406 15:27:28.525733 23397 net.cpp:439] bot1_1_p1_summed <- bot1_1_p1
+I0406 15:27:28.525739 23397 net.cpp:439] bot1_1_p1_summed <- bot1_0_bot1_0_0_split_1
+I0406 15:27:28.525749 23397 net.cpp:413] bot1_1_p1_summed -> bot1_1_p1_summed
+I0406 15:27:28.525776 23397 net.cpp:148] Setting up bot1_1_p1_summed
+I0406 15:27:28.525785 23397 net.cpp:155] Top shape: 10 64 56 56 (2007040)
+I0406 15:27:28.525789 23397 net.cpp:163] Memory required for data: 207226880
+I0406 15:27:28.525794 23397 layer_factory.hpp:77] Creating layer bot1_1
+I0406 15:27:28.525801 23397 net.cpp:98] Creating Layer bot1_1
+I0406 15:27:28.525809 23397 net.cpp:439] bot1_1 <- bot1_1_p1_summed
+I0406 15:27:28.525815 23397 net.cpp:439] bot1_1 <- bot1_1_p2
+I0406 15:27:28.525820 23397 net.cpp:413] bot1_1 -> bot1_1
+I0406 15:27:28.525843 23397 net.cpp:148] Setting up bot1_1
+I0406 15:27:28.525851 23397 net.cpp:155] Top shape: 10 128 56 56 (4014080)
+I0406 15:27:28.525856 23397 net.cpp:163] Memory required for data: 223283200
+I0406 15:27:28.525861 23397 layer_factory.hpp:77] Creating layer bot1_1_bot1_1_0_split
+I0406 15:27:28.525869 23397 net.cpp:98] Creating Layer bot1_1_bot1_1_0_split
+I0406 15:27:28.525876 23397 net.cpp:439] bot1_1_bot1_1_0_split <- bot1_1
+I0406 15:27:28.525882 23397 net.cpp:413] bot1_1_bot1_1_0_split -> bot1_1_bot1_1_0_split_0
+I0406 15:27:28.525890 23397 net.cpp:413] bot1_1_bot1_1_0_split -> bot1_1_bot1_1_0_split_1
+I0406 15:27:28.525921 23397 net.cpp:148] Setting up bot1_1_bot1_1_0_split
+I0406 15:27:28.525931 23397 net.cpp:155] Top shape: 10 128 56 56 (4014080)
+I0406 15:27:28.525938 23397 net.cpp:155] Top shape: 10 128 56 56 (4014080)
+I0406 15:27:28.525943 23397 net.cpp:163] Memory required for data: 255395840
+I0406 15:27:28.525949 23397 layer_factory.hpp:77] Creating layer bot1_2_proj_conv
+I0406 15:27:28.525961 23397 net.cpp:98] Creating Layer bot1_2_proj_conv
+I0406 15:27:28.525969 23397 net.cpp:439] bot1_2_proj_conv <- bot1_1_bot1_1_0_split_0
+I0406 15:27:28.525975 23397 net.cpp:413] bot1_2_proj_conv -> bot1_2_proj_conv
+I0406 15:27:28.526335 23397 net.cpp:148] Setting up bot1_2_proj_conv
+I0406 15:27:28.526348 23397 net.cpp:155] Top shape: 10 32 56 56 (1003520)
+I0406 15:27:28.526370 23397 net.cpp:163] Memory required for data: 259409920
+I0406 15:27:28.526381 23397 layer_factory.hpp:77] Creating layer bot1_2_proj_relu
+I0406 15:27:28.526392 23397 net.cpp:98] Creating Layer bot1_2_proj_relu
+I0406 15:27:28.526398 23397 net.cpp:439] bot1_2_proj_relu <- bot1_2_proj_conv
+I0406 15:27:28.526406 23397 net.cpp:400] bot1_2_proj_relu -> bot1_2_proj_conv (in-place)
+I0406 15:27:28.526563 23397 net.cpp:148] Setting up bot1_2_proj_relu
+I0406 15:27:28.526574 23397 net.cpp:155] Top shape: 10 32 56 56 (1003520)
+I0406 15:27:28.526579 23397 net.cpp:163] Memory required for data: 263424000
+I0406 15:27:28.526585 23397 layer_factory.hpp:77] Creating layer bot1_2_proj_nvidia_bn_bot1_2_proj_relu_0_split
+I0406 15:27:28.526593 23397 net.cpp:98] Creating Layer bot1_2_proj_nvidia_bn_bot1_2_proj_relu_0_split
+I0406 15:27:28.526602 23397 net.cpp:439] bot1_2_proj_nvidia_bn_bot1_2_proj_relu_0_split <- bot1_2_proj_conv
+I0406 15:27:28.526608 23397 net.cpp:413] bot1_2_proj_nvidia_bn_bot1_2_proj_relu_0_split -> bot1_2_proj_nvidia_bn_bot1_2_proj_relu_0_split_0
+I0406 15:27:28.526618 23397 net.cpp:413] bot1_2_proj_nvidia_bn_bot1_2_proj_relu_0_split -> bot1_2_proj_nvidia_bn_bot1_2_proj_relu_0_split_1
+I0406 15:27:28.526657 23397 net.cpp:148] Setting up bot1_2_proj_nvidia_bn_bot1_2_proj_relu_0_split
+I0406 15:27:28.526666 23397 net.cpp:155] Top shape: 10 32 56 56 (1003520)
+I0406 15:27:28.526672 23397 net.cpp:155] Top shape: 10 32 56 56 (1003520)
+I0406 15:27:28.526676 23397 net.cpp:163] Memory required for data: 271452160
+I0406 15:27:28.526682 23397 layer_factory.hpp:77] Creating layer bot1_2_main_conv
+I0406 15:27:28.526695 23397 net.cpp:98] Creating Layer bot1_2_main_conv
+I0406 15:27:28.526702 23397 net.cpp:439] bot1_2_main_conv <- bot1_2_proj_nvidia_bn_bot1_2_proj_relu_0_split_0
+I0406 15:27:28.526711 23397 net.cpp:413] bot1_2_main_conv -> bot1_2_main_conv
+I0406 15:27:28.527004 23397 net.cpp:148] Setting up bot1_2_main_conv
+I0406 15:27:28.527016 23397 net.cpp:155] Top shape: 10 32 56 56 (1003520)
+I0406 15:27:28.527021 23397 net.cpp:163] Memory required for data: 275466240
+I0406 15:27:28.527029 23397 layer_factory.hpp:77] Creating layer bot1_2_main_relu
+I0406 15:27:28.527040 23397 net.cpp:98] Creating Layer bot1_2_main_relu
+I0406 15:27:28.527046 23397 net.cpp:439] bot1_2_main_relu <- bot1_2_main_conv
+I0406 15:27:28.527053 23397 net.cpp:400] bot1_2_main_relu -> bot1_2_main_conv (in-place)
+I0406 15:27:28.527206 23397 net.cpp:148] Setting up bot1_2_main_relu
+I0406 15:27:28.527217 23397 net.cpp:155] Top shape: 10 32 56 56 (1003520)
+I0406 15:27:28.527222 23397 net.cpp:163] Memory required for data: 279480320
+I0406 15:27:28.527228 23397 layer_factory.hpp:77] Creating layer bot1_2_main_short_circuit_conv
+I0406 15:27:28.527241 23397 net.cpp:98] Creating Layer bot1_2_main_short_circuit_conv
+I0406 15:27:28.527250 23397 net.cpp:439] bot1_2_main_short_circuit_conv <- bot1_2_proj_nvidia_bn_bot1_2_proj_relu_0_split_1
+I0406 15:27:28.527256 23397 net.cpp:413] bot1_2_main_short_circuit_conv -> bot1_2_main_short_circuit_conv
+I0406 15:27:28.527552 23397 net.cpp:148] Setting up bot1_2_main_short_circuit_conv
+I0406 15:27:28.527568 23397 net.cpp:155] Top shape: 10 32 56 56 (1003520)
+I0406 15:27:28.527573 23397 net.cpp:163] Memory required for data: 283494400
+I0406 15:27:28.527581 23397 layer_factory.hpp:77] Creating layer bot1_2_main_short_circuit_relu
+I0406 15:27:28.527591 23397 net.cpp:98] Creating Layer bot1_2_main_short_circuit_relu
+I0406 15:27:28.527597 23397 net.cpp:439] bot1_2_main_short_circuit_relu <- bot1_2_main_short_circuit_conv
+I0406 15:27:28.527606 23397 net.cpp:400] bot1_2_main_short_circuit_relu -> bot1_2_main_short_circuit_conv (in-place)
+I0406 15:27:28.528614 23397 net.cpp:148] Setting up bot1_2_main_short_circuit_relu
+I0406 15:27:28.528632 23397 net.cpp:155] Top shape: 10 32 56 56 (1003520)
+I0406 15:27:28.528637 23397 net.cpp:163] Memory required for data: 287508480
+I0406 15:27:28.528645 23397 layer_factory.hpp:77] Creating layer bot1_2_main_short_circuit_merged
+I0406 15:27:28.528653 23397 net.cpp:98] Creating Layer bot1_2_main_short_circuit_merged
+I0406 15:27:28.528671 23397 net.cpp:439] bot1_2_main_short_circuit_merged <- bot1_2_main_conv
+I0406 15:27:28.528676 23397 net.cpp:439] bot1_2_main_short_circuit_merged <- bot1_2_main_short_circuit_conv
+I0406 15:27:28.528686 23397 net.cpp:413] bot1_2_main_short_circuit_merged -> bot1_2_main_short_circuit_merged
+I0406 15:27:28.528712 23397 net.cpp:148] Setting up bot1_2_main_short_circuit_merged
+I0406 15:27:28.528723 23397 net.cpp:155] Top shape: 10 32 56 56 (1003520)
+I0406 15:27:28.528728 23397 net.cpp:163] Memory required for data: 291522560
+I0406 15:27:28.528733 23397 layer_factory.hpp:77] Creating layer bot1_2_expand_conv
+I0406 15:27:28.528746 23397 net.cpp:98] Creating Layer bot1_2_expand_conv
+I0406 15:27:28.528754 23397 net.cpp:439] bot1_2_expand_conv <- bot1_2_main_short_circuit_merged
+I0406 15:27:28.528762 23397 net.cpp:413] bot1_2_expand_conv -> bot1_2_expand_conv
+I0406 15:27:28.529125 23397 net.cpp:148] Setting up bot1_2_expand_conv
+I0406 15:27:28.529137 23397 net.cpp:155] Top shape: 10 128 56 56 (4014080)
+I0406 15:27:28.529142 23397 net.cpp:163] Memory required for data: 307578880
+I0406 15:27:28.529150 23397 layer_factory.hpp:77] Creating layer bot1_2_expand_relu
+I0406 15:27:28.529160 23397 net.cpp:98] Creating Layer bot1_2_expand_relu
+I0406 15:27:28.529166 23397 net.cpp:439] bot1_2_expand_relu <- bot1_2_expand_conv
+I0406 15:27:28.529173 23397 net.cpp:400] bot1_2_expand_relu -> bot1_2_expand_conv (in-place)
+I0406 15:27:28.529520 23397 net.cpp:148] Setting up bot1_2_expand_relu
+I0406 15:27:28.529530 23397 net.cpp:155] Top shape: 10 128 56 56 (4014080)
+I0406 15:27:28.529534 23397 net.cpp:163] Memory required for data: 323635200
+I0406 15:27:28.529541 23397 layer_factory.hpp:77] Creating layer bot1_2
+I0406 15:27:28.529547 23397 net.cpp:98] Creating Layer bot1_2
+I0406 15:27:28.529552 23397 net.cpp:439] bot1_2 <- bot1_2_expand_conv
+I0406 15:27:28.529559 23397 net.cpp:439] bot1_2 <- bot1_1_bot1_1_0_split_1
+I0406 15:27:28.529567 23397 net.cpp:413] bot1_2 -> bot1_2
+I0406 15:27:28.529592 23397 net.cpp:148] Setting up bot1_2
+I0406 15:27:28.529602 23397 net.cpp:155] Top shape: 10 128 56 56 (4014080)
+I0406 15:27:28.529606 23397 net.cpp:163] Memory required for data: 339691520
+I0406 15:27:28.529611 23397 layer_factory.hpp:77] Creating layer bot1_2_bot1_2_0_split
+I0406 15:27:28.529618 23397 net.cpp:98] Creating Layer bot1_2_bot1_2_0_split
+I0406 15:27:28.529624 23397 net.cpp:439] bot1_2_bot1_2_0_split <- bot1_2
+I0406 15:27:28.529631 23397 net.cpp:413] bot1_2_bot1_2_0_split -> bot1_2_bot1_2_0_split_0
+I0406 15:27:28.529639 23397 net.cpp:413] bot1_2_bot1_2_0_split -> bot1_2_bot1_2_0_split_1
+I0406 15:27:28.529672 23397 net.cpp:148] Setting up bot1_2_bot1_2_0_split
+I0406 15:27:28.529682 23397 net.cpp:155] Top shape: 10 128 56 56 (4014080)
+I0406 15:27:28.529688 23397 net.cpp:155] Top shape: 10 128 56 56 (4014080)
+I0406 15:27:28.529695 23397 net.cpp:163] Memory required for data: 371804160
+I0406 15:27:28.529700 23397 layer_factory.hpp:77] Creating layer bot2_0_proj_conv
+I0406 15:27:28.529713 23397 net.cpp:98] Creating Layer bot2_0_proj_conv
+I0406 15:27:28.529721 23397 net.cpp:439] bot2_0_proj_conv <- bot1_2_bot1_2_0_split_0
+I0406 15:27:28.529729 23397 net.cpp:413] bot2_0_proj_conv -> bot2_0_proj_conv
+I0406 15:27:28.530490 23397 net.cpp:148] Setting up bot2_0_proj_conv
+I0406 15:27:28.530503 23397 net.cpp:155] Top shape: 10 32 28 28 (250880)
+I0406 15:27:28.530508 23397 net.cpp:163] Memory required for data: 372807680
+I0406 15:27:28.530514 23397 layer_factory.hpp:77] Creating layer bot2_0_proj_relu
+I0406 15:27:28.530525 23397 net.cpp:98] Creating Layer bot2_0_proj_relu
+I0406 15:27:28.530532 23397 net.cpp:439] bot2_0_proj_relu <- bot2_0_proj_conv
+I0406 15:27:28.530542 23397 net.cpp:400] bot2_0_proj_relu -> bot2_0_proj_conv (in-place)
+I0406 15:27:28.530650 23397 net.cpp:148] Setting up bot2_0_proj_relu
+I0406 15:27:28.530660 23397 net.cpp:155] Top shape: 10 32 28 28 (250880)
+I0406 15:27:28.530664 23397 net.cpp:163] Memory required for data: 373811200
+I0406 15:27:28.530670 23397 layer_factory.hpp:77] Creating layer bot2_0_proj_nvidia_bn_bot2_0_proj_relu_0_split
+I0406 15:27:28.530690 23397 net.cpp:98] Creating Layer bot2_0_proj_nvidia_bn_bot2_0_proj_relu_0_split
+I0406 15:27:28.530699 23397 net.cpp:439] bot2_0_proj_nvidia_bn_bot2_0_proj_relu_0_split <- bot2_0_proj_conv
+I0406 15:27:28.530704 23397 net.cpp:413] bot2_0_proj_nvidia_bn_bot2_0_proj_relu_0_split -> bot2_0_proj_nvidia_bn_bot2_0_proj_relu_0_split_0
+I0406 15:27:28.530715 23397 net.cpp:413] bot2_0_proj_nvidia_bn_bot2_0_proj_relu_0_split -> bot2_0_proj_nvidia_bn_bot2_0_proj_relu_0_split_1
+I0406 15:27:28.530751 23397 net.cpp:148] Setting up bot2_0_proj_nvidia_bn_bot2_0_proj_relu_0_split
+I0406 15:27:28.530761 23397 net.cpp:155] Top shape: 10 32 28 28 (250880)
+I0406 15:27:28.530768 23397 net.cpp:155] Top shape: 10 32 28 28 (250880)
+I0406 15:27:28.530774 23397 net.cpp:163] Memory required for data: 375818240
+I0406 15:27:28.530779 23397 layer_factory.hpp:77] Creating layer bot2_0_main_conv
+I0406 15:27:28.530792 23397 net.cpp:98] Creating Layer bot2_0_main_conv
+I0406 15:27:28.530800 23397 net.cpp:439] bot2_0_main_conv <- bot2_0_proj_nvidia_bn_bot2_0_proj_relu_0_split_0
+I0406 15:27:28.530807 23397 net.cpp:413] bot2_0_main_conv -> bot2_0_main_conv
+I0406 15:27:28.531101 23397 net.cpp:148] Setting up bot2_0_main_conv
+I0406 15:27:28.531112 23397 net.cpp:155] Top shape: 10 32 28 28 (250880)
+I0406 15:27:28.531117 23397 net.cpp:163] Memory required for data: 376821760
+I0406 15:27:28.531124 23397 layer_factory.hpp:77] Creating layer bot2_0_main_relu
+I0406 15:27:28.531136 23397 net.cpp:98] Creating Layer bot2_0_main_relu
+I0406 15:27:28.531141 23397 net.cpp:439] bot2_0_main_relu <- bot2_0_main_conv
+I0406 15:27:28.531149 23397 net.cpp:400] bot2_0_main_relu -> bot2_0_main_conv (in-place)
+I0406 15:27:28.531251 23397 net.cpp:148] Setting up bot2_0_main_relu
+I0406 15:27:28.531261 23397 net.cpp:155] Top shape: 10 32 28 28 (250880)
+I0406 15:27:28.531266 23397 net.cpp:163] Memory required for data: 377825280
+I0406 15:27:28.531272 23397 layer_factory.hpp:77] Creating layer bot2_0_main_short_circuit_conv
+I0406 15:27:28.531283 23397 net.cpp:98] Creating Layer bot2_0_main_short_circuit_conv
+I0406 15:27:28.531291 23397 net.cpp:439] bot2_0_main_short_circuit_conv <- bot2_0_proj_nvidia_bn_bot2_0_proj_relu_0_split_1
+I0406 15:27:28.531299 23397 net.cpp:413] bot2_0_main_short_circuit_conv -> bot2_0_main_short_circuit_conv
+I0406 15:27:28.531572 23397 net.cpp:148] Setting up bot2_0_main_short_circuit_conv
+I0406 15:27:28.531584 23397 net.cpp:155] Top shape: 10 32 28 28 (250880)
+I0406 15:27:28.531589 23397 net.cpp:163] Memory required for data: 378828800
+I0406 15:27:28.531597 23397 layer_factory.hpp:77] Creating layer bot2_0_main_short_circuit_relu
+I0406 15:27:28.531608 23397 net.cpp:98] Creating Layer bot2_0_main_short_circuit_relu
+I0406 15:27:28.531616 23397 net.cpp:439] bot2_0_main_short_circuit_relu <- bot2_0_main_short_circuit_conv
+I0406 15:27:28.531623 23397 net.cpp:400] bot2_0_main_short_circuit_relu -> bot2_0_main_short_circuit_conv (in-place)
+I0406 15:27:28.531726 23397 net.cpp:148] Setting up bot2_0_main_short_circuit_relu
+I0406 15:27:28.531736 23397 net.cpp:155] Top shape: 10 32 28 28 (250880)
+I0406 15:27:28.531740 23397 net.cpp:163] Memory required for data: 379832320
+I0406 15:27:28.531746 23397 layer_factory.hpp:77] Creating layer bot2_0_main_short_circuit_merged
+I0406 15:27:28.531756 23397 net.cpp:98] Creating Layer bot2_0_main_short_circuit_merged
+I0406 15:27:28.531764 23397 net.cpp:439] bot2_0_main_short_circuit_merged <- bot2_0_main_conv
+I0406 15:27:28.531769 23397 net.cpp:439] bot2_0_main_short_circuit_merged <- bot2_0_main_short_circuit_conv
+I0406 15:27:28.531775 23397 net.cpp:413] bot2_0_main_short_circuit_merged -> bot2_0_main_short_circuit_merged
+I0406 15:27:28.531800 23397 net.cpp:148] Setting up bot2_0_main_short_circuit_merged
+I0406 15:27:28.531810 23397 net.cpp:155] Top shape: 10 32 28 28 (250880)
+I0406 15:27:28.531814 23397 net.cpp:163] Memory required for data: 380835840
+I0406 15:27:28.531819 23397 layer_factory.hpp:77] Creating layer bot2_0_expand_conv
+I0406 15:27:28.531832 23397 net.cpp:98] Creating Layer bot2_0_expand_conv
+I0406 15:27:28.531849 23397 net.cpp:439] bot2_0_expand_conv <- bot2_0_main_short_circuit_merged
+I0406 15:27:28.531858 23397 net.cpp:413] bot2_0_expand_conv -> bot2_0_expand_conv
+I0406 15:27:28.532356 23397 net.cpp:148] Setting up bot2_0_expand_conv
+I0406 15:27:28.532368 23397 net.cpp:155] Top shape: 10 256 28 28 (2007040)
+I0406 15:27:28.532373 23397 net.cpp:163] Memory required for data: 388864000
+I0406 15:27:28.532380 23397 layer_factory.hpp:77] Creating layer bot2_0_expand_relu
+I0406 15:27:28.532392 23397 net.cpp:98] Creating Layer bot2_0_expand_relu
+I0406 15:27:28.532400 23397 net.cpp:439] bot2_0_expand_relu <- bot2_0_expand_conv
+I0406 15:27:28.532407 23397 net.cpp:400] bot2_0_expand_relu -> bot2_0_expand_conv (in-place)
+I0406 15:27:28.533465 23397 net.cpp:148] Setting up bot2_0_expand_relu
+I0406 15:27:28.533483 23397 net.cpp:155] Top shape: 10 256 28 28 (2007040)
+I0406 15:27:28.533490 23397 net.cpp:163] Memory required for data: 396892160
+I0406 15:27:28.533498 23397 layer_factory.hpp:77] Creating layer bot2_0_aux_br_pool
+I0406 15:27:28.533509 23397 net.cpp:98] Creating Layer bot2_0_aux_br_pool
+I0406 15:27:28.533516 23397 net.cpp:439] bot2_0_aux_br_pool <- bot1_2_bot1_2_0_split_1
+I0406 15:27:28.533524 23397 net.cpp:413] bot2_0_aux_br_pool -> bot2_0_aux_br_pool
+I0406 15:27:28.533570 23397 net.cpp:148] Setting up bot2_0_aux_br_pool
+I0406 15:27:28.533579 23397 net.cpp:155] Top shape: 10 128 28 28 (1003520)
+I0406 15:27:28.533584 23397 net.cpp:163] Memory required for data: 400906240
+I0406 15:27:28.533588 23397 layer_factory.hpp:77] Creating layer bot2_0_p1
+I0406 15:27:28.533598 23397 net.cpp:98] Creating Layer bot2_0_p1
+I0406 15:27:28.533604 23397 net.cpp:439] bot2_0_p1 <- bot2_0_expand_conv
+I0406 15:27:28.533613 23397 net.cpp:413] bot2_0_p1 -> bot2_0_p1
+I0406 15:27:28.533622 23397 net.cpp:413] bot2_0_p1 -> bot2_0_p2
+I0406 15:27:28.533659 23397 net.cpp:148] Setting up bot2_0_p1
+I0406 15:27:28.533668 23397 net.cpp:155] Top shape: 10 128 28 28 (1003520)
+I0406 15:27:28.533674 23397 net.cpp:155] Top shape: 10 128 28 28 (1003520)
+I0406 15:27:28.533679 23397 net.cpp:163] Memory required for data: 408934400
+I0406 15:27:28.533685 23397 layer_factory.hpp:77] Creating layer bot2_0_p1_summed
+I0406 15:27:28.533691 23397 net.cpp:98] Creating Layer bot2_0_p1_summed
+I0406 15:27:28.533696 23397 net.cpp:439] bot2_0_p1_summed <- bot2_0_p1
+I0406 15:27:28.533704 23397 net.cpp:439] bot2_0_p1_summed <- bot2_0_aux_br_pool
+I0406 15:27:28.533710 23397 net.cpp:413] bot2_0_p1_summed -> bot2_0_p1_summed
+I0406 15:27:28.533735 23397 net.cpp:148] Setting up bot2_0_p1_summed
+I0406 15:27:28.533743 23397 net.cpp:155] Top shape: 10 128 28 28 (1003520)
+I0406 15:27:28.533747 23397 net.cpp:163] Memory required for data: 412948480
+I0406 15:27:28.533752 23397 layer_factory.hpp:77] Creating layer bot2_0
+I0406 15:27:28.533759 23397 net.cpp:98] Creating Layer bot2_0
+I0406 15:27:28.533766 23397 net.cpp:439] bot2_0 <- bot2_0_p1_summed
+I0406 15:27:28.533772 23397 net.cpp:439] bot2_0 <- bot2_0_p2
+I0406 15:27:28.533778 23397 net.cpp:413] bot2_0 -> bot2_0
+I0406 15:27:28.533803 23397 net.cpp:148] Setting up bot2_0
+I0406 15:27:28.533812 23397 net.cpp:155] Top shape: 10 256 28 28 (2007040)
+I0406 15:27:28.533816 23397 net.cpp:163] Memory required for data: 420976640
+I0406 15:27:28.533820 23397 layer_factory.hpp:77] Creating layer bot2_0_bot2_0_0_split
+I0406 15:27:28.533828 23397 net.cpp:98] Creating Layer bot2_0_bot2_0_0_split
+I0406 15:27:28.533834 23397 net.cpp:439] bot2_0_bot2_0_0_split <- bot2_0
+I0406 15:27:28.533843 23397 net.cpp:413] bot2_0_bot2_0_0_split -> bot2_0_bot2_0_0_split_0
+I0406 15:27:28.533852 23397 net.cpp:413] bot2_0_bot2_0_0_split -> bot2_0_bot2_0_0_split_1
+I0406 15:27:28.533885 23397 net.cpp:148] Setting up bot2_0_bot2_0_0_split
+I0406 15:27:28.533893 23397 net.cpp:155] Top shape: 10 256 28 28 (2007040)
+I0406 15:27:28.533898 23397 net.cpp:155] Top shape: 10 256 28 28 (2007040)
+I0406 15:27:28.533903 23397 net.cpp:163] Memory required for data: 437032960
+I0406 15:27:28.533907 23397 layer_factory.hpp:77] Creating layer bot2_1_proj_conv
+I0406 15:27:28.533933 23397 net.cpp:98] Creating Layer bot2_1_proj_conv
+I0406 15:27:28.533941 23397 net.cpp:439] bot2_1_proj_conv <- bot2_0_bot2_0_0_split_0
+I0406 15:27:28.533949 23397 net.cpp:413] bot2_1_proj_conv -> bot2_1_proj_conv
+I0406 15:27:28.534718 23397 net.cpp:148] Setting up bot2_1_proj_conv
+I0406 15:27:28.534731 23397 net.cpp:155] Top shape: 10 64 28 28 (501760)
+I0406 15:27:28.534736 23397 net.cpp:163] Memory required for data: 439040000
+I0406 15:27:28.534744 23397 layer_factory.hpp:77] Creating layer bot2_1_proj_relu
+I0406 15:27:28.534756 23397 net.cpp:98] Creating Layer bot2_1_proj_relu
+I0406 15:27:28.534764 23397 net.cpp:439] bot2_1_proj_relu <- bot2_1_proj_conv
+I0406 15:27:28.534771 23397 net.cpp:400] bot2_1_proj_relu -> bot2_1_proj_conv (in-place)
+I0406 15:27:28.534906 23397 net.cpp:148] Setting up bot2_1_proj_relu
+I0406 15:27:28.534917 23397 net.cpp:155] Top shape: 10 64 28 28 (501760)
+I0406 15:27:28.534921 23397 net.cpp:163] Memory required for data: 441047040
+I0406 15:27:28.534929 23397 layer_factory.hpp:77] Creating layer bot2_1_proj_nvidia_bn_bot2_1_proj_relu_0_split
+I0406 15:27:28.534939 23397 net.cpp:98] Creating Layer bot2_1_proj_nvidia_bn_bot2_1_proj_relu_0_split
+I0406 15:27:28.534945 23397 net.cpp:439] bot2_1_proj_nvidia_bn_bot2_1_proj_relu_0_split <- bot2_1_proj_conv
+I0406 15:27:28.534953 23397 net.cpp:413] bot2_1_proj_nvidia_bn_bot2_1_proj_relu_0_split -> bot2_1_proj_nvidia_bn_bot2_1_proj_relu_0_split_0
+I0406 15:27:28.534963 23397 net.cpp:413] bot2_1_proj_nvidia_bn_bot2_1_proj_relu_0_split -> bot2_1_proj_nvidia_bn_bot2_1_proj_relu_0_split_1
+I0406 15:27:28.534997 23397 net.cpp:148] Setting up bot2_1_proj_nvidia_bn_bot2_1_proj_relu_0_split
+I0406 15:27:28.535007 23397 net.cpp:155] Top shape: 10 64 28 28 (501760)
+I0406 15:27:28.535013 23397 net.cpp:155] Top shape: 10 64 28 28 (501760)
+I0406 15:27:28.535020 23397 net.cpp:163] Memory required for data: 445061120
+I0406 15:27:28.535024 23397 layer_factory.hpp:77] Creating layer bot2_1_main_conv
+I0406 15:27:28.535035 23397 net.cpp:98] Creating Layer bot2_1_main_conv
+I0406 15:27:28.535043 23397 net.cpp:439] bot2_1_main_conv <- bot2_1_proj_nvidia_bn_bot2_1_proj_relu_0_split_0
+I0406 15:27:28.535050 23397 net.cpp:413] bot2_1_main_conv -> bot2_1_main_conv
+I0406 15:27:28.535583 23397 net.cpp:148] Setting up bot2_1_main_conv
+I0406 15:27:28.535595 23397 net.cpp:155] Top shape: 10 64 28 28 (501760)
+I0406 15:27:28.535600 23397 net.cpp:163] Memory required for data: 447068160
+I0406 15:27:28.535609 23397 layer_factory.hpp:77] Creating layer bot2_1_main_relu
+I0406 15:27:28.535629 23397 net.cpp:98] Creating Layer bot2_1_main_relu
+I0406 15:27:28.535636 23397 net.cpp:439] bot2_1_main_relu <- bot2_1_main_conv
+I0406 15:27:28.535643 23397 net.cpp:400] bot2_1_main_relu -> bot2_1_main_conv (in-place)
+I0406 15:27:28.536561 23397 net.cpp:148] Setting up bot2_1_main_relu
+I0406 15:27:28.536577 23397 net.cpp:155] Top shape: 10 64 28 28 (501760)
+I0406 15:27:28.536582 23397 net.cpp:163] Memory required for data: 449075200
+I0406 15:27:28.536590 23397 layer_factory.hpp:77] Creating layer bot2_1_main_short_circuit_conv
+I0406 15:27:28.536603 23397 net.cpp:98] Creating Layer bot2_1_main_short_circuit_conv
+I0406 15:27:28.536609 23397 net.cpp:439] bot2_1_main_short_circuit_conv <- bot2_1_proj_nvidia_bn_bot2_1_proj_relu_0_split_1
+I0406 15:27:28.536617 23397 net.cpp:413] bot2_1_main_short_circuit_conv -> bot2_1_main_short_circuit_conv
+I0406 15:27:28.536979 23397 net.cpp:148] Setting up bot2_1_main_short_circuit_conv
+I0406 15:27:28.536991 23397 net.cpp:155] Top shape: 10 64 28 28 (501760)
+I0406 15:27:28.536996 23397 net.cpp:163] Memory required for data: 451082240
+I0406 15:27:28.537004 23397 layer_factory.hpp:77] Creating layer bot2_1_main_short_circuit_relu
+I0406 15:27:28.537014 23397 net.cpp:98] Creating Layer bot2_1_main_short_circuit_relu
+I0406 15:27:28.537019 23397 net.cpp:439] bot2_1_main_short_circuit_relu <- bot2_1_main_short_circuit_conv
+I0406 15:27:28.537025 23397 net.cpp:400] bot2_1_main_short_circuit_relu -> bot2_1_main_short_circuit_conv (in-place)
+I0406 15:27:28.537151 23397 net.cpp:148] Setting up bot2_1_main_short_circuit_relu
+I0406 15:27:28.537163 23397 net.cpp:155] Top shape: 10 64 28 28 (501760)
+I0406 15:27:28.537168 23397 net.cpp:163] Memory required for data: 453089280
+I0406 15:27:28.537181 23397 layer_factory.hpp:77] Creating layer bot2_1_main_short_circuit_merged
+I0406 15:27:28.537191 23397 net.cpp:98] Creating Layer bot2_1_main_short_circuit_merged
+I0406 15:27:28.537214 23397 net.cpp:439] bot2_1_main_short_circuit_merged <- bot2_1_main_conv
+I0406 15:27:28.537220 23397 net.cpp:439] bot2_1_main_short_circuit_merged <- bot2_1_main_short_circuit_conv
+I0406 15:27:28.537227 23397 net.cpp:413] bot2_1_main_short_circuit_merged -> bot2_1_main_short_circuit_merged
+I0406 15:27:28.537251 23397 net.cpp:148] Setting up bot2_1_main_short_circuit_merged
+I0406 15:27:28.537259 23397 net.cpp:155] Top shape: 10 64 28 28 (501760)
+I0406 15:27:28.537264 23397 net.cpp:163] Memory required for data: 455096320
+I0406 15:27:28.537269 23397 layer_factory.hpp:77] Creating layer bot2_1_expand_conv
+I0406 15:27:28.537281 23397 net.cpp:98] Creating Layer bot2_1_expand_conv
+I0406 15:27:28.537288 23397 net.cpp:439] bot2_1_expand_conv <- bot2_1_main_short_circuit_merged
+I0406 15:27:28.537297 23397 net.cpp:413] bot2_1_expand_conv -> bot2_1_expand_conv
+I0406 15:27:28.538034 23397 net.cpp:148] Setting up bot2_1_expand_conv
+I0406 15:27:28.538046 23397 net.cpp:155] Top shape: 10 256 28 28 (2007040)
+I0406 15:27:28.538050 23397 net.cpp:163] Memory required for data: 463124480
+I0406 15:27:28.538058 23397 layer_factory.hpp:77] Creating layer bot2_1_expand_relu
+I0406 15:27:28.538066 23397 net.cpp:98] Creating Layer bot2_1_expand_relu
+I0406 15:27:28.538072 23397 net.cpp:439] bot2_1_expand_relu <- bot2_1_expand_conv
+I0406 15:27:28.538080 23397 net.cpp:400] bot2_1_expand_relu -> bot2_1_expand_conv (in-place)
+I0406 15:27:28.538290 23397 net.cpp:148] Setting up bot2_1_expand_relu
+I0406 15:27:28.538300 23397 net.cpp:155] Top shape: 10 256 28 28 (2007040)
+I0406 15:27:28.538305 23397 net.cpp:163] Memory required for data: 471152640
+I0406 15:27:28.538311 23397 layer_factory.hpp:77] Creating layer bot2_1
+I0406 15:27:28.538318 23397 net.cpp:98] Creating Layer bot2_1
+I0406 15:27:28.538326 23397 net.cpp:439] bot2_1 <- bot2_1_expand_conv
+I0406 15:27:28.538331 23397 net.cpp:439] bot2_1 <- bot2_0_bot2_0_0_split_1
+I0406 15:27:28.538337 23397 net.cpp:413] bot2_1 -> bot2_1
+I0406 15:27:28.538364 23397 net.cpp:148] Setting up bot2_1
+I0406 15:27:28.538373 23397 net.cpp:155] Top shape: 10 256 28 28 (2007040)
+I0406 15:27:28.538378 23397 net.cpp:163] Memory required for data: 479180800
+I0406 15:27:28.538383 23397 layer_factory.hpp:77] Creating layer bot2_1_bot2_1_0_split
+I0406 15:27:28.538389 23397 net.cpp:98] Creating Layer bot2_1_bot2_1_0_split
+I0406 15:27:28.538393 23397 net.cpp:439] bot2_1_bot2_1_0_split <- bot2_1
+I0406 15:27:28.538401 23397 net.cpp:413] bot2_1_bot2_1_0_split -> bot2_1_bot2_1_0_split_0
+I0406 15:27:28.538410 23397 net.cpp:413] bot2_1_bot2_1_0_split -> bot2_1_bot2_1_0_split_1
+I0406 15:27:28.538442 23397 net.cpp:148] Setting up bot2_1_bot2_1_0_split
+I0406 15:27:28.538451 23397 net.cpp:155] Top shape: 10 256 28 28 (2007040)
+I0406 15:27:28.538456 23397 net.cpp:155] Top shape: 10 256 28 28 (2007040)
+I0406 15:27:28.538462 23397 net.cpp:163] Memory required for data: 495237120
+I0406 15:27:28.538466 23397 layer_factory.hpp:77] Creating layer bot2_2_proj_conv
+I0406 15:27:28.538477 23397 net.cpp:98] Creating Layer bot2_2_proj_conv
+I0406 15:27:28.538485 23397 net.cpp:439] bot2_2_proj_conv <- bot2_1_bot2_1_0_split_0
+I0406 15:27:28.538493 23397 net.cpp:413] bot2_2_proj_conv -> bot2_2_proj_conv
+I0406 15:27:28.539232 23397 net.cpp:148] Setting up bot2_2_proj_conv
+I0406 15:27:28.539243 23397 net.cpp:155] Top shape: 10 64 28 28 (501760)
+I0406 15:27:28.539248 23397 net.cpp:163] Memory required for data: 497244160
+I0406 15:27:28.539255 23397 layer_factory.hpp:77] Creating layer bot2_2_proj_relu
+I0406 15:27:28.539265 23397 net.cpp:98] Creating Layer bot2_2_proj_relu
+I0406 15:27:28.539270 23397 net.cpp:439] bot2_2_proj_relu <- bot2_2_proj_conv
+I0406 15:27:28.539286 23397 net.cpp:400] bot2_2_proj_relu -> bot2_2_proj_conv (in-place)
+I0406 15:27:28.539402 23397 net.cpp:148] Setting up bot2_2_proj_relu
+I0406 15:27:28.539412 23397 net.cpp:155] Top shape: 10 64 28 28 (501760)
+I0406 15:27:28.539417 23397 net.cpp:163] Memory required for data: 499251200
+I0406 15:27:28.539423 23397 layer_factory.hpp:77] Creating layer bot2_2_proj_nvidia_bn_bot2_2_proj_relu_0_split
+I0406 15:27:28.539430 23397 net.cpp:98] Creating Layer bot2_2_proj_nvidia_bn_bot2_2_proj_relu_0_split
+I0406 15:27:28.539436 23397 net.cpp:439] bot2_2_proj_nvidia_bn_bot2_2_proj_relu_0_split <- bot2_2_proj_conv
+I0406 15:27:28.539444 23397 net.cpp:413] bot2_2_proj_nvidia_bn_bot2_2_proj_relu_0_split -> bot2_2_proj_nvidia_bn_bot2_2_proj_relu_0_split_0
+I0406 15:27:28.539453 23397 net.cpp:413] bot2_2_proj_nvidia_bn_bot2_2_proj_relu_0_split -> bot2_2_proj_nvidia_bn_bot2_2_proj_relu_0_split_1
+I0406 15:27:28.539500 23397 net.cpp:148] Setting up bot2_2_proj_nvidia_bn_bot2_2_proj_relu_0_split
+I0406 15:27:28.539510 23397 net.cpp:155] Top shape: 10 64 28 28 (501760)
+I0406 15:27:28.539516 23397 net.cpp:155] Top shape: 10 64 28 28 (501760)
+I0406 15:27:28.539535 23397 net.cpp:163] Memory required for data: 503265280
+I0406 15:27:28.539539 23397 layer_factory.hpp:77] Creating layer bot2_2_main_conv
+I0406 15:27:28.539554 23397 net.cpp:98] Creating Layer bot2_2_main_conv
+I0406 15:27:28.539562 23397 net.cpp:439] bot2_2_main_conv <- bot2_2_proj_nvidia_bn_bot2_2_proj_relu_0_split_0
+I0406 15:27:28.539572 23397 net.cpp:413] bot2_2_main_conv -> bot2_2_main_conv
+I0406 15:27:28.540091 23397 net.cpp:148] Setting up bot2_2_main_conv
+I0406 15:27:28.540102 23397 net.cpp:155] Top shape: 10 64 28 28 (501760)
+I0406 15:27:28.540107 23397 net.cpp:163] Memory required for data: 505272320
+I0406 15:27:28.540113 23397 layer_factory.hpp:77] Creating layer bot2_2_main_relu
+I0406 15:27:28.540122 23397 net.cpp:98] Creating Layer bot2_2_main_relu
+I0406 15:27:28.540127 23397 net.cpp:439] bot2_2_main_relu <- bot2_2_main_conv
+I0406 15:27:28.540133 23397 net.cpp:400] bot2_2_main_relu -> bot2_2_main_conv (in-place)
+I0406 15:27:28.540242 23397 net.cpp:148] Setting up bot2_2_main_relu
+I0406 15:27:28.540253 23397 net.cpp:155] Top shape: 10 64 28 28 (501760)
+I0406 15:27:28.540258 23397 net.cpp:163] Memory required for data: 507279360
+I0406 15:27:28.540263 23397 layer_factory.hpp:77] Creating layer bot2_2_main_short_circuit_conv
+I0406 15:27:28.540276 23397 net.cpp:98] Creating Layer bot2_2_main_short_circuit_conv
+I0406 15:27:28.540282 23397 net.cpp:439] bot2_2_main_short_circuit_conv <- bot2_2_proj_nvidia_bn_bot2_2_proj_relu_0_split_1
+I0406 15:27:28.540293 23397 net.cpp:413] bot2_2_main_short_circuit_conv -> bot2_2_main_short_circuit_conv
+I0406 15:27:28.540647 23397 net.cpp:148] Setting up bot2_2_main_short_circuit_conv
+I0406 15:27:28.540658 23397 net.cpp:155] Top shape: 10 64 28 28 (501760)
+I0406 15:27:28.540663 23397 net.cpp:163] Memory required for data: 509286400
+I0406 15:27:28.540670 23397 layer_factory.hpp:77] Creating layer bot2_2_main_short_circuit_relu
+I0406 15:27:28.540678 23397 net.cpp:98] Creating Layer bot2_2_main_short_circuit_relu
+I0406 15:27:28.540684 23397 net.cpp:439] bot2_2_main_short_circuit_relu <- bot2_2_main_short_circuit_conv
+I0406 15:27:28.540690 23397 net.cpp:400] bot2_2_main_short_circuit_relu -> bot2_2_main_short_circuit_conv (in-place)
+I0406 15:27:28.540802 23397 net.cpp:148] Setting up bot2_2_main_short_circuit_relu
+I0406 15:27:28.540812 23397 net.cpp:155] Top shape: 10 64 28 28 (501760)
+I0406 15:27:28.540817 23397 net.cpp:163] Memory required for data: 511293440
+I0406 15:27:28.540822 23397 layer_factory.hpp:77] Creating layer bot2_2_main_short_circuit_merged
+I0406 15:27:28.540832 23397 net.cpp:98] Creating Layer bot2_2_main_short_circuit_merged
+I0406 15:27:28.540838 23397 net.cpp:439] bot2_2_main_short_circuit_merged <- bot2_2_main_conv
+I0406 15:27:28.540843 23397 net.cpp:439] bot2_2_main_short_circuit_merged <- bot2_2_main_short_circuit_conv
+I0406 15:27:28.540851 23397 net.cpp:413] bot2_2_main_short_circuit_merged -> bot2_2_main_short_circuit_merged
+I0406 15:27:28.540887 23397 net.cpp:148] Setting up bot2_2_main_short_circuit_merged
+I0406 15:27:28.540897 23397 net.cpp:155] Top shape: 10 64 28 28 (501760)
+I0406 15:27:28.540901 23397 net.cpp:163] Memory required for data: 513300480
+I0406 15:27:28.540906 23397 layer_factory.hpp:77] Creating layer bot2_2_expand_conv
+I0406 15:27:28.540917 23397 net.cpp:98] Creating Layer bot2_2_expand_conv
+I0406 15:27:28.540925 23397 net.cpp:439] bot2_2_expand_conv <- bot2_2_main_short_circuit_merged
+I0406 15:27:28.540932 23397 net.cpp:413] bot2_2_expand_conv -> bot2_2_expand_conv
+I0406 15:27:28.541672 23397 net.cpp:148] Setting up bot2_2_expand_conv
+I0406 15:27:28.541683 23397 net.cpp:155] Top shape: 10 256 28 28 (2007040)
+I0406 15:27:28.541688 23397 net.cpp:163] Memory required for data: 521328640
+I0406 15:27:28.541695 23397 layer_factory.hpp:77] Creating layer bot2_2_expand_relu
+I0406 15:27:28.541702 23397 net.cpp:98] Creating Layer bot2_2_expand_relu
+I0406 15:27:28.541707 23397 net.cpp:439] bot2_2_expand_relu <- bot2_2_expand_conv
+I0406 15:27:28.541715 23397 net.cpp:400] bot2_2_expand_relu -> bot2_2_expand_conv (in-place)
+I0406 15:27:28.542778 23397 net.cpp:148] Setting up bot2_2_expand_relu
+I0406 15:27:28.542796 23397 net.cpp:155] Top shape: 10 256 28 28 (2007040)
+I0406 15:27:28.542801 23397 net.cpp:163] Memory required for data: 529356800
+I0406 15:27:28.542809 23397 layer_factory.hpp:77] Creating layer bot2_2
+I0406 15:27:28.542815 23397 net.cpp:98] Creating Layer bot2_2
+I0406 15:27:28.542821 23397 net.cpp:439] bot2_2 <- bot2_2_expand_conv
+I0406 15:27:28.542827 23397 net.cpp:439] bot2_2 <- bot2_1_bot2_1_0_split_1
+I0406 15:27:28.542840 23397 net.cpp:413] bot2_2 -> bot2_2
+I0406 15:27:28.542867 23397 net.cpp:148] Setting up bot2_2
+I0406 15:27:28.542877 23397 net.cpp:155] Top shape: 10 256 28 28 (2007040)
+I0406 15:27:28.542882 23397 net.cpp:163] Memory required for data: 537384960
+I0406 15:27:28.542887 23397 layer_factory.hpp:77] Creating layer bot2_2_bot2_2_0_split
+I0406 15:27:28.542894 23397 net.cpp:98] Creating Layer bot2_2_bot2_2_0_split
+I0406 15:27:28.542901 23397 net.cpp:439] bot2_2_bot2_2_0_split <- bot2_2
+I0406 15:27:28.542907 23397 net.cpp:413] bot2_2_bot2_2_0_split -> bot2_2_bot2_2_0_split_0
+I0406 15:27:28.542918 23397 net.cpp:413] bot2_2_bot2_2_0_split -> bot2_2_bot2_2_0_split_1
+I0406 15:27:28.542953 23397 net.cpp:148] Setting up bot2_2_bot2_2_0_split
+I0406 15:27:28.542961 23397 net.cpp:155] Top shape: 10 256 28 28 (2007040)
+I0406 15:27:28.542966 23397 net.cpp:155] Top shape: 10 256 28 28 (2007040)
+I0406 15:27:28.542971 23397 net.cpp:163] Memory required for data: 553441280
+I0406 15:27:28.542975 23397 layer_factory.hpp:77] Creating layer bot3_0_proj_conv
+I0406 15:27:28.542989 23397 net.cpp:98] Creating Layer bot3_0_proj_conv
+I0406 15:27:28.542995 23397 net.cpp:439] bot3_0_proj_conv <- bot2_2_bot2_2_0_split_0
+I0406 15:27:28.543002 23397 net.cpp:413] bot3_0_proj_conv -> bot3_0_proj_conv
+I0406 15:27:28.545400 23397 net.cpp:148] Setting up bot3_0_proj_conv
+I0406 15:27:28.545414 23397 net.cpp:155] Top shape: 10 64 14 14 (125440)
+I0406 15:27:28.545419 23397 net.cpp:163] Memory required for data: 553943040
+I0406 15:27:28.545428 23397 layer_factory.hpp:77] Creating layer bot3_0_proj_relu
+I0406 15:27:28.545438 23397 net.cpp:98] Creating Layer bot3_0_proj_relu
+I0406 15:27:28.545442 23397 net.cpp:439] bot3_0_proj_relu <- bot3_0_proj_conv
+I0406 15:27:28.545449 23397 net.cpp:400] bot3_0_proj_relu -> bot3_0_proj_conv (in-place)
+I0406 15:27:28.545550 23397 net.cpp:148] Setting up bot3_0_proj_relu
+I0406 15:27:28.545560 23397 net.cpp:155] Top shape: 10 64 14 14 (125440)
+I0406 15:27:28.545564 23397 net.cpp:163] Memory required for data: 554444800
+I0406 15:27:28.545570 23397 layer_factory.hpp:77] Creating layer bot3_0_proj_nvidia_bn_bot3_0_proj_relu_0_split
+I0406 15:27:28.545580 23397 net.cpp:98] Creating Layer bot3_0_proj_nvidia_bn_bot3_0_proj_relu_0_split
+I0406 15:27:28.545585 23397 net.cpp:439] bot3_0_proj_nvidia_bn_bot3_0_proj_relu_0_split <- bot3_0_proj_conv
+I0406 15:27:28.545591 23397 net.cpp:413] bot3_0_proj_nvidia_bn_bot3_0_proj_relu_0_split -> bot3_0_proj_nvidia_bn_bot3_0_proj_relu_0_split_0
+I0406 15:27:28.545614 23397 net.cpp:413] bot3_0_proj_nvidia_bn_bot3_0_proj_relu_0_split -> bot3_0_proj_nvidia_bn_bot3_0_proj_relu_0_split_1
+I0406 15:27:28.545652 23397 net.cpp:148] Setting up bot3_0_proj_nvidia_bn_bot3_0_proj_relu_0_split
+I0406 15:27:28.545661 23397 net.cpp:155] Top shape: 10 64 14 14 (125440)
+I0406 15:27:28.545666 23397 net.cpp:155] Top shape: 10 64 14 14 (125440)
+I0406 15:27:28.545671 23397 net.cpp:163] Memory required for data: 555448320
+I0406 15:27:28.545675 23397 layer_factory.hpp:77] Creating layer bot3_0_main_conv
+I0406 15:27:28.545687 23397 net.cpp:98] Creating Layer bot3_0_main_conv
+I0406 15:27:28.545694 23397 net.cpp:439] bot3_0_main_conv <- bot3_0_proj_nvidia_bn_bot3_0_proj_relu_0_split_0
+I0406 15:27:28.545707 23397 net.cpp:413] bot3_0_main_conv -> bot3_0_main_conv
+I0406 15:27:28.546212 23397 net.cpp:148] Setting up bot3_0_main_conv
+I0406 15:27:28.546222 23397 net.cpp:155] Top shape: 10 64 14 14 (125440)
+I0406 15:27:28.546226 23397 net.cpp:163] Memory required for data: 555950080
+I0406 15:27:28.546234 23397 layer_factory.hpp:77] Creating layer bot3_0_main_relu
+I0406 15:27:28.546242 23397 net.cpp:98] Creating Layer bot3_0_main_relu
+I0406 15:27:28.546248 23397 net.cpp:439] bot3_0_main_relu <- bot3_0_main_conv
+I0406 15:27:28.546255 23397 net.cpp:400] bot3_0_main_relu -> bot3_0_main_conv (in-place)
+I0406 15:27:28.546346 23397 net.cpp:148] Setting up bot3_0_main_relu
+I0406 15:27:28.546355 23397 net.cpp:155] Top shape: 10 64 14 14 (125440)
+I0406 15:27:28.546360 23397 net.cpp:163] Memory required for data: 556451840
+I0406 15:27:28.546366 23397 layer_factory.hpp:77] Creating layer bot3_0_main_short_circuit_conv
+I0406 15:27:28.546378 23397 net.cpp:98] Creating Layer bot3_0_main_short_circuit_conv
+I0406 15:27:28.546386 23397 net.cpp:439] bot3_0_main_short_circuit_conv <- bot3_0_proj_nvidia_bn_bot3_0_proj_relu_0_split_1
+I0406 15:27:28.546393 23397 net.cpp:413] bot3_0_main_short_circuit_conv -> bot3_0_main_short_circuit_conv
+I0406 15:27:28.546744 23397 net.cpp:148] Setting up bot3_0_main_short_circuit_conv
+I0406 15:27:28.546756 23397 net.cpp:155] Top shape: 10 64 14 14 (125440)
+I0406 15:27:28.546761 23397 net.cpp:163] Memory required for data: 556953600
+I0406 15:27:28.546767 23397 layer_factory.hpp:77] Creating layer bot3_0_main_short_circuit_relu
+I0406 15:27:28.546775 23397 net.cpp:98] Creating Layer bot3_0_main_short_circuit_relu
+I0406 15:27:28.546780 23397 net.cpp:439] bot3_0_main_short_circuit_relu <- bot3_0_main_short_circuit_conv
+I0406 15:27:28.546787 23397 net.cpp:400] bot3_0_main_short_circuit_relu -> bot3_0_main_short_circuit_conv (in-place)
+I0406 15:27:28.546878 23397 net.cpp:148] Setting up bot3_0_main_short_circuit_relu
+I0406 15:27:28.546888 23397 net.cpp:155] Top shape: 10 64 14 14 (125440)
+I0406 15:27:28.546893 23397 net.cpp:163] Memory required for data: 557455360
+I0406 15:27:28.546900 23397 layer_factory.hpp:77] Creating layer bot3_0_main_short_circuit_merged
+I0406 15:27:28.546907 23397 net.cpp:98] Creating Layer bot3_0_main_short_circuit_merged
+I0406 15:27:28.546912 23397 net.cpp:439] bot3_0_main_short_circuit_merged <- bot3_0_main_conv
+I0406 15:27:28.546917 23397 net.cpp:439] bot3_0_main_short_circuit_merged <- bot3_0_main_short_circuit_conv
+I0406 15:27:28.546926 23397 net.cpp:413] bot3_0_main_short_circuit_merged -> bot3_0_main_short_circuit_merged
+I0406 15:27:28.546949 23397 net.cpp:148] Setting up bot3_0_main_short_circuit_merged
+I0406 15:27:28.546958 23397 net.cpp:155] Top shape: 10 64 14 14 (125440)
+I0406 15:27:28.546962 23397 net.cpp:163] Memory required for data: 557957120
+I0406 15:27:28.546967 23397 layer_factory.hpp:77] Creating layer bot3_0_expand_conv
+I0406 15:27:28.546978 23397 net.cpp:98] Creating Layer bot3_0_expand_conv
+I0406 15:27:28.546986 23397 net.cpp:439] bot3_0_expand_conv <- bot3_0_main_short_circuit_merged
+I0406 15:27:28.546993 23397 net.cpp:413] bot3_0_expand_conv -> bot3_0_expand_conv
+I0406 15:27:28.548317 23397 net.cpp:148] Setting up bot3_0_expand_conv
+I0406 15:27:28.548338 23397 net.cpp:155] Top shape: 10 512 14 14 (1003520)
+I0406 15:27:28.548343 23397 net.cpp:163] Memory required for data: 561971200
+I0406 15:27:28.548352 23397 layer_factory.hpp:77] Creating layer bot3_0_expand_relu
+I0406 15:27:28.548362 23397 net.cpp:98] Creating Layer bot3_0_expand_relu
+I0406 15:27:28.548368 23397 net.cpp:439] bot3_0_expand_relu <- bot3_0_expand_conv
+I0406 15:27:28.548375 23397 net.cpp:400] bot3_0_expand_relu -> bot3_0_expand_conv (in-place)
+I0406 15:27:28.548545 23397 net.cpp:148] Setting up bot3_0_expand_relu
+I0406 15:27:28.548555 23397 net.cpp:155] Top shape: 10 512 14 14 (1003520)
+I0406 15:27:28.548560 23397 net.cpp:163] Memory required for data: 565985280
+I0406 15:27:28.548566 23397 layer_factory.hpp:77] Creating layer bot3_0_aux_br_pool
+I0406 15:27:28.548578 23397 net.cpp:98] Creating Layer bot3_0_aux_br_pool
+I0406 15:27:28.548586 23397 net.cpp:439] bot3_0_aux_br_pool <- bot2_2_bot2_2_0_split_1
+I0406 15:27:28.548593 23397 net.cpp:413] bot3_0_aux_br_pool -> bot3_0_aux_br_pool
+I0406 15:27:28.548632 23397 net.cpp:148] Setting up bot3_0_aux_br_pool
+I0406 15:27:28.548641 23397 net.cpp:155] Top shape: 10 256 14 14 (501760)
+I0406 15:27:28.548646 23397 net.cpp:163] Memory required for data: 567992320
+I0406 15:27:28.548651 23397 layer_factory.hpp:77] Creating layer bot3_0_p1
+I0406 15:27:28.548660 23397 net.cpp:98] Creating Layer bot3_0_p1
+I0406 15:27:28.548667 23397 net.cpp:439] bot3_0_p1 <- bot3_0_expand_conv
+I0406 15:27:28.548673 23397 net.cpp:413] bot3_0_p1 -> bot3_0_p1
+I0406 15:27:28.548681 23397 net.cpp:413] bot3_0_p1 -> bot3_0_p2
+I0406 15:27:28.548718 23397 net.cpp:148] Setting up bot3_0_p1
+I0406 15:27:28.548727 23397 net.cpp:155] Top shape: 10 256 14 14 (501760)
+I0406 15:27:28.548732 23397 net.cpp:155] Top shape: 10 256 14 14 (501760)
+I0406 15:27:28.548737 23397 net.cpp:163] Memory required for data: 572006400
+I0406 15:27:28.548741 23397 layer_factory.hpp:77] Creating layer bot3_0_p1_summed
+I0406 15:27:28.548748 23397 net.cpp:98] Creating Layer bot3_0_p1_summed
+I0406 15:27:28.548754 23397 net.cpp:439] bot3_0_p1_summed <- bot3_0_p1
+I0406 15:27:28.548759 23397 net.cpp:439] bot3_0_p1_summed <- bot3_0_aux_br_pool
+I0406 15:27:28.548769 23397 net.cpp:413] bot3_0_p1_summed -> bot3_0_p1_summed
+I0406 15:27:28.548790 23397 net.cpp:148] Setting up bot3_0_p1_summed
+I0406 15:27:28.548799 23397 net.cpp:155] Top shape: 10 256 14 14 (501760)
+I0406 15:27:28.548804 23397 net.cpp:163] Memory required for data: 574013440
+I0406 15:27:28.548809 23397 layer_factory.hpp:77] Creating layer bot3_0
+I0406 15:27:28.548816 23397 net.cpp:98] Creating Layer bot3_0
+I0406 15:27:28.548822 23397 net.cpp:439] bot3_0 <- bot3_0_p1_summed
+I0406 15:27:28.548828 23397 net.cpp:439] bot3_0 <- bot3_0_p2
+I0406 15:27:28.548837 23397 net.cpp:413] bot3_0 -> bot3_0
+I0406 15:27:28.548859 23397 net.cpp:148] Setting up bot3_0
+I0406 15:27:28.548867 23397 net.cpp:155] Top shape: 10 512 14 14 (1003520)
+I0406 15:27:28.548871 23397 net.cpp:163] Memory required for data: 578027520
+I0406 15:27:28.548877 23397 layer_factory.hpp:77] Creating layer bot3_0_bot3_0_0_split
+I0406 15:27:28.548885 23397 net.cpp:98] Creating Layer bot3_0_bot3_0_0_split
+I0406 15:27:28.548889 23397 net.cpp:439] bot3_0_bot3_0_0_split <- bot3_0
+I0406 15:27:28.548895 23397 net.cpp:413] bot3_0_bot3_0_0_split -> bot3_0_bot3_0_0_split_0
+I0406 15:27:28.548903 23397 net.cpp:413] bot3_0_bot3_0_0_split -> bot3_0_bot3_0_0_split_1
+I0406 15:27:28.548936 23397 net.cpp:148] Setting up bot3_0_bot3_0_0_split
+I0406 15:27:28.548945 23397 net.cpp:155] Top shape: 10 512 14 14 (1003520)
+I0406 15:27:28.548950 23397 net.cpp:155] Top shape: 10 512 14 14 (1003520)
+I0406 15:27:28.548956 23397 net.cpp:163] Memory required for data: 586055680
+I0406 15:27:28.548960 23397 layer_factory.hpp:77] Creating layer bot3_1_proj_conv
+I0406 15:27:28.548971 23397 net.cpp:98] Creating Layer bot3_1_proj_conv
+I0406 15:27:28.548979 23397 net.cpp:439] bot3_1_proj_conv <- bot3_0_bot3_0_0_split_0
+I0406 15:27:28.548986 23397 net.cpp:413] bot3_1_proj_conv -> bot3_1_proj_conv
+I0406 15:27:28.551285 23397 net.cpp:148] Setting up bot3_1_proj_conv
+I0406 15:27:28.551309 23397 net.cpp:155] Top shape: 10 128 14 14 (250880)
+I0406 15:27:28.551314 23397 net.cpp:163] Memory required for data: 587059200
+I0406 15:27:28.551322 23397 layer_factory.hpp:77] Creating layer bot3_1_proj_relu
+I0406 15:27:28.551333 23397 net.cpp:98] Creating Layer bot3_1_proj_relu
+I0406 15:27:28.551340 23397 net.cpp:439] bot3_1_proj_relu <- bot3_1_proj_conv
+I0406 15:27:28.551347 23397 net.cpp:400] bot3_1_proj_relu -> bot3_1_proj_conv (in-place)
+I0406 15:27:28.551452 23397 net.cpp:148] Setting up bot3_1_proj_relu
+I0406 15:27:28.551462 23397 net.cpp:155] Top shape: 10 128 14 14 (250880)
+I0406 15:27:28.551477 23397 net.cpp:163] Memory required for data: 588062720
+I0406 15:27:28.551483 23397 layer_factory.hpp:77] Creating layer bot3_1_proj_nvidia_bn_bot3_1_proj_relu_0_split
+I0406 15:27:28.551491 23397 net.cpp:98] Creating Layer bot3_1_proj_nvidia_bn_bot3_1_proj_relu_0_split
+I0406 15:27:28.551498 23397 net.cpp:439] bot3_1_proj_nvidia_bn_bot3_1_proj_relu_0_split <- bot3_1_proj_conv
+I0406 15:27:28.551506 23397 net.cpp:413] bot3_1_proj_nvidia_bn_bot3_1_proj_relu_0_split -> bot3_1_proj_nvidia_bn_bot3_1_proj_relu_0_split_0
+I0406 15:27:28.551514 23397 net.cpp:413] bot3_1_proj_nvidia_bn_bot3_1_proj_relu_0_split -> bot3_1_proj_nvidia_bn_bot3_1_proj_relu_0_split_1
+I0406 15:27:28.551551 23397 net.cpp:148] Setting up bot3_1_proj_nvidia_bn_bot3_1_proj_relu_0_split
+I0406 15:27:28.551560 23397 net.cpp:155] Top shape: 10 128 14 14 (250880)
+I0406 15:27:28.551565 23397 net.cpp:155] Top shape: 10 128 14 14 (250880)
+I0406 15:27:28.551570 23397 net.cpp:163] Memory required for data: 590069760
+I0406 15:27:28.551574 23397 layer_factory.hpp:77] Creating layer bot3_1_main_conv
+I0406 15:27:28.551585 23397 net.cpp:98] Creating Layer bot3_1_main_conv
+I0406 15:27:28.551594 23397 net.cpp:439] bot3_1_main_conv <- bot3_1_proj_nvidia_bn_bot3_1_proj_relu_0_split_0
+I0406 15:27:28.551601 23397 net.cpp:413] bot3_1_main_conv -> bot3_1_main_conv
+I0406 15:27:28.552974 23397 net.cpp:148] Setting up bot3_1_main_conv
+I0406 15:27:28.552985 23397 net.cpp:155] Top shape: 10 128 14 14 (250880)
+I0406 15:27:28.552990 23397 net.cpp:163] Memory required for data: 591073280
+I0406 15:27:28.552997 23397 layer_factory.hpp:77] Creating layer bot3_1_main_relu
+I0406 15:27:28.553007 23397 net.cpp:98] Creating Layer bot3_1_main_relu
+I0406 15:27:28.553012 23397 net.cpp:439] bot3_1_main_relu <- bot3_1_main_conv
+I0406 15:27:28.553020 23397 net.cpp:400] bot3_1_main_relu -> bot3_1_main_conv (in-place)
+I0406 15:27:28.553128 23397 net.cpp:148] Setting up bot3_1_main_relu
+I0406 15:27:28.553138 23397 net.cpp:155] Top shape: 10 128 14 14 (250880)
+I0406 15:27:28.553143 23397 net.cpp:163] Memory required for data: 592076800
+I0406 15:27:28.553148 23397 layer_factory.hpp:77] Creating layer bot3_1_main_short_circuit_conv
+I0406 15:27:28.553160 23397 net.cpp:98] Creating Layer bot3_1_main_short_circuit_conv
+I0406 15:27:28.553167 23397 net.cpp:439] bot3_1_main_short_circuit_conv <- bot3_1_proj_nvidia_bn_bot3_1_proj_relu_0_split_1
+I0406 15:27:28.553175 23397 net.cpp:413] bot3_1_main_short_circuit_conv -> bot3_1_main_short_circuit_conv
+I0406 15:27:28.553913 23397 net.cpp:148] Setting up bot3_1_main_short_circuit_conv
+I0406 15:27:28.553925 23397 net.cpp:155] Top shape: 10 128 14 14 (250880)
+I0406 15:27:28.553930 23397 net.cpp:163] Memory required for data: 593080320
+I0406 15:27:28.553936 23397 layer_factory.hpp:77] Creating layer bot3_1_main_short_circuit_relu
+I0406 15:27:28.553944 23397 net.cpp:98] Creating Layer bot3_1_main_short_circuit_relu
+I0406 15:27:28.553949 23397 net.cpp:439] bot3_1_main_short_circuit_relu <- bot3_1_main_short_circuit_conv
+I0406 15:27:28.553956 23397 net.cpp:400] bot3_1_main_short_circuit_relu -> bot3_1_main_short_circuit_conv (in-place)
+I0406 15:27:28.554055 23397 net.cpp:148] Setting up bot3_1_main_short_circuit_relu
+I0406 15:27:28.554065 23397 net.cpp:155] Top shape: 10 128 14 14 (250880)
+I0406 15:27:28.554070 23397 net.cpp:163] Memory required for data: 594083840
+I0406 15:27:28.554076 23397 layer_factory.hpp:77] Creating layer bot3_1_main_short_circuit_merged
+I0406 15:27:28.554095 23397 net.cpp:98] Creating Layer bot3_1_main_short_circuit_merged
+I0406 15:27:28.554100 23397 net.cpp:439] bot3_1_main_short_circuit_merged <- bot3_1_main_conv
+I0406 15:27:28.554110 23397 net.cpp:439] bot3_1_main_short_circuit_merged <- bot3_1_main_short_circuit_conv
+I0406 15:27:28.554116 23397 net.cpp:413] bot3_1_main_short_circuit_merged -> bot3_1_main_short_circuit_merged
+I0406 15:27:28.554142 23397 net.cpp:148] Setting up bot3_1_main_short_circuit_merged
+I0406 15:27:28.554152 23397 net.cpp:155] Top shape: 10 128 14 14 (250880)
+I0406 15:27:28.554157 23397 net.cpp:163] Memory required for data: 595087360
+I0406 15:27:28.554162 23397 layer_factory.hpp:77] Creating layer bot3_1_expand_conv
+I0406 15:27:28.554172 23397 net.cpp:98] Creating Layer bot3_1_expand_conv
+I0406 15:27:28.554178 23397 net.cpp:439] bot3_1_expand_conv <- bot3_1_main_short_circuit_merged
+I0406 15:27:28.554186 23397 net.cpp:413] bot3_1_expand_conv -> bot3_1_expand_conv
+I0406 15:27:28.557406 23397 net.cpp:148] Setting up bot3_1_expand_conv
+I0406 15:27:28.557423 23397 net.cpp:155] Top shape: 10 512 14 14 (1003520)
+I0406 15:27:28.557428 23397 net.cpp:163] Memory required for data: 599101440
+I0406 15:27:28.557436 23397 layer_factory.hpp:77] Creating layer bot3_1_expand_relu
+I0406 15:27:28.557446 23397 net.cpp:98] Creating Layer bot3_1_expand_relu
+I0406 15:27:28.557451 23397 net.cpp:439] bot3_1_expand_relu <- bot3_1_expand_conv
+I0406 15:27:28.557459 23397 net.cpp:400] bot3_1_expand_relu -> bot3_1_expand_conv (in-place)
+I0406 15:27:28.557631 23397 net.cpp:148] Setting up bot3_1_expand_relu
+I0406 15:27:28.557642 23397 net.cpp:155] Top shape: 10 512 14 14 (1003520)
+I0406 15:27:28.557647 23397 net.cpp:163] Memory required for data: 603115520
+I0406 15:27:28.557653 23397 layer_factory.hpp:77] Creating layer bot3_1
+I0406 15:27:28.557662 23397 net.cpp:98] Creating Layer bot3_1
+I0406 15:27:28.557667 23397 net.cpp:439] bot3_1 <- bot3_1_expand_conv
+I0406 15:27:28.557672 23397 net.cpp:439] bot3_1 <- bot3_0_bot3_0_0_split_1
+I0406 15:27:28.557682 23397 net.cpp:413] bot3_1 -> bot3_1
+I0406 15:27:28.557706 23397 net.cpp:148] Setting up bot3_1
+I0406 15:27:28.557716 23397 net.cpp:155] Top shape: 10 512 14 14 (1003520)
+I0406 15:27:28.557721 23397 net.cpp:163] Memory required for data: 607129600
+I0406 15:27:28.557725 23397 layer_factory.hpp:77] Creating layer bot3_1_bot3_1_0_split
+I0406 15:27:28.557732 23397 net.cpp:98] Creating Layer bot3_1_bot3_1_0_split
+I0406 15:27:28.557736 23397 net.cpp:439] bot3_1_bot3_1_0_split <- bot3_1
+I0406 15:27:28.557744 23397 net.cpp:413] bot3_1_bot3_1_0_split -> bot3_1_bot3_1_0_split_0
+I0406 15:27:28.557751 23397 net.cpp:413] bot3_1_bot3_1_0_split -> bot3_1_bot3_1_0_split_1
+I0406 15:27:28.557786 23397 net.cpp:148] Setting up bot3_1_bot3_1_0_split
+I0406 15:27:28.557795 23397 net.cpp:155] Top shape: 10 512 14 14 (1003520)
+I0406 15:27:28.557799 23397 net.cpp:155] Top shape: 10 512 14 14 (1003520)
+I0406 15:27:28.557806 23397 net.cpp:163] Memory required for data: 615157760
+I0406 15:27:28.557811 23397 layer_factory.hpp:77] Creating layer bot3_2_proj_conv
+I0406 15:27:28.557822 23397 net.cpp:98] Creating Layer bot3_2_proj_conv
+I0406 15:27:28.557829 23397 net.cpp:439] bot3_2_proj_conv <- bot3_1_bot3_1_0_split_0
+I0406 15:27:28.557837 23397 net.cpp:413] bot3_2_proj_conv -> bot3_2_proj_conv
+I0406 15:27:28.560112 23397 net.cpp:148] Setting up bot3_2_proj_conv
+I0406 15:27:28.560125 23397 net.cpp:155] Top shape: 10 128 14 14 (250880)
+I0406 15:27:28.560130 23397 net.cpp:163] Memory required for data: 616161280
+I0406 15:27:28.560138 23397 layer_factory.hpp:77] Creating layer bot3_2_proj_relu
+I0406 15:27:28.560148 23397 net.cpp:98] Creating Layer bot3_2_proj_relu
+I0406 15:27:28.560153 23397 net.cpp:439] bot3_2_proj_relu <- bot3_2_proj_conv
+I0406 15:27:28.560160 23397 net.cpp:400] bot3_2_proj_relu -> bot3_2_proj_conv (in-place)
+I0406 15:27:28.560255 23397 net.cpp:148] Setting up bot3_2_proj_relu
+I0406 15:27:28.560264 23397 net.cpp:155] Top shape: 10 128 14 14 (250880)
+I0406 15:27:28.560268 23397 net.cpp:163] Memory required for data: 617164800
+I0406 15:27:28.560284 23397 layer_factory.hpp:77] Creating layer bot3_2_proj_nvidia_bn_bot3_2_proj_relu_0_split
+I0406 15:27:28.560293 23397 net.cpp:98] Creating Layer bot3_2_proj_nvidia_bn_bot3_2_proj_relu_0_split
+I0406 15:27:28.560298 23397 net.cpp:439] bot3_2_proj_nvidia_bn_bot3_2_proj_relu_0_split <- bot3_2_proj_conv
+I0406 15:27:28.560308 23397 net.cpp:413] bot3_2_proj_nvidia_bn_bot3_2_proj_relu_0_split -> bot3_2_proj_nvidia_bn_bot3_2_proj_relu_0_split_0
+I0406 15:27:28.560317 23397 net.cpp:413] bot3_2_proj_nvidia_bn_bot3_2_proj_relu_0_split -> bot3_2_proj_nvidia_bn_bot3_2_proj_relu_0_split_1
+I0406 15:27:28.560353 23397 net.cpp:148] Setting up bot3_2_proj_nvidia_bn_bot3_2_proj_relu_0_split
+I0406 15:27:28.560361 23397 net.cpp:155] Top shape: 10 128 14 14 (250880)
+I0406 15:27:28.560367 23397 net.cpp:155] Top shape: 10 128 14 14 (250880)
+I0406 15:27:28.560371 23397 net.cpp:163] Memory required for data: 619171840
+I0406 15:27:28.560375 23397 layer_factory.hpp:77] Creating layer bot3_2_main_conv
+I0406 15:27:28.560387 23397 net.cpp:98] Creating Layer bot3_2_main_conv
+I0406 15:27:28.560395 23397 net.cpp:439] bot3_2_main_conv <- bot3_2_proj_nvidia_bn_bot3_2_proj_relu_0_split_0
+I0406 15:27:28.560401 23397 net.cpp:413] bot3_2_main_conv -> bot3_2_main_conv
+I0406 15:27:28.561719 23397 net.cpp:148] Setting up bot3_2_main_conv
+I0406 15:27:28.561730 23397 net.cpp:155] Top shape: 10 128 14 14 (250880)
+I0406 15:27:28.561734 23397 net.cpp:163] Memory required for data: 620175360
+I0406 15:27:28.561741 23397 layer_factory.hpp:77] Creating layer bot3_2_main_relu
+I0406 15:27:28.561751 23397 net.cpp:98] Creating Layer bot3_2_main_relu
+I0406 15:27:28.561756 23397 net.cpp:439] bot3_2_main_relu <- bot3_2_main_conv
+I0406 15:27:28.561764 23397 net.cpp:400] bot3_2_main_relu -> bot3_2_main_conv (in-place)
+I0406 15:27:28.561856 23397 net.cpp:148] Setting up bot3_2_main_relu
+I0406 15:27:28.561866 23397 net.cpp:155] Top shape: 10 128 14 14 (250880)
+I0406 15:27:28.561870 23397 net.cpp:163] Memory required for data: 621178880
+I0406 15:27:28.561877 23397 layer_factory.hpp:77] Creating layer bot3_2_main_short_circuit_conv
+I0406 15:27:28.561887 23397 net.cpp:98] Creating Layer bot3_2_main_short_circuit_conv
+I0406 15:27:28.561894 23397 net.cpp:439] bot3_2_main_short_circuit_conv <- bot3_2_proj_nvidia_bn_bot3_2_proj_relu_0_split_1
+I0406 15:27:28.561902 23397 net.cpp:413] bot3_2_main_short_circuit_conv -> bot3_2_main_short_circuit_conv
+I0406 15:27:28.562613 23397 net.cpp:148] Setting up bot3_2_main_short_circuit_conv
+I0406 15:27:28.562623 23397 net.cpp:155] Top shape: 10 128 14 14 (250880)
+I0406 15:27:28.562628 23397 net.cpp:163] Memory required for data: 622182400
+I0406 15:27:28.562634 23397 layer_factory.hpp:77] Creating layer bot3_2_main_short_circuit_relu
+I0406 15:27:28.562644 23397 net.cpp:98] Creating Layer bot3_2_main_short_circuit_relu
+I0406 15:27:28.562649 23397 net.cpp:439] bot3_2_main_short_circuit_relu <- bot3_2_main_short_circuit_conv
+I0406 15:27:28.562655 23397 net.cpp:400] bot3_2_main_short_circuit_relu -> bot3_2_main_short_circuit_conv (in-place)
+I0406 15:27:28.562744 23397 net.cpp:148] Setting up bot3_2_main_short_circuit_relu
+I0406 15:27:28.562754 23397 net.cpp:155] Top shape: 10 128 14 14 (250880)
+I0406 15:27:28.562758 23397 net.cpp:163] Memory required for data: 623185920
+I0406 15:27:28.562763 23397 layer_factory.hpp:77] Creating layer bot3_2_main_short_circuit_merged
+I0406 15:27:28.562772 23397 net.cpp:98] Creating Layer bot3_2_main_short_circuit_merged
+I0406 15:27:28.562778 23397 net.cpp:439] bot3_2_main_short_circuit_merged <- bot3_2_main_conv
+I0406 15:27:28.562783 23397 net.cpp:439] bot3_2_main_short_circuit_merged <- bot3_2_main_short_circuit_conv
+I0406 15:27:28.562789 23397 net.cpp:413] bot3_2_main_short_circuit_merged -> bot3_2_main_short_circuit_merged
+I0406 15:27:28.562813 23397 net.cpp:148] Setting up bot3_2_main_short_circuit_merged
+I0406 15:27:28.562821 23397 net.cpp:155] Top shape: 10 128 14 14 (250880)
+I0406 15:27:28.562825 23397 net.cpp:163] Memory required for data: 624189440
+I0406 15:27:28.562830 23397 layer_factory.hpp:77] Creating layer bot3_2_expand_conv
+I0406 15:27:28.562849 23397 net.cpp:98] Creating Layer bot3_2_expand_conv
+I0406 15:27:28.562857 23397 net.cpp:439] bot3_2_expand_conv <- bot3_2_main_short_circuit_merged
+I0406 15:27:28.562865 23397 net.cpp:413] bot3_2_expand_conv -> bot3_2_expand_conv
+I0406 15:27:28.565079 23397 net.cpp:148] Setting up bot3_2_expand_conv
+I0406 15:27:28.565091 23397 net.cpp:155] Top shape: 10 512 14 14 (1003520)
+I0406 15:27:28.565096 23397 net.cpp:163] Memory required for data: 628203520
+I0406 15:27:28.565104 23397 layer_factory.hpp:77] Creating layer bot3_2_expand_relu
+I0406 15:27:28.565111 23397 net.cpp:98] Creating Layer bot3_2_expand_relu
+I0406 15:27:28.565116 23397 net.cpp:439] bot3_2_expand_relu <- bot3_2_expand_conv
+I0406 15:27:28.565124 23397 net.cpp:400] bot3_2_expand_relu -> bot3_2_expand_conv (in-place)
+I0406 15:27:28.565284 23397 net.cpp:148] Setting up bot3_2_expand_relu
+I0406 15:27:28.565294 23397 net.cpp:155] Top shape: 10 512 14 14 (1003520)
+I0406 15:27:28.565299 23397 net.cpp:163] Memory required for data: 632217600
+I0406 15:27:28.565304 23397 layer_factory.hpp:77] Creating layer bot3_2
+I0406 15:27:28.565313 23397 net.cpp:98] Creating Layer bot3_2
+I0406 15:27:28.565318 23397 net.cpp:439] bot3_2 <- bot3_2_expand_conv
+I0406 15:27:28.565323 23397 net.cpp:439] bot3_2 <- bot3_1_bot3_1_0_split_1
+I0406 15:27:28.565330 23397 net.cpp:413] bot3_2 -> bot3_2
+I0406 15:27:28.565356 23397 net.cpp:148] Setting up bot3_2
+I0406 15:27:28.565364 23397 net.cpp:155] Top shape: 10 512 14 14 (1003520)
+I0406 15:27:28.565368 23397 net.cpp:163] Memory required for data: 636231680
+I0406 15:27:28.565373 23397 layer_factory.hpp:77] Creating layer bot3_2_bot3_2_0_split
+I0406 15:27:28.565379 23397 net.cpp:98] Creating Layer bot3_2_bot3_2_0_split
+I0406 15:27:28.565384 23397 net.cpp:439] bot3_2_bot3_2_0_split <- bot3_2
+I0406 15:27:28.565392 23397 net.cpp:413] bot3_2_bot3_2_0_split -> bot3_2_bot3_2_0_split_0
+I0406 15:27:28.565400 23397 net.cpp:413] bot3_2_bot3_2_0_split -> bot3_2_bot3_2_0_split_1
+I0406 15:27:28.565433 23397 net.cpp:148] Setting up bot3_2_bot3_2_0_split
+I0406 15:27:28.565440 23397 net.cpp:155] Top shape: 10 512 14 14 (1003520)
+I0406 15:27:28.565445 23397 net.cpp:155] Top shape: 10 512 14 14 (1003520)
+I0406 15:27:28.565449 23397 net.cpp:163] Memory required for data: 644259840
+I0406 15:27:28.565454 23397 layer_factory.hpp:77] Creating layer bot4_0_proj_conv
+I0406 15:27:28.565466 23397 net.cpp:98] Creating Layer bot4_0_proj_conv
+I0406 15:27:28.565474 23397 net.cpp:439] bot4_0_proj_conv <- bot3_2_bot3_2_0_split_0
+I0406 15:27:28.565481 23397 net.cpp:413] bot4_0_proj_conv -> bot4_0_proj_conv
+I0406 15:27:28.574375 23397 net.cpp:148] Setting up bot4_0_proj_conv
+I0406 15:27:28.574390 23397 net.cpp:155] Top shape: 10 128 7 7 (62720)
+I0406 15:27:28.574395 23397 net.cpp:163] Memory required for data: 644510720
+I0406 15:27:28.574403 23397 layer_factory.hpp:77] Creating layer bot4_0_proj_relu
+I0406 15:27:28.574415 23397 net.cpp:98] Creating Layer bot4_0_proj_relu
+I0406 15:27:28.574421 23397 net.cpp:439] bot4_0_proj_relu <- bot4_0_proj_conv
+I0406 15:27:28.574429 23397 net.cpp:400] bot4_0_proj_relu -> bot4_0_proj_conv (in-place)
+I0406 15:27:28.574515 23397 net.cpp:148] Setting up bot4_0_proj_relu
+I0406 15:27:28.574525 23397 net.cpp:155] Top shape: 10 128 7 7 (62720)
+I0406 15:27:28.574530 23397 net.cpp:163] Memory required for data: 644761600
+I0406 15:27:28.574537 23397 layer_factory.hpp:77] Creating layer bot4_0_proj_nvidia_bn_bot4_0_proj_relu_0_split
+I0406 15:27:28.574545 23397 net.cpp:98] Creating Layer bot4_0_proj_nvidia_bn_bot4_0_proj_relu_0_split
+I0406 15:27:28.574550 23397 net.cpp:439] bot4_0_proj_nvidia_bn_bot4_0_proj_relu_0_split <- bot4_0_proj_conv
+I0406 15:27:28.574556 23397 net.cpp:413] bot4_0_proj_nvidia_bn_bot4_0_proj_relu_0_split -> bot4_0_proj_nvidia_bn_bot4_0_proj_relu_0_split_0
+I0406 15:27:28.574565 23397 net.cpp:413] bot4_0_proj_nvidia_bn_bot4_0_proj_relu_0_split -> bot4_0_proj_nvidia_bn_bot4_0_proj_relu_0_split_1
+I0406 15:27:28.574599 23397 net.cpp:148] Setting up bot4_0_proj_nvidia_bn_bot4_0_proj_relu_0_split
+I0406 15:27:28.574617 23397 net.cpp:155] Top shape: 10 128 7 7 (62720)
+I0406 15:27:28.574622 23397 net.cpp:155] Top shape: 10 128 7 7 (62720)
+I0406 15:27:28.574626 23397 net.cpp:163] Memory required for data: 645263360
+I0406 15:27:28.574631 23397 layer_factory.hpp:77] Creating layer bot4_0_main_conv
+I0406 15:27:28.574642 23397 net.cpp:98] Creating Layer bot4_0_main_conv
+I0406 15:27:28.574650 23397 net.cpp:439] bot4_0_main_conv <- bot4_0_proj_nvidia_bn_bot4_0_proj_relu_0_split_0
+I0406 15:27:28.574657 23397 net.cpp:413] bot4_0_main_conv -> bot4_0_main_conv
+I0406 15:27:28.575997 23397 net.cpp:148] Setting up bot4_0_main_conv
+I0406 15:27:28.576009 23397 net.cpp:155] Top shape: 10 128 7 7 (62720)
+I0406 15:27:28.576025 23397 net.cpp:163] Memory required for data: 645514240
+I0406 15:27:28.576031 23397 layer_factory.hpp:77] Creating layer bot4_0_main_relu
+I0406 15:27:28.576041 23397 net.cpp:98] Creating Layer bot4_0_main_relu
+I0406 15:27:28.576046 23397 net.cpp:439] bot4_0_main_relu <- bot4_0_main_conv
+I0406 15:27:28.576052 23397 net.cpp:400] bot4_0_main_relu -> bot4_0_main_conv (in-place)
+I0406 15:27:28.576130 23397 net.cpp:148] Setting up bot4_0_main_relu
+I0406 15:27:28.576140 23397 net.cpp:155] Top shape: 10 128 7 7 (62720)
+I0406 15:27:28.576144 23397 net.cpp:163] Memory required for data: 645765120
+I0406 15:27:28.576150 23397 layer_factory.hpp:77] Creating layer bot4_0_main_short_circuit_conv
+I0406 15:27:28.576164 23397 net.cpp:98] Creating Layer bot4_0_main_short_circuit_conv
+I0406 15:27:28.576170 23397 net.cpp:439] bot4_0_main_short_circuit_conv <- bot4_0_proj_nvidia_bn_bot4_0_proj_relu_0_split_1
+I0406 15:27:28.576180 23397 net.cpp:413] bot4_0_main_short_circuit_conv -> bot4_0_main_short_circuit_conv
+I0406 15:27:28.576982 23397 net.cpp:148] Setting up bot4_0_main_short_circuit_conv
+I0406 15:27:28.577004 23397 net.cpp:155] Top shape: 10 128 7 7 (62720)
+I0406 15:27:28.577020 23397 net.cpp:163] Memory required for data: 646016000
+I0406 15:27:28.577028 23397 layer_factory.hpp:77] Creating layer bot4_0_main_short_circuit_relu
+I0406 15:27:28.577034 23397 net.cpp:98] Creating Layer bot4_0_main_short_circuit_relu
+I0406 15:27:28.577040 23397 net.cpp:439] bot4_0_main_short_circuit_relu <- bot4_0_main_short_circuit_conv
+I0406 15:27:28.577047 23397 net.cpp:400] bot4_0_main_short_circuit_relu -> bot4_0_main_short_circuit_conv (in-place)
+I0406 15:27:28.577128 23397 net.cpp:148] Setting up bot4_0_main_short_circuit_relu
+I0406 15:27:28.577137 23397 net.cpp:155] Top shape: 10 128 7 7 (62720)
+I0406 15:27:28.577142 23397 net.cpp:163] Memory required for data: 646266880
+I0406 15:27:28.577148 23397 layer_factory.hpp:77] Creating layer bot4_0_main_short_circuit_merged
+I0406 15:27:28.577158 23397 net.cpp:98] Creating Layer bot4_0_main_short_circuit_merged
+I0406 15:27:28.577163 23397 net.cpp:439] bot4_0_main_short_circuit_merged <- bot4_0_main_conv
+I0406 15:27:28.577168 23397 net.cpp:439] bot4_0_main_short_circuit_merged <- bot4_0_main_short_circuit_conv
+I0406 15:27:28.577178 23397 net.cpp:413] bot4_0_main_short_circuit_merged -> bot4_0_main_short_circuit_merged
+I0406 15:27:28.577201 23397 net.cpp:148] Setting up bot4_0_main_short_circuit_merged
+I0406 15:27:28.577210 23397 net.cpp:155] Top shape: 10 128 7 7 (62720)
+I0406 15:27:28.577214 23397 net.cpp:163] Memory required for data: 646517760
+I0406 15:27:28.577219 23397 layer_factory.hpp:77] Creating layer bot4_0_expand_conv
+I0406 15:27:28.577234 23397 net.cpp:98] Creating Layer bot4_0_expand_conv
+I0406 15:27:28.577241 23397 net.cpp:439] bot4_0_expand_conv <- bot4_0_main_short_circuit_merged
+I0406 15:27:28.577247 23397 net.cpp:413] bot4_0_expand_conv -> bot4_0_expand_conv
+I0406 15:27:28.581553 23397 net.cpp:148] Setting up bot4_0_expand_conv
+I0406 15:27:28.581565 23397 net.cpp:155] Top shape: 10 1024 7 7 (501760)
+I0406 15:27:28.581581 23397 net.cpp:163] Memory required for data: 648524800
+I0406 15:27:28.581588 23397 layer_factory.hpp:77] Creating layer bot4_0_expand_relu
+I0406 15:27:28.581595 23397 net.cpp:98] Creating Layer bot4_0_expand_relu
+I0406 15:27:28.581601 23397 net.cpp:439] bot4_0_expand_relu <- bot4_0_expand_conv
+I0406 15:27:28.581619 23397 net.cpp:400] bot4_0_expand_relu -> bot4_0_expand_conv (in-place)
+I0406 15:27:28.581740 23397 net.cpp:148] Setting up bot4_0_expand_relu
+I0406 15:27:28.581750 23397 net.cpp:155] Top shape: 10 1024 7 7 (501760)
+I0406 15:27:28.581755 23397 net.cpp:163] Memory required for data: 650531840
+I0406 15:27:28.581761 23397 layer_factory.hpp:77] Creating layer bot4_0_aux_br_pool
+I0406 15:27:28.581770 23397 net.cpp:98] Creating Layer bot4_0_aux_br_pool
+I0406 15:27:28.581776 23397 net.cpp:439] bot4_0_aux_br_pool <- bot3_2_bot3_2_0_split_1
+I0406 15:27:28.581784 23397 net.cpp:413] bot4_0_aux_br_pool -> bot4_0_aux_br_pool
+I0406 15:27:28.581823 23397 net.cpp:148] Setting up bot4_0_aux_br_pool
+I0406 15:27:28.581832 23397 net.cpp:155] Top shape: 10 512 7 7 (250880)
+I0406 15:27:28.581836 23397 net.cpp:163] Memory required for data: 651535360
+I0406 15:27:28.581841 23397 layer_factory.hpp:77] Creating layer bot4_0_p1
+I0406 15:27:28.581848 23397 net.cpp:98] Creating Layer bot4_0_p1
+I0406 15:27:28.581856 23397 net.cpp:439] bot4_0_p1 <- bot4_0_expand_conv
+I0406 15:27:28.581863 23397 net.cpp:413] bot4_0_p1 -> bot4_0_p1
+I0406 15:27:28.581872 23397 net.cpp:413] bot4_0_p1 -> bot4_0_p2
+I0406 15:27:28.581907 23397 net.cpp:148] Setting up bot4_0_p1
+I0406 15:27:28.581915 23397 net.cpp:155] Top shape: 10 512 7 7 (250880)
+I0406 15:27:28.581920 23397 net.cpp:155] Top shape: 10 512 7 7 (250880)
+I0406 15:27:28.581924 23397 net.cpp:163] Memory required for data: 653542400
+I0406 15:27:28.581929 23397 layer_factory.hpp:77] Creating layer bot4_0_p1_summed
+I0406 15:27:28.581935 23397 net.cpp:98] Creating Layer bot4_0_p1_summed
+I0406 15:27:28.581941 23397 net.cpp:439] bot4_0_p1_summed <- bot4_0_p1
+I0406 15:27:28.581946 23397 net.cpp:439] bot4_0_p1_summed <- bot4_0_aux_br_pool
+I0406 15:27:28.581953 23397 net.cpp:413] bot4_0_p1_summed -> bot4_0_p1_summed
+I0406 15:27:28.581975 23397 net.cpp:148] Setting up bot4_0_p1_summed
+I0406 15:27:28.581982 23397 net.cpp:155] Top shape: 10 512 7 7 (250880)
+I0406 15:27:28.581987 23397 net.cpp:163] Memory required for data: 654545920
+I0406 15:27:28.581991 23397 layer_factory.hpp:77] Creating layer bot4_0
+I0406 15:27:28.581998 23397 net.cpp:98] Creating Layer bot4_0
+I0406 15:27:28.582005 23397 net.cpp:439] bot4_0 <- bot4_0_p1_summed
+I0406 15:27:28.582010 23397 net.cpp:439] bot4_0 <- bot4_0_p2
+I0406 15:27:28.582017 23397 net.cpp:413] bot4_0 -> bot4_0
+I0406 15:27:28.582039 23397 net.cpp:148] Setting up bot4_0
+I0406 15:27:28.582047 23397 net.cpp:155] Top shape: 10 1024 7 7 (501760)
+I0406 15:27:28.582051 23397 net.cpp:163] Memory required for data: 656552960
+I0406 15:27:28.582056 23397 layer_factory.hpp:77] Creating layer bot4_0_bot4_0_0_split
+I0406 15:27:28.582062 23397 net.cpp:98] Creating Layer bot4_0_bot4_0_0_split
+I0406 15:27:28.582068 23397 net.cpp:439] bot4_0_bot4_0_0_split <- bot4_0
+I0406 15:27:28.582073 23397 net.cpp:413] bot4_0_bot4_0_0_split -> bot4_0_bot4_0_0_split_0
+I0406 15:27:28.582082 23397 net.cpp:413] bot4_0_bot4_0_0_split -> bot4_0_bot4_0_0_split_1
+I0406 15:27:28.582113 23397 net.cpp:148] Setting up bot4_0_bot4_0_0_split
+I0406 15:27:28.582119 23397 net.cpp:155] Top shape: 10 1024 7 7 (501760)
+I0406 15:27:28.582124 23397 net.cpp:155] Top shape: 10 1024 7 7 (501760)
+I0406 15:27:28.582129 23397 net.cpp:163] Memory required for data: 660567040
+I0406 15:27:28.582134 23397 layer_factory.hpp:77] Creating layer bot4_1_proj_conv
+I0406 15:27:28.582146 23397 net.cpp:98] Creating Layer bot4_1_proj_conv
+I0406 15:27:28.582152 23397 net.cpp:439] bot4_1_proj_conv <- bot4_0_bot4_0_0_split_0
+I0406 15:27:28.582160 23397 net.cpp:413] bot4_1_proj_conv -> bot4_1_proj_conv
+I0406 15:27:28.591097 23397 net.cpp:148] Setting up bot4_1_proj_conv
+I0406 15:27:28.591130 23397 net.cpp:155] Top shape: 10 256 7 7 (125440)
+I0406 15:27:28.591135 23397 net.cpp:163] Memory required for data: 661068800
+I0406 15:27:28.591156 23397 layer_factory.hpp:77] Creating layer bot4_1_proj_relu
+I0406 15:27:28.591167 23397 net.cpp:98] Creating Layer bot4_1_proj_relu
+I0406 15:27:28.591174 23397 net.cpp:439] bot4_1_proj_relu <- bot4_1_proj_conv
+I0406 15:27:28.591195 23397 net.cpp:400] bot4_1_proj_relu -> bot4_1_proj_conv (in-place)
+I0406 15:27:28.591300 23397 net.cpp:148] Setting up bot4_1_proj_relu
+I0406 15:27:28.591308 23397 net.cpp:155] Top shape: 10 256 7 7 (125440)
+I0406 15:27:28.591313 23397 net.cpp:163] Memory required for data: 661570560
+I0406 15:27:28.591320 23397 layer_factory.hpp:77] Creating layer bot4_1_proj_nvidia_bn_bot4_1_proj_relu_0_split
+I0406 15:27:28.591328 23397 net.cpp:98] Creating Layer bot4_1_proj_nvidia_bn_bot4_1_proj_relu_0_split
+I0406 15:27:28.591332 23397 net.cpp:439] bot4_1_proj_nvidia_bn_bot4_1_proj_relu_0_split <- bot4_1_proj_conv
+I0406 15:27:28.591339 23397 net.cpp:413] bot4_1_proj_nvidia_bn_bot4_1_proj_relu_0_split -> bot4_1_proj_nvidia_bn_bot4_1_proj_relu_0_split_0
+I0406 15:27:28.591349 23397 net.cpp:413] bot4_1_proj_nvidia_bn_bot4_1_proj_relu_0_split -> bot4_1_proj_nvidia_bn_bot4_1_proj_relu_0_split_1
+I0406 15:27:28.591383 23397 net.cpp:148] Setting up bot4_1_proj_nvidia_bn_bot4_1_proj_relu_0_split
+I0406 15:27:28.591392 23397 net.cpp:155] Top shape: 10 256 7 7 (125440)
+I0406 15:27:28.591398 23397 net.cpp:155] Top shape: 10 256 7 7 (125440)
+I0406 15:27:28.591401 23397 net.cpp:163] Memory required for data: 662574080
+I0406 15:27:28.591405 23397 layer_factory.hpp:77] Creating layer bot4_1_main_conv
+I0406 15:27:28.591415 23397 net.cpp:98] Creating Layer bot4_1_main_conv
+I0406 15:27:28.591423 23397 net.cpp:439] bot4_1_main_conv <- bot4_1_proj_nvidia_bn_bot4_1_proj_relu_0_split_0
+I0406 15:27:28.591430 23397 net.cpp:413] bot4_1_main_conv -> bot4_1_main_conv
+I0406 15:27:28.596024 23397 net.cpp:148] Setting up bot4_1_main_conv
+I0406 15:27:28.596035 23397 net.cpp:155] Top shape: 10 256 7 7 (125440)
+I0406 15:27:28.596040 23397 net.cpp:163] Memory required for data: 663075840
+I0406 15:27:28.596047 23397 layer_factory.hpp:77] Creating layer bot4_1_main_relu
+I0406 15:27:28.596056 23397 net.cpp:98] Creating Layer bot4_1_main_relu
+I0406 15:27:28.596061 23397 net.cpp:439] bot4_1_main_relu <- bot4_1_main_conv
+I0406 15:27:28.596068 23397 net.cpp:400] bot4_1_main_relu -> bot4_1_main_conv (in-place)
+I0406 15:27:28.596155 23397 net.cpp:148] Setting up bot4_1_main_relu
+I0406 15:27:28.596164 23397 net.cpp:155] Top shape: 10 256 7 7 (125440)
+I0406 15:27:28.596168 23397 net.cpp:163] Memory required for data: 663577600
+I0406 15:27:28.596175 23397 layer_factory.hpp:77] Creating layer bot4_1_main_short_circuit_conv
+I0406 15:27:28.596187 23397 net.cpp:98] Creating Layer bot4_1_main_short_circuit_conv
+I0406 15:27:28.596194 23397 net.cpp:439] bot4_1_main_short_circuit_conv <- bot4_1_proj_nvidia_bn_bot4_1_proj_relu_0_split_1
+I0406 15:27:28.596202 23397 net.cpp:413] bot4_1_main_short_circuit_conv -> bot4_1_main_short_circuit_conv
+I0406 15:27:28.598346 23397 net.cpp:148] Setting up bot4_1_main_short_circuit_conv
+I0406 15:27:28.598357 23397 net.cpp:155] Top shape: 10 256 7 7 (125440)
+I0406 15:27:28.598362 23397 net.cpp:163] Memory required for data: 664079360
+I0406 15:27:28.598368 23397 layer_factory.hpp:77] Creating layer bot4_1_main_short_circuit_relu
+I0406 15:27:28.598376 23397 net.cpp:98] Creating Layer bot4_1_main_short_circuit_relu
+I0406 15:27:28.598381 23397 net.cpp:439] bot4_1_main_short_circuit_relu <- bot4_1_main_short_circuit_conv
+I0406 15:27:28.598387 23397 net.cpp:400] bot4_1_main_short_circuit_relu -> bot4_1_main_short_circuit_conv (in-place)
+I0406 15:27:28.598469 23397 net.cpp:148] Setting up bot4_1_main_short_circuit_relu
+I0406 15:27:28.598479 23397 net.cpp:155] Top shape: 10 256 7 7 (125440)
+I0406 15:27:28.598484 23397 net.cpp:163] Memory required for data: 664581120
+I0406 15:27:28.598489 23397 layer_factory.hpp:77] Creating layer bot4_1_main_short_circuit_merged
+I0406 15:27:28.598500 23397 net.cpp:98] Creating Layer bot4_1_main_short_circuit_merged
+I0406 15:27:28.598505 23397 net.cpp:439] bot4_1_main_short_circuit_merged <- bot4_1_main_conv
+I0406 15:27:28.598508 23397 net.cpp:439] bot4_1_main_short_circuit_merged <- bot4_1_main_short_circuit_conv
+I0406 15:27:28.598518 23397 net.cpp:413] bot4_1_main_short_circuit_merged -> bot4_1_main_short_circuit_merged
+I0406 15:27:28.598553 23397 net.cpp:148] Setting up bot4_1_main_short_circuit_merged
+I0406 15:27:28.598562 23397 net.cpp:155] Top shape: 10 256 7 7 (125440)
+I0406 15:27:28.598567 23397 net.cpp:163] Memory required for data: 665082880
+I0406 15:27:28.598572 23397 layer_factory.hpp:77] Creating layer bot4_1_expand_conv
+I0406 15:27:28.598582 23397 net.cpp:98] Creating Layer bot4_1_expand_conv
+I0406 15:27:28.598589 23397 net.cpp:439] bot4_1_expand_conv <- bot4_1_main_short_circuit_merged
+I0406 15:27:28.598597 23397 net.cpp:413] bot4_1_expand_conv -> bot4_1_expand_conv
+I0406 15:27:28.607513 23397 net.cpp:148] Setting up bot4_1_expand_conv
+I0406 15:27:28.607540 23397 net.cpp:155] Top shape: 10 1024 7 7 (501760)
+I0406 15:27:28.607545 23397 net.cpp:163] Memory required for data: 667089920
+I0406 15:27:28.607564 23397 layer_factory.hpp:77] Creating layer bot4_1_expand_relu
+I0406 15:27:28.607573 23397 net.cpp:98] Creating Layer bot4_1_expand_relu
+I0406 15:27:28.607578 23397 net.cpp:439] bot4_1_expand_relu <- bot4_1_expand_conv
+I0406 15:27:28.607586 23397 net.cpp:400] bot4_1_expand_relu -> bot4_1_expand_conv (in-place)
+I0406 15:27:28.607719 23397 net.cpp:148] Setting up bot4_1_expand_relu
+I0406 15:27:28.607729 23397 net.cpp:155] Top shape: 10 1024 7 7 (501760)
+I0406 15:27:28.607734 23397 net.cpp:163] Memory required for data: 669096960
+I0406 15:27:28.607740 23397 layer_factory.hpp:77] Creating layer bot4_1
+I0406 15:27:28.607755 23397 net.cpp:98] Creating Layer bot4_1
+I0406 15:27:28.607760 23397 net.cpp:439] bot4_1 <- bot4_1_expand_conv
+I0406 15:27:28.607766 23397 net.cpp:439] bot4_1 <- bot4_0_bot4_0_0_split_1
+I0406 15:27:28.607774 23397 net.cpp:413] bot4_1 -> bot4_1
+I0406 15:27:28.607806 23397 net.cpp:148] Setting up bot4_1
+I0406 15:27:28.607817 23397 net.cpp:155] Top shape: 10 1024 7 7 (501760)
+I0406 15:27:28.607821 23397 net.cpp:163] Memory required for data: 671104000
+I0406 15:27:28.607826 23397 layer_factory.hpp:77] Creating layer bot4_1_bot4_1_0_split
+I0406 15:27:28.607833 23397 net.cpp:98] Creating Layer bot4_1_bot4_1_0_split
+I0406 15:27:28.607842 23397 net.cpp:439] bot4_1_bot4_1_0_split <- bot4_1
+I0406 15:27:28.607848 23397 net.cpp:413] bot4_1_bot4_1_0_split -> bot4_1_bot4_1_0_split_0
+I0406 15:27:28.607856 23397 net.cpp:413] bot4_1_bot4_1_0_split -> bot4_1_bot4_1_0_split_1
+I0406 15:27:28.607893 23397 net.cpp:148] Setting up bot4_1_bot4_1_0_split
+I0406 15:27:28.607902 23397 net.cpp:155] Top shape: 10 1024 7 7 (501760)
+I0406 15:27:28.607906 23397 net.cpp:155] Top shape: 10 1024 7 7 (501760)
+I0406 15:27:28.607910 23397 net.cpp:163] Memory required for data: 675118080
+I0406 15:27:28.607918 23397 layer_factory.hpp:77] Creating layer bot4_2_proj_conv
+I0406 15:27:28.607930 23397 net.cpp:98] Creating Layer bot4_2_proj_conv
+I0406 15:27:28.607936 23397 net.cpp:439] bot4_2_proj_conv <- bot4_1_bot4_1_0_split_0
+I0406 15:27:28.607944 23397 net.cpp:413] bot4_2_proj_conv -> bot4_2_proj_conv
+I0406 15:27:28.616017 23397 net.cpp:148] Setting up bot4_2_proj_conv
+I0406 15:27:28.616031 23397 net.cpp:155] Top shape: 10 256 7 7 (125440)
+I0406 15:27:28.616035 23397 net.cpp:163] Memory required for data: 675619840
+I0406 15:27:28.616044 23397 layer_factory.hpp:77] Creating layer bot4_2_proj_relu
+I0406 15:27:28.616050 23397 net.cpp:98] Creating Layer bot4_2_proj_relu
+I0406 15:27:28.616056 23397 net.cpp:439] bot4_2_proj_relu <- bot4_2_proj_conv
+I0406 15:27:28.616065 23397 net.cpp:400] bot4_2_proj_relu -> bot4_2_proj_conv (in-place)
+I0406 15:27:28.616152 23397 net.cpp:148] Setting up bot4_2_proj_relu
+I0406 15:27:28.616161 23397 net.cpp:155] Top shape: 10 256 7 7 (125440)
+I0406 15:27:28.616165 23397 net.cpp:163] Memory required for data: 676121600
+I0406 15:27:28.616170 23397 layer_factory.hpp:77] Creating layer bot4_2_proj_nvidia_bn_bot4_2_proj_relu_0_split
+I0406 15:27:28.616179 23397 net.cpp:98] Creating Layer bot4_2_proj_nvidia_bn_bot4_2_proj_relu_0_split
+I0406 15:27:28.616184 23397 net.cpp:439] bot4_2_proj_nvidia_bn_bot4_2_proj_relu_0_split <- bot4_2_proj_conv
+I0406 15:27:28.616191 23397 net.cpp:413] bot4_2_proj_nvidia_bn_bot4_2_proj_relu_0_split -> bot4_2_proj_nvidia_bn_bot4_2_proj_relu_0_split_0
+I0406 15:27:28.616212 23397 net.cpp:413] bot4_2_proj_nvidia_bn_bot4_2_proj_relu_0_split -> bot4_2_proj_nvidia_bn_bot4_2_proj_relu_0_split_1
+I0406 15:27:28.616247 23397 net.cpp:148] Setting up bot4_2_proj_nvidia_bn_bot4_2_proj_relu_0_split
+I0406 15:27:28.616256 23397 net.cpp:155] Top shape: 10 256 7 7 (125440)
+I0406 15:27:28.616261 23397 net.cpp:155] Top shape: 10 256 7 7 (125440)
+I0406 15:27:28.616266 23397 net.cpp:163] Memory required for data: 677125120
+I0406 15:27:28.616271 23397 layer_factory.hpp:77] Creating layer bot4_2_main_conv
+I0406 15:27:28.616281 23397 net.cpp:98] Creating Layer bot4_2_main_conv
+I0406 15:27:28.616288 23397 net.cpp:439] bot4_2_main_conv <- bot4_2_proj_nvidia_bn_bot4_2_proj_relu_0_split_0
+I0406 15:27:28.616295 23397 net.cpp:413] bot4_2_main_conv -> bot4_2_main_conv
+I0406 15:27:28.621708 23397 net.cpp:148] Setting up bot4_2_main_conv
+I0406 15:27:28.621723 23397 net.cpp:155] Top shape: 10 256 7 7 (125440)
+I0406 15:27:28.621728 23397 net.cpp:163] Memory required for data: 677626880
+I0406 15:27:28.621736 23397 layer_factory.hpp:77] Creating layer bot4_2_main_relu
+I0406 15:27:28.621745 23397 net.cpp:98] Creating Layer bot4_2_main_relu
+I0406 15:27:28.621750 23397 net.cpp:439] bot4_2_main_relu <- bot4_2_main_conv
+I0406 15:27:28.621757 23397 net.cpp:400] bot4_2_main_relu -> bot4_2_main_conv (in-place)
+I0406 15:27:28.621845 23397 net.cpp:148] Setting up bot4_2_main_relu
+I0406 15:27:28.621855 23397 net.cpp:155] Top shape: 10 256 7 7 (125440)
+I0406 15:27:28.621860 23397 net.cpp:163] Memory required for data: 678128640
+I0406 15:27:28.621865 23397 layer_factory.hpp:77] Creating layer bot4_2_main_short_circuit_conv
+I0406 15:27:28.621878 23397 net.cpp:98] Creating Layer bot4_2_main_short_circuit_conv
+I0406 15:27:28.621886 23397 net.cpp:439] bot4_2_main_short_circuit_conv <- bot4_2_proj_nvidia_bn_bot4_2_proj_relu_0_split_1
+I0406 15:27:28.621892 23397 net.cpp:413] bot4_2_main_short_circuit_conv -> bot4_2_main_short_circuit_conv
+I0406 15:27:28.624816 23397 net.cpp:148] Setting up bot4_2_main_short_circuit_conv
+I0406 15:27:28.624832 23397 net.cpp:155] Top shape: 10 256 7 7 (125440)
+I0406 15:27:28.624837 23397 net.cpp:163] Memory required for data: 678630400
+I0406 15:27:28.624845 23397 layer_factory.hpp:77] Creating layer bot4_2_main_short_circuit_relu
+I0406 15:27:28.624852 23397 net.cpp:98] Creating Layer bot4_2_main_short_circuit_relu
+I0406 15:27:28.624857 23397 net.cpp:439] bot4_2_main_short_circuit_relu <- bot4_2_main_short_circuit_conv
+I0406 15:27:28.624864 23397 net.cpp:400] bot4_2_main_short_circuit_relu -> bot4_2_main_short_circuit_conv (in-place)
+I0406 15:27:28.624954 23397 net.cpp:148] Setting up bot4_2_main_short_circuit_relu
+I0406 15:27:28.624964 23397 net.cpp:155] Top shape: 10 256 7 7 (125440)
+I0406 15:27:28.624969 23397 net.cpp:163] Memory required for data: 679132160
+I0406 15:27:28.624975 23397 layer_factory.hpp:77] Creating layer bot4_2_main_short_circuit_merged
+I0406 15:27:28.624985 23397 net.cpp:98] Creating Layer bot4_2_main_short_circuit_merged
+I0406 15:27:28.624989 23397 net.cpp:439] bot4_2_main_short_circuit_merged <- bot4_2_main_conv
+I0406 15:27:28.624994 23397 net.cpp:439] bot4_2_main_short_circuit_merged <- bot4_2_main_short_circuit_conv
+I0406 15:27:28.625002 23397 net.cpp:413] bot4_2_main_short_circuit_merged -> bot4_2_main_short_circuit_merged
+I0406 15:27:28.625026 23397 net.cpp:148] Setting up bot4_2_main_short_circuit_merged
+I0406 15:27:28.625036 23397 net.cpp:155] Top shape: 10 256 7 7 (125440)
+I0406 15:27:28.625041 23397 net.cpp:163] Memory required for data: 679633920
+I0406 15:27:28.625044 23397 layer_factory.hpp:77] Creating layer bot4_2_expand_conv
+I0406 15:27:28.625054 23397 net.cpp:98] Creating Layer bot4_2_expand_conv
+I0406 15:27:28.625061 23397 net.cpp:439] bot4_2_expand_conv <- bot4_2_main_short_circuit_merged
+I0406 15:27:28.625068 23397 net.cpp:413] bot4_2_expand_conv -> bot4_2_expand_conv
+I0406 15:27:28.633080 23397 net.cpp:148] Setting up bot4_2_expand_conv
+I0406 15:27:28.633118 23397 net.cpp:155] Top shape: 10 1024 7 7 (501760)
+I0406 15:27:28.633123 23397 net.cpp:163] Memory required for data: 681640960
+I0406 15:27:28.633131 23397 layer_factory.hpp:77] Creating layer bot4_2_expand_relu
+I0406 15:27:28.633141 23397 net.cpp:98] Creating Layer bot4_2_expand_relu
+I0406 15:27:28.633147 23397 net.cpp:439] bot4_2_expand_relu <- bot4_2_expand_conv
+I0406 15:27:28.633154 23397 net.cpp:400] bot4_2_expand_relu -> bot4_2_expand_conv (in-place)
+I0406 15:27:28.633282 23397 net.cpp:148] Setting up bot4_2_expand_relu
+I0406 15:27:28.633293 23397 net.cpp:155] Top shape: 10 1024 7 7 (501760)
+I0406 15:27:28.633297 23397 net.cpp:163] Memory required for data: 683648000
+I0406 15:27:28.633303 23397 layer_factory.hpp:77] Creating layer bot4_2
+I0406 15:27:28.633313 23397 net.cpp:98] Creating Layer bot4_2
+I0406 15:27:28.633317 23397 net.cpp:439] bot4_2 <- bot4_2_expand_conv
+I0406 15:27:28.633323 23397 net.cpp:439] bot4_2 <- bot4_1_bot4_1_0_split_1
+I0406 15:27:28.633332 23397 net.cpp:413] bot4_2 -> bot4_2
+I0406 15:27:28.633355 23397 net.cpp:148] Setting up bot4_2
+I0406 15:27:28.633363 23397 net.cpp:155] Top shape: 10 1024 7 7 (501760)
+I0406 15:27:28.633368 23397 net.cpp:163] Memory required for data: 685655040
+I0406 15:27:28.633371 23397 layer_factory.hpp:77] Creating layer pool5
+I0406 15:27:28.633381 23397 net.cpp:98] Creating Layer pool5
+I0406 15:27:28.633388 23397 net.cpp:439] pool5 <- bot4_2
+I0406 15:27:28.633394 23397 net.cpp:413] pool5 -> pool5
+I0406 15:27:28.633440 23397 net.cpp:148] Setting up pool5
+I0406 15:27:28.633450 23397 net.cpp:155] Top shape: 10 1024 1 1 (10240)
+I0406 15:27:28.633455 23397 net.cpp:163] Memory required for data: 685696000
+I0406 15:27:28.633460 23397 layer_factory.hpp:77] Creating layer fc1000
+I0406 15:27:28.633477 23397 net.cpp:98] Creating Layer fc1000
+I0406 15:27:28.633484 23397 net.cpp:439] fc1000 <- pool5
+I0406 15:27:28.633491 23397 net.cpp:413] fc1000 -> fc1000
+I0406 15:27:28.635550 23397 net.cpp:148] Setting up fc1000
+I0406 15:27:28.635577 23397 net.cpp:155] Top shape: 10 1000 (10000)
+I0406 15:27:28.635581 23397 net.cpp:163] Memory required for data: 685736000
+I0406 15:27:28.635589 23397 layer_factory.hpp:77] Creating layer prob
+I0406 15:27:28.635598 23397 net.cpp:98] Creating Layer prob
+I0406 15:27:28.635604 23397 net.cpp:439] prob <- fc1000
+I0406 15:27:28.635610 23397 net.cpp:413] prob -> prob
+I0406 15:27:28.635679 23397 net.cpp:148] Setting up prob
+I0406 15:27:28.635689 23397 net.cpp:155] Top shape: 10 1000 (10000)
+I0406 15:27:28.635694 23397 net.cpp:163] Memory required for data: 685776000
+I0406 15:27:28.635699 23397 net.cpp:226] prob does not need backward computation.
+I0406 15:27:28.635704 23397 net.cpp:226] fc1000 does not need backward computation.
+I0406 15:27:28.635709 23397 net.cpp:226] pool5 does not need backward computation.
+I0406 15:27:28.635712 23397 net.cpp:226] bot4_2 does not need backward computation.
+I0406 15:27:28.635717 23397 net.cpp:226] bot4_2_expand_relu does not need backward computation.
+I0406 15:27:28.635725 23397 net.cpp:226] bot4_2_expand_conv does not need backward computation.
+I0406 15:27:28.635730 23397 net.cpp:226] bot4_2_main_short_circuit_merged does not need backward computation.
+I0406 15:27:28.635735 23397 net.cpp:226] bot4_2_main_short_circuit_relu does not need backward computation.
+I0406 15:27:28.635741 23397 net.cpp:226] bot4_2_main_short_circuit_conv does not need backward computation.
+I0406 15:27:28.635746 23397 net.cpp:226] bot4_2_main_relu does not need backward computation.
+I0406 15:27:28.635751 23397 net.cpp:226] bot4_2_main_conv does not need backward computation.
+I0406 15:27:28.635756 23397 net.cpp:226] bot4_2_proj_nvidia_bn_bot4_2_proj_relu_0_split does not need backward computation.
+I0406 15:27:28.635762 23397 net.cpp:226] bot4_2_proj_relu does not need backward computation.
+I0406 15:27:28.635767 23397 net.cpp:226] bot4_2_proj_conv does not need backward computation.
+I0406 15:27:28.635772 23397 net.cpp:226] bot4_1_bot4_1_0_split does not need backward computation.
+I0406 15:27:28.635778 23397 net.cpp:226] bot4_1 does not need backward computation.
+I0406 15:27:28.635807 23397 net.cpp:226] bot4_1_expand_relu does not need backward computation.
+I0406 15:27:28.635810 23397 net.cpp:226] bot4_1_expand_conv does not need backward computation.
+I0406 15:27:28.635815 23397 net.cpp:226] bot4_1_main_short_circuit_merged does not need backward computation.
+I0406 15:27:28.635821 23397 net.cpp:226] bot4_1_main_short_circuit_relu does not need backward computation.
+I0406 15:27:28.635828 23397 net.cpp:226] bot4_1_main_short_circuit_conv does not need backward computation.
+I0406 15:27:28.635833 23397 net.cpp:226] bot4_1_main_relu does not need backward computation.
+I0406 15:27:28.635838 23397 net.cpp:226] bot4_1_main_conv does not need backward computation.
+I0406 15:27:28.635843 23397 net.cpp:226] bot4_1_proj_nvidia_bn_bot4_1_proj_relu_0_split does not need backward computation.
+I0406 15:27:28.635849 23397 net.cpp:226] bot4_1_proj_relu does not need backward computation.
+I0406 15:27:28.635854 23397 net.cpp:226] bot4_1_proj_conv does not need backward computation.
+I0406 15:27:28.635859 23397 net.cpp:226] bot4_0_bot4_0_0_split does not need backward computation.
+I0406 15:27:28.635864 23397 net.cpp:226] bot4_0 does not need backward computation.
+I0406 15:27:28.635870 23397 net.cpp:226] bot4_0_p1_summed does not need backward computation.
+I0406 15:27:28.635876 23397 net.cpp:226] bot4_0_p1 does not need backward computation.
+I0406 15:27:28.635884 23397 net.cpp:226] bot4_0_aux_br_pool does not need backward computation.
+I0406 15:27:28.635888 23397 net.cpp:226] bot4_0_expand_relu does not need backward computation.
+I0406 15:27:28.635892 23397 net.cpp:226] bot4_0_expand_conv does not need backward computation.
+I0406 15:27:28.635897 23397 net.cpp:226] bot4_0_main_short_circuit_merged does not need backward computation.
+I0406 15:27:28.635905 23397 net.cpp:226] bot4_0_main_short_circuit_relu does not need backward computation.
+I0406 15:27:28.635908 23397 net.cpp:226] bot4_0_main_short_circuit_conv does not need backward computation.
+I0406 15:27:28.635913 23397 net.cpp:226] bot4_0_main_relu does not need backward computation.
+I0406 15:27:28.635918 23397 net.cpp:226] bot4_0_main_conv does not need backward computation.
+I0406 15:27:28.635926 23397 net.cpp:226] bot4_0_proj_nvidia_bn_bot4_0_proj_relu_0_split does not need backward computation.
+I0406 15:27:28.635929 23397 net.cpp:226] bot4_0_proj_relu does not need backward computation.
+I0406 15:27:28.635934 23397 net.cpp:226] bot4_0_proj_conv does not need backward computation.
+I0406 15:27:28.635938 23397 net.cpp:226] bot3_2_bot3_2_0_split does not need backward computation.
+I0406 15:27:28.635943 23397 net.cpp:226] bot3_2 does not need backward computation.
+I0406 15:27:28.635948 23397 net.cpp:226] bot3_2_expand_relu does not need backward computation.
+I0406 15:27:28.635953 23397 net.cpp:226] bot3_2_expand_conv does not need backward computation.
+I0406 15:27:28.635957 23397 net.cpp:226] bot3_2_main_short_circuit_merged does not need backward computation.
+I0406 15:27:28.635962 23397 net.cpp:226] bot3_2_main_short_circuit_relu does not need backward computation.
+I0406 15:27:28.635967 23397 net.cpp:226] bot3_2_main_short_circuit_conv does not need backward computation.
+I0406 15:27:28.635972 23397 net.cpp:226] bot3_2_main_relu does not need backward computation.
+I0406 15:27:28.635977 23397 net.cpp:226] bot3_2_main_conv does not need backward computation.
+I0406 15:27:28.635982 23397 net.cpp:226] bot3_2_proj_nvidia_bn_bot3_2_proj_relu_0_split does not need backward computation.
+I0406 15:27:28.635985 23397 net.cpp:226] bot3_2_proj_relu does not need backward computation.
+I0406 15:27:28.635990 23397 net.cpp:226] bot3_2_proj_conv does not need backward computation.
+I0406 15:27:28.635995 23397 net.cpp:226] bot3_1_bot3_1_0_split does not need backward computation.
+I0406 15:27:28.635999 23397 net.cpp:226] bot3_1 does not need backward computation.
+I0406 15:27:28.636004 23397 net.cpp:226] bot3_1_expand_relu does not need backward computation.
+I0406 15:27:28.636009 23397 net.cpp:226] bot3_1_expand_conv does not need backward computation.
+I0406 15:27:28.636018 23397 net.cpp:226] bot3_1_main_short_circuit_merged does not need backward computation.
+I0406 15:27:28.636023 23397 net.cpp:226] bot3_1_main_short_circuit_relu does not need backward computation.
+I0406 15:27:28.636028 23397 net.cpp:226] bot3_1_main_short_circuit_conv does not need backward computation.
+I0406 15:27:28.636032 23397 net.cpp:226] bot3_1_main_relu does not need backward computation.
+I0406 15:27:28.636036 23397 net.cpp:226] bot3_1_main_conv does not need backward computation.
+I0406 15:27:28.636041 23397 net.cpp:226] bot3_1_proj_nvidia_bn_bot3_1_proj_relu_0_split does not need backward computation.
+I0406 15:27:28.636046 23397 net.cpp:226] bot3_1_proj_relu does not need backward computation.
+I0406 15:27:28.636050 23397 net.cpp:226] bot3_1_proj_conv does not need backward computation.
+I0406 15:27:28.636054 23397 net.cpp:226] bot3_0_bot3_0_0_split does not need backward computation.
+I0406 15:27:28.636059 23397 net.cpp:226] bot3_0 does not need backward computation.
+I0406 15:27:28.636065 23397 net.cpp:226] bot3_0_p1_summed does not need backward computation.
+I0406 15:27:28.636070 23397 net.cpp:226] bot3_0_p1 does not need backward computation.
+I0406 15:27:28.636073 23397 net.cpp:226] bot3_0_aux_br_pool does not need backward computation.
+I0406 15:27:28.636078 23397 net.cpp:226] bot3_0_expand_relu does not need backward computation.
+I0406 15:27:28.636082 23397 net.cpp:226] bot3_0_expand_conv does not need backward computation.
+I0406 15:27:28.636086 23397 net.cpp:226] bot3_0_main_short_circuit_merged does not need backward computation.
+I0406 15:27:28.636091 23397 net.cpp:226] bot3_0_main_short_circuit_relu does not need backward computation.
+I0406 15:27:28.636096 23397 net.cpp:226] bot3_0_main_short_circuit_conv does not need backward computation.
+I0406 15:27:28.636101 23397 net.cpp:226] bot3_0_main_relu does not need backward computation.
+I0406 15:27:28.636104 23397 net.cpp:226] bot3_0_main_conv does not need backward computation.
+I0406 15:27:28.636109 23397 net.cpp:226] bot3_0_proj_nvidia_bn_bot3_0_proj_relu_0_split does not need backward computation.
+I0406 15:27:28.636114 23397 net.cpp:226] bot3_0_proj_relu does not need backward computation.
+I0406 15:27:28.636118 23397 net.cpp:226] bot3_0_proj_conv does not need backward computation.
+I0406 15:27:28.636122 23397 net.cpp:226] bot2_2_bot2_2_0_split does not need backward computation.
+I0406 15:27:28.636127 23397 net.cpp:226] bot2_2 does not need backward computation.
+I0406 15:27:28.636132 23397 net.cpp:226] bot2_2_expand_relu does not need backward computation.
+I0406 15:27:28.636137 23397 net.cpp:226] bot2_2_expand_conv does not need backward computation.
+I0406 15:27:28.636142 23397 net.cpp:226] bot2_2_main_short_circuit_merged does not need backward computation.
+I0406 15:27:28.636148 23397 net.cpp:226] bot2_2_main_short_circuit_relu does not need backward computation.
+I0406 15:27:28.636152 23397 net.cpp:226] bot2_2_main_short_circuit_conv does not need backward computation.
+I0406 15:27:28.636157 23397 net.cpp:226] bot2_2_main_relu does not need backward computation.
+I0406 15:27:28.636162 23397 net.cpp:226] bot2_2_main_conv does not need backward computation.
+I0406 15:27:28.636167 23397 net.cpp:226] bot2_2_proj_nvidia_bn_bot2_2_proj_relu_0_split does not need backward computation.
+I0406 15:27:28.636170 23397 net.cpp:226] bot2_2_proj_relu does not need backward computation.
+I0406 15:27:28.636174 23397 net.cpp:226] bot2_2_proj_conv does not need backward computation.
+I0406 15:27:28.636179 23397 net.cpp:226] bot2_1_bot2_1_0_split does not need backward computation.
+I0406 15:27:28.636184 23397 net.cpp:226] bot2_1 does not need backward computation.
+I0406 15:27:28.636189 23397 net.cpp:226] bot2_1_expand_relu does not need backward computation.
+I0406 15:27:28.636193 23397 net.cpp:226] bot2_1_expand_conv does not need backward computation.
+I0406 15:27:28.636198 23397 net.cpp:226] bot2_1_main_short_circuit_merged does not need backward computation.
+I0406 15:27:28.636204 23397 net.cpp:226] bot2_1_main_short_circuit_relu does not need backward computation.
+I0406 15:27:28.636211 23397 net.cpp:226] bot2_1_main_short_circuit_conv does not need backward computation.
+I0406 15:27:28.636216 23397 net.cpp:226] bot2_1_main_relu does not need backward computation.
+I0406 15:27:28.636220 23397 net.cpp:226] bot2_1_main_conv does not need backward computation.
+I0406 15:27:28.636225 23397 net.cpp:226] bot2_1_proj_nvidia_bn_bot2_1_proj_relu_0_split does not need backward computation.
+I0406 15:27:28.636230 23397 net.cpp:226] bot2_1_proj_relu does not need backward computation.
+I0406 15:27:28.636234 23397 net.cpp:226] bot2_1_proj_conv does not need backward computation.
+I0406 15:27:28.636240 23397 net.cpp:226] bot2_0_bot2_0_0_split does not need backward computation.
+I0406 15:27:28.636243 23397 net.cpp:226] bot2_0 does not need backward computation.
+I0406 15:27:28.636248 23397 net.cpp:226] bot2_0_p1_summed does not need backward computation.
+I0406 15:27:28.636255 23397 net.cpp:226] bot2_0_p1 does not need backward computation.
+I0406 15:27:28.636258 23397 net.cpp:226] bot2_0_aux_br_pool does not need backward computation.
+I0406 15:27:28.636263 23397 net.cpp:226] bot2_0_expand_relu does not need backward computation.
+I0406 15:27:28.636267 23397 net.cpp:226] bot2_0_expand_conv does not need backward computation.
+I0406 15:27:28.636271 23397 net.cpp:226] bot2_0_main_short_circuit_merged does not need backward computation.
+I0406 15:27:28.636277 23397 net.cpp:226] bot2_0_main_short_circuit_relu does not need backward computation.
+I0406 15:27:28.636281 23397 net.cpp:226] bot2_0_main_short_circuit_conv does not need backward computation.
+I0406 15:27:28.636286 23397 net.cpp:226] bot2_0_main_relu does not need backward computation.
+I0406 15:27:28.636291 23397 net.cpp:226] bot2_0_main_conv does not need backward computation.
+I0406 15:27:28.636294 23397 net.cpp:226] bot2_0_proj_nvidia_bn_bot2_0_proj_relu_0_split does not need backward computation.
+I0406 15:27:28.636299 23397 net.cpp:226] bot2_0_proj_relu does not need backward computation.
+I0406 15:27:28.636303 23397 net.cpp:226] bot2_0_proj_conv does not need backward computation.
+I0406 15:27:28.636308 23397 net.cpp:226] bot1_2_bot1_2_0_split does not need backward computation.
+I0406 15:27:28.636313 23397 net.cpp:226] bot1_2 does not need backward computation.
+I0406 15:27:28.636318 23397 net.cpp:226] bot1_2_expand_relu does not need backward computation.
+I0406 15:27:28.636322 23397 net.cpp:226] bot1_2_expand_conv does not need backward computation.
+I0406 15:27:28.636327 23397 net.cpp:226] bot1_2_main_short_circuit_merged does not need backward computation.
+I0406 15:27:28.636332 23397 net.cpp:226] bot1_2_main_short_circuit_relu does not need backward computation.
+I0406 15:27:28.636337 23397 net.cpp:226] bot1_2_main_short_circuit_conv does not need backward computation.
+I0406 15:27:28.636342 23397 net.cpp:226] bot1_2_main_relu does not need backward computation.
+I0406 15:27:28.636345 23397 net.cpp:226] bot1_2_main_conv does not need backward computation.
+I0406 15:27:28.636350 23397 net.cpp:226] bot1_2_proj_nvidia_bn_bot1_2_proj_relu_0_split does not need backward computation.
+I0406 15:27:28.636355 23397 net.cpp:226] bot1_2_proj_relu does not need backward computation.
+I0406 15:27:28.636359 23397 net.cpp:226] bot1_2_proj_conv does not need backward computation.
+I0406 15:27:28.636364 23397 net.cpp:226] bot1_1_bot1_1_0_split does not need backward computation.
+I0406 15:27:28.636368 23397 net.cpp:226] bot1_1 does not need backward computation.
+I0406 15:27:28.636373 23397 net.cpp:226] bot1_1_p1_summed does not need backward computation.
+I0406 15:27:28.636379 23397 net.cpp:226] bot1_1_p1 does not need backward computation.
+I0406 15:27:28.636384 23397 net.cpp:226] bot1_1_expand_relu does not need backward computation.
+I0406 15:27:28.636389 23397 net.cpp:226] bot1_1_expand_conv does not need backward computation.
+I0406 15:27:28.636394 23397 net.cpp:226] bot1_1_main_short_circuit_merged does not need backward computation.
+I0406 15:27:28.636399 23397 net.cpp:226] bot1_1_main_short_circuit_relu does not need backward computation.
+I0406 15:27:28.636402 23397 net.cpp:226] bot1_1_main_short_circuit_conv does not need backward computation.
+I0406 15:27:28.636412 23397 net.cpp:226] bot1_1_main_relu does not need backward computation.
+I0406 15:27:28.636416 23397 net.cpp:226] bot1_1_main_conv does not need backward computation.
+I0406 15:27:28.636421 23397 net.cpp:226] bot1_1_proj_nvidia_bn_bot1_1_proj_relu_0_split does not need backward computation.
+I0406 15:27:28.636426 23397 net.cpp:226] bot1_1_proj_relu does not need backward computation.
+I0406 15:27:28.636430 23397 net.cpp:226] bot1_1_proj_conv does not need backward computation.
+I0406 15:27:28.636435 23397 net.cpp:226] bot1_0_bot1_0_0_split does not need backward computation.
+I0406 15:27:28.636440 23397 net.cpp:226] bot1_0 does not need backward computation.
+I0406 15:27:28.636445 23397 net.cpp:226] bot1_0_p1_summed does not need backward computation.
+I0406 15:27:28.636449 23397 net.cpp:226] bot1_0_p1 does not need backward computation.
+I0406 15:27:28.636454 23397 net.cpp:226] bot1_0_aux_br_pool does not need backward computation.
+I0406 15:27:28.636459 23397 net.cpp:226] bot1_0_expand_relu does not need backward computation.
+I0406 15:27:28.636463 23397 net.cpp:226] bot1_0_expand_conv does not need backward computation.
+I0406 15:27:28.636468 23397 net.cpp:226] bot1_0_main_short_circuit_merged does not need backward computation.
+I0406 15:27:28.636473 23397 net.cpp:226] bot1_0_main_short_circuit_relu does not need backward computation.
+I0406 15:27:28.636477 23397 net.cpp:226] bot1_0_main_short_circuit_conv does not need backward computation.
+I0406 15:27:28.636482 23397 net.cpp:226] bot1_0_main_relu does not need backward computation.
+I0406 15:27:28.636487 23397 net.cpp:226] bot1_0_main_conv does not need backward computation.
+I0406 15:27:28.636492 23397 net.cpp:226] bot1_0_proj_nvidia_bn_bot1_0_proj_relu_0_split does not need backward computation.
+I0406 15:27:28.636497 23397 net.cpp:226] bot1_0_proj_relu does not need backward computation.
+I0406 15:27:28.636500 23397 net.cpp:226] bot1_0_proj_conv does not need backward computation.
+I0406 15:27:28.636505 23397 net.cpp:226] init_concat_init_concat_0_split does not need backward computation.
+I0406 15:27:28.636510 23397 net.cpp:226] init_concat does not need backward computation.
+I0406 15:27:28.636515 23397 net.cpp:226] init_max_pool does not need backward computation.
+I0406 15:27:28.636520 23397 net.cpp:226] init_relu does not need backward computation.
+I0406 15:27:28.636525 23397 net.cpp:226] init_conv does not need backward computation.
+I0406 15:27:28.636530 23397 net.cpp:226] mean_sub_nvidia_bn_mean_sub_nvidia_bn_0_split does not need backward computation.
+I0406 15:27:28.636534 23397 net.cpp:226] mean_sub_nvidia_bn does not need backward computation.
+I0406 15:27:28.636539 23397 net.cpp:226] data does not need backward computation.
+I0406 15:27:28.636543 23397 net.cpp:268] This network produces output prob
+I0406 15:27:28.636644 23397 net.cpp:288] Network initialization done.
+I0406 15:27:28.658210 23397 net.cpp:804] Ignoring source layer init_nvidia_bn
+I0406 15:27:28.658238 23397 net.cpp:804] Ignoring source layer bot1_0_proj_nvidia_bn
+I0406 15:27:28.658246 23397 net.cpp:804] Ignoring source layer bot1_0_main_nvidia_bn
+I0406 15:27:28.658253 23397 net.cpp:804] Ignoring source layer bot1_0_main_short_circuit_nvidia_bn
+I0406 15:27:28.658262 23397 net.cpp:804] Ignoring source layer bot1_0_expand_nvidia_bn
+I0406 15:27:28.658272 23397 net.cpp:804] Ignoring source layer bot1_1_proj_nvidia_bn
+I0406 15:27:28.658279 23397 net.cpp:804] Ignoring source layer bot1_1_main_nvidia_bn
+I0406 15:27:28.658287 23397 net.cpp:804] Ignoring source layer bot1_1_main_short_circuit_nvidia_bn
+I0406 15:27:28.658295 23397 net.cpp:804] Ignoring source layer bot1_1_expand_nvidia_bn
+I0406 15:27:28.658308 23397 net.cpp:804] Ignoring source layer bot1_2_proj_nvidia_bn
+I0406 15:27:28.658316 23397 net.cpp:804] Ignoring source layer bot1_2_main_nvidia_bn
+I0406 15:27:28.658324 23397 net.cpp:804] Ignoring source layer bot1_2_main_short_circuit_nvidia_bn
+I0406 15:27:28.658334 23397 net.cpp:804] Ignoring source layer bot1_2_expand_nvidia_bn
+I0406 15:27:28.658373 23397 net.cpp:804] Ignoring source layer bot2_0_proj_nvidia_bn
+I0406 15:27:28.658382 23397 net.cpp:804] Ignoring source layer bot2_0_main_nvidia_bn
+I0406 15:27:28.658390 23397 net.cpp:804] Ignoring source layer bot2_0_main_short_circuit_nvidia_bn
+I0406 15:27:28.658403 23397 net.cpp:804] Ignoring source layer bot2_0_expand_nvidia_bn
+I0406 15:27:28.658427 23397 net.cpp:804] Ignoring source layer bot2_1_proj_nvidia_bn
+I0406 15:27:28.658442 23397 net.cpp:804] Ignoring source layer bot2_1_main_nvidia_bn
+I0406 15:27:28.658452 23397 net.cpp:804] Ignoring source layer bot2_1_main_short_circuit_nvidia_bn
+I0406 15:27:28.658471 23397 net.cpp:804] Ignoring source layer bot2_1_expand_nvidia_bn
+I0406 15:27:28.658494 23397 net.cpp:804] Ignoring source layer bot2_2_proj_nvidia_bn
+I0406 15:27:28.658509 23397 net.cpp:804] Ignoring source layer bot2_2_main_nvidia_bn
+I0406 15:27:28.658520 23397 net.cpp:804] Ignoring source layer bot2_2_main_short_circuit_nvidia_bn
+I0406 15:27:28.658540 23397 net.cpp:804] Ignoring source layer bot2_2_expand_nvidia_bn
+I0406 15:27:28.658597 23397 net.cpp:804] Ignoring source layer bot3_0_proj_nvidia_bn
+I0406 15:27:28.658614 23397 net.cpp:804] Ignoring source layer bot3_0_main_nvidia_bn
+I0406 15:27:28.658624 23397 net.cpp:804] Ignoring source layer bot3_0_main_short_circuit_nvidia_bn
+I0406 15:27:28.658658 23397 net.cpp:804] Ignoring source layer bot3_0_expand_nvidia_bn
+I0406 15:27:28.658717 23397 net.cpp:804] Ignoring source layer bot3_1_proj_nvidia_bn
+I0406 15:27:28.658753 23397 net.cpp:804] Ignoring source layer bot3_1_main_nvidia_bn
+I0406 15:27:28.658776 23397 net.cpp:804] Ignoring source layer bot3_1_main_short_circuit_nvidia_bn
+I0406 15:27:28.658833 23397 net.cpp:804] Ignoring source layer bot3_1_expand_nvidia_bn
+I0406 15:27:28.658890 23397 net.cpp:804] Ignoring source layer bot3_2_proj_nvidia_bn
+I0406 15:27:28.658928 23397 net.cpp:804] Ignoring source layer bot3_2_main_nvidia_bn
+I0406 15:27:28.658951 23397 net.cpp:804] Ignoring source layer bot3_2_main_short_circuit_nvidia_bn
+I0406 15:27:28.659006 23397 net.cpp:804] Ignoring source layer bot3_2_expand_nvidia_bn
+I0406 15:27:28.659193 23397 net.cpp:804] Ignoring source layer bot4_0_proj_nvidia_bn
+I0406 15:27:28.659230 23397 net.cpp:804] Ignoring source layer bot4_0_main_nvidia_bn
+I0406 15:27:28.659252 23397 net.cpp:804] Ignoring source layer bot4_0_main_short_circuit_nvidia_bn
+I0406 15:27:28.659351 23397 net.cpp:804] Ignoring source layer bot4_0_expand_nvidia_bn
+I0406 15:27:28.659554 23397 net.cpp:804] Ignoring source layer bot4_1_proj_nvidia_bn
+I0406 15:27:28.659665 23397 net.cpp:804] Ignoring source layer bot4_1_main_nvidia_bn
+I0406 15:27:28.659720 23397 net.cpp:804] Ignoring source layer bot4_1_main_short_circuit_nvidia_bn
+I0406 15:27:28.659906 23397 net.cpp:804] Ignoring source layer bot4_1_expand_nvidia_bn
+I0406 15:27:28.660092 23397 net.cpp:804] Ignoring source layer bot4_2_proj_nvidia_bn
+I0406 15:27:28.660202 23397 net.cpp:804] Ignoring source layer bot4_2_main_nvidia_bn
+I0406 15:27:28.660257 23397 net.cpp:804] Ignoring source layer bot4_2_main_short_circuit_nvidia_bn
+I0406 15:27:28.660442 23397 net.cpp:804] Ignoring source layer bot4_2_expand_nvidia_bn
+I0406 15:27:28.661604 23397 caffe.cpp:499] Optimizing Net /user/a0875091/files/work/github/weiliu89/caffe-ssd/examples/imagenet/training_absorb_bn/EXNet_Gr4_NVIDIA_BN_iter_484000_bn_absorbed_v5_deployed.prototxt
+I0406 15:27:28.662030 23397 caffe.cpp:508] Snapshotting optimized prototxt to file /user/a0875091/files/work/github/weiliu89/caffe-ssd/examples/imagenet/training_absorb_bn/EXNet_Gr4_NVIDIA_BN_iter_484000_bn_absorbed_itr2.prototxt
+I0406 15:27:28.669724 23397 caffe.cpp:514] Snapshotting optimized caffemodel to file /user/a0875091/files/work/github/weiliu89/caffe-ssd/examples/imagenet/training_absorb_bn/EXNet_Gr4_NVIDIA_BN_iter_484000_bn_absorbed_itr2.caffemodel
+In OptimizeNet

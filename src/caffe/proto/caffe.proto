@@ -535,6 +535,7 @@ message SolverParameter {
   optional int32 sparsity_start_iter = 157 [default = 0];  //sprsity start iteration  
   optional float sparsity_start_factor = 158 [default = 0.0];  //sprsity start factor
   optional float sparsity_threshold_maxratio = 159 [default = 0.2]; //default ratio of the max threshold allowed to the max weight
+  optional bool sparsity_itr_increment_bfr_applying = 160 [default = true]; //true:itr increment before applying sparsity(old behaviour), false: after applying sparsity
 }
 
 // A message that stores the solver snapshots

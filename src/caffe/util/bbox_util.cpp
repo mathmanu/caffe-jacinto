@@ -2111,28 +2111,43 @@ void ComputeAP(const vector<pair<float, int> >& tp, const int num_pos,
   for (int i = 0; i < num; ++i) {
     prec->push_back(static_cast<float>(tp_cumsum[i]) /
                     (tp_cumsum[i] + fp_cumsum[i]));
+    LOG_LBL_VAR("i: ", i);
+    LOG_LBL_VAR("tp: ", tp_cumsum[i]);
+    LOG_LBL_VAR("fp: ", fp_cumsum[i]);
+    LOG_LBL_VAR_NL("precison: ", static_cast<float>(tp_cumsum[i]) / (tp_cumsum[i] + fp_cumsum[i]));
   }
 
   // Compute recall.
   for (int i = 0; i < num; ++i) {
     CHECK_LE(tp_cumsum[i], num_pos);
     rec->push_back(static_cast<float>(tp_cumsum[i]) / num_pos);
+    LOG_LBL_VAR("i: ", i);
+    LOG_LBL_VAR_NL("recall: ", static_cast<float>(static_cast<float>(tp_cumsum[i]) / num_pos));
   }
 
   if (ap_version == "11point") {
     // VOC2007 style for computing AP.
     vector<float> max_precs(11, 0.);
     int start_idx = num - 1;
+    LOG_LBL_VAR_NL("num: ",num);
     for (int j = 10; j >= 0; --j) {
+      LOG_LBL_VAR_NL("j: ",j);
       for (int i = start_idx; i >= 0 ; --i) {
+    	LOG_LBL_VAR_NL("i: ",i);
         if ((*rec)[i] < j / 10.) {
+          //std::cout << "(*rec)[i] < j / 10." << std::endl;
+          LOG_LBL_VAR_NL("(*rec)[i]: ",(*rec)[i]);
           start_idx = i;
           if (j > 0) {
             max_precs[j-1] = max_precs[j];
+            LOG_LBL_VAR_NL("max_precs[j-1]: ",max_precs[j-1]);
           }
+          //std::cout << "Hit break" << std::endl;
           break;
         } else {
           if (max_precs[j] < (*prec)[i]) {
+        	LOG_LBL_VAR_NL("max_precs[j]: ",max_precs[j]);
+        	LOG_LBL_VAR_NL("(*prec)[i]: ",(*prec)[i]);
             max_precs[j] = (*prec)[i];
           }
         }
@@ -2140,6 +2155,8 @@ void ComputeAP(const vector<pair<float, int> >& tp, const int num_pos,
     }
     for (int j = 10; j >= 0; --j) {
       *ap += max_precs[j] / 11;
+      LOG_LBL_VAR_E("j: ", j);
+      LOG_LBL_VAR_NL_E("max_pr: ", max_precs[j]);
     }
   } else if (ap_version == "MaxIntegral") {
     // VOC2012 or ILSVRC style for computing AP.

@@ -65,6 +65,7 @@ models/*
 *.solverstate
 *.solverstate.h5
 *.binaryproto
+*.prototxt
 *leveldb
 *lmdb
 

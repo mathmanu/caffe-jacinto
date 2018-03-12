@@ -1992,9 +1992,9 @@ void Net::FindAndApplyThresholdNet(float threshold_fraction_low, float threshold
 	  int no = (conv_weights.num_axes() == 1)? conv_weights.count() : conv_weights.shape(0);
 	  int ni = ((conv_weights.num_axes() == 1)? conv_weights.count() : conv_weights.shape(1))*num_group;
 	  float count = conv_weights.count();
-      if(verbose) {
+    if(verbose) {
 	    LOG(WARNING) << layers_[i]->layer_param().name() << " ni=" << ni << " no=" << no;
-      }
+    }
 
 	  if((ni>=32 || no >= 32) && num_group<no) {
 	    float threshold_fraction_selected = ((ni>=256 && no >= 512)? threshold_fraction_high :
@@ -2096,6 +2096,14 @@ void Net::FindAndApplyChannelThresholdNet(float threshold_fraction_low, float th
           float max_abs_value = std::max<float>(max_abs, min_abs);
           float step_size = max_abs_value * threshold_step_factor;
           float max_threshold_value = std::min<float>(std::min<float>(threshold_value_max, max_abs_value*threshold_value_maxratio), max_abs_value);
+          if(verbose) {
+            if ((max_abs_value*threshold_value_maxratio) > threshold_value_max) {
+	            LOG(INFO) << "threshold_value_max " << threshold_value_max;
+	            LOG(INFO) << "threshold_value_maxratio " << threshold_value_maxratio;
+	            LOG(INFO) << "max_abs_value*threshold_value_maxratio " << (max_abs_value*threshold_value_maxratio);
+	            LOG(INFO) << "final threshold_value used" << max_threshold_value; 
+            }
+          }
 
           float selected_threshold = 0;
           float granurality_start = 1000;

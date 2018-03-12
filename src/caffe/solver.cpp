@@ -346,7 +346,10 @@ void Solver::Step(int iters) {
       // old implementation
       // Increment the internal iter_ counter -- its value should always indicate
       // the number of times the weights have been updated.
-      LOG(INFO) << "sparsity_itr_increment_bfr_applying is true: old behaviour:";
+      //
+      if(iter_ < 2){ 
+        LOG(INFO) << "sparsity_itr_increment_bfr_applying is true: old behaviour:";
+      }
       ++iter_;
     }
 
@@ -427,8 +430,9 @@ void Solver::ThresholdNet() {
       float sparsity_achieved = this->DisplayConnectivitySparsity(false);
       if(this->sparsity_factor_ <= sparsity_target_max && sparsity_achieved < param_.sparsity_target()) {
 
-        float threshold_value_maxratio = param_.sparsity_threshold_maxratio(); //0.1; //0.2;
-        float threshold_value_max = 0.2;
+        float threshold_value_maxratio = param_.sparsity_threshold_maxratio();//dflt:0.2;
+        //float threshold_value_max = 0.2;
+        float threshold_value_max = param_.sparsity_threshold_value_max(); //dflt:0.2
 
         //if(this->sparsity_factor_ >= sparsity_target_max) {
         //  //if sparsity is still not achieved, make the factors more aggressive
@@ -442,7 +446,7 @@ void Solver::ThresholdNet() {
 
         //try output channel-wise sparsity
         net_->FindAndApplyChannelThresholdNet(threshold_fraction_low, threshold_fraction_mid, threshold_fraction_high,
-          threshold_value_maxratio, threshold_value_max, threshold_step_factor, false);
+          threshold_value_maxratio, threshold_value_max, threshold_step_factor, true);
 
         //if sparsity is still not achieved, try to achieve by layer-wise sparsity and aggressive factors.
         //if(sparsity_factor_ >= sparsity_target_max) {

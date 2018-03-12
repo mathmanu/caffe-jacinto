@@ -901,7 +901,7 @@ def wrapMulScls(imageCurFrame, transformer, net, params,
   if write_boxes_afr_nms == False:
     if len(wrapMulScls.gPoolDetObjs) and params.writeBbox and ((curFrameNum%params.decFreq) == 0):
       detObjFileHndl = open(detObjsFile, "w")
-      writeBoxes(params,wrapMulScls.gPoolDetObjs, detObjFileHndl=detObjFileHndl, 
+      writeBoxes(params=params,detObjs=wrapMulScls.gPoolDetObjs, detObjFileHndl=detObjFileHndl, 
         writeBboxMap=writeBboxMap, labelmap=labelmap)
       detObjFileHndl.close()
 
@@ -927,7 +927,7 @@ def wrapMulScls(imageCurFrame, transformer, net, params,
     if len(wrapMulScls.gPoolDetObjs) and params.writeBbox and ((curFrameNum%params.decFreq) == 0):
       detObjFileHndl = open(detObjsFile, "w")
       writeBoxes(params=params,detObjs=wrapMulScls.gPoolDetObjs, detObjFileHndl=detObjFileHndl, 
-        writeBboxMap=writeBboxMap, pick=pick, labelmap=labelmap)
+        writeBboxMap=writeBboxMap, labelmap=labelmap)
       detObjFileHndl.close()
 
   if(len(detObjRectListNPArray)):

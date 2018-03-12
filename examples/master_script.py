@@ -121,27 +121,37 @@ V008={}
 V008['IpPath']='/data/mmcodec_video2_tier3/datasets/ObjectDetect/data/vision-dataset/annotatedVbb/data-TIRoadDrive2/videos/ti/munich/'
 V008['fileNames'] = ['V008_2015jul_VIRB0008_7m_end.MP4']
 
+ti_psd_201803={}
+ti_psd_201803['IpPath']='/data/mmcodec_video2_tier3/users/soyeb/ObjectDetect/ssd/data/tempdata_psd_201803/data/train/videos/'
+ti_psd_201803['fileNames'] = ['test.MP4','train.MP4']
+
+
 #############################################################################
 def execute_test(params):
   #city, voc0712, gta_ti_cpatured
   #datasets = [lindau, munich, city_test, voc0712, ti_201708_test_obj, city_video]
   #datasets = [lindau, munich, city_test, ti_demo, V140]
-  #datasets = [V003]
+  datasets = [V008]
   #datasets = [city_test_obj]
   #datasets = [city_512_test_obj, ti_201708_test_obj]
   #datasets = [ti_demo, city_test, city_train]
-  datasets = [ti_demo,V008]
+  #datasets = [ti_demo,V008]
   #datasets = [munich_genvbb, lindau_genvbb]
   #datasets = [munich_genvbb_leftover]
   #datasets = [test_genvbb]
+  #datasets = [ti_psd_201803]
+
   for dataset in datasets:
-    if dataset == ti_201708_test_obj: 
+    if "city" in dataset:  
+     WRITE_BBOX_MAP=[]
+     category = "CITY"
+    elif "kitti" in dataset:
+     WRITE_BBOX_MAP=[]
+     category = "KITTI"
+    else:
      #when writing bbox map category from src->dst
      WRITE_BBOX_MAP=[['car','vehicle'], ['train','vehicle'],['bus','vehicle']]
      category = "TI"
-    else: 
-     WRITE_BBOX_MAP=[]
-     category = "CITY"
   
     print "dataset:", dataset
     for fileName in dataset['fileNames']:
@@ -161,12 +171,13 @@ def execute_test(params):
           enObjTracker=params.enObjTracker, start_frame_num=params.start_frame_num, maxAgeTh=params.maxAgeTh)
       
       if params.EVAL_OBJ:
-        gt_prefix, file_extension = os.path.splitext(fileName)
-        gt_prefix = gt_prefix + '_' 
-        det_op_prefix = gt_prefix + 'detOp_'
-        result = gt_prefix + 'result.txt'
+        filename, file_extension = os.path.splitext(fileName)
+        #gt_name = 'ti_munich_' + filename + '_I' 
+        gt_name = params.gt_prefix + filename +  params.gt_suffix
+        det_op_name = filename + '_detOp_'
+        result = gt_name + 'result.txt'
         cmd = "{} {} {} 0 {} {} {} {} > {}{} ".format(EVAL_UTIL, params.OpPath,
-           dataset['IpPath'], params.NumFrames, gt_prefix, det_op_prefix, category, params.OpPath, result)
+           params.gt_path, params.NumFrames, gt_name, det_op_name, category, params.OpPath, result)
         print "cmd: ", cmd
         os.system(cmd)\
 
@@ -176,7 +187,7 @@ def execute_test(params):
 def set_common_params(params):
   #crop params
   #crop is the first operation done if enabled
-  params.enCrop=True
+  params.enCrop=False
   params.cropMinX = 0
   params.cropMinY = 0
   params.cropMaxX = 0
@@ -195,7 +206,7 @@ def set_common_params(params):
     params.cropMaxY=params.cropMinY+crop_h
     
   #32500 for V140 VBB
-  params.NumFrames=3000
+  params.NumFrames=1000
   params.start_frame_num=0
   # ResizeW and ResizeH are not used when multiple sclales are used
   # When these options are non zero first crop (if enabled) then resizing will be done before anything else
@@ -212,7 +223,7 @@ def set_common_params(params):
   #params.TILE_STEP_X=192
   params.WRITE_BBOX = params.EVAL_OBJ
   params.decFreq = 1
-  params.enObjTracker=True
+  params.enObjTracker=False
   params.maxAgeTh=30
   return
 
@@ -1451,7 +1462,7 @@ class Params:
 #params.ModelWeights="/user/a0875091/files/work/github/weiliu89/caffe-ssd/models/VGG/TI_201712_720x368_V1/SSD_720x368_Pre_CIT_TI_CAT_frz_T_bn_b_bnStart_F_tr_SSD_norm_T_fc_F_64.04/VGG_TI_201712_720x368_V1_SSD_720x368_Pre_CIT_TI_CAT_frz_T_bn_b_bnStart_F_tr_SSD_norm_T_fc_F_64.04_iter_14000.caffemodel"
 #params.Deploy="/user/a0875091/files/work/github/weiliu89/caffe-ssd/models/VGG/TI_201712_720x368_V1/SSD_720x368_Pre_CIT_TI_CAT_frz_T_bn_b_bnStart_F_tr_SSD_norm_T_fc_F_64.04/deploy.prototxt"
 #params.LabelMap="/user/a0875091/files/work/github/weiliu89/caffe-ssd/data/TI_201712_720x368_V1/labelmap.prototxt"
-#params.OpPath="/data/mmcodec_video2_tier3/users/soyeb/ObjectDetect/ssd/detetctedOp/20180126_VGG_720x368_IMG_VOC_CITY_TI201712_V1_64.04_test_genVBB/"
+#params.OpPath="/data/mmcodec_video2_tier3/users/soyeb/ObjectDetect/ssd/detetctedOp/20180308_VGG_720x368_IMG_VOC_CITY_TI201712_V1_64.04_objEval/"
 ##dir containing GT annotations in KITTI format
 ##gtDIR = '/data/mmcodec_video2_tier3/users/soyeb/ObjectDetect/ssd/data/tempdata_TI201708/data/train/Videos/'
 ###if BN is placed at the beginning then mean should not be explictly subtracted. Set to 0 in that case.
@@ -1460,10 +1471,10 @@ class Params:
 #params.TileSizeW=720 
 #params.TileSizeH=368
 ##params.CONF_TH = {'person':0.3,'car':0.6,'trafficsign':0.4,'bicycle':0.2,'train':0.6,'bus':0.6,'motorbike':0.2,} # pick all det obj at least with this score (def=0.6)
-#params.CONF_TH = {'person':0.3,'vehicle':0.6,'trafficsign':0.4} # pick all det obj at least with this score (def=0.6)
-##params.CONF_TH=0.4
+##params.CONF_TH = {'person':0.3,'vehicle':0.6,'trafficsign':0.4} # pick all det obj at least with this score (def=0.6)
+#params.CONF_TH=0.01
 #params.EVAL_OBJ = True
-#params.decFreq = 30
+#params.decFreq = 1
 #set_common_params(params)
 #execute_test(params)
 
@@ -1614,7 +1625,7 @@ params = Params()
 params.ModelWeights="/user/a0875091/files/work/bitbucket_TI/caffe-jacinto-models/scripts/training/ti-vgg-720x368-v2/JDetNet/20180211_01-20_ds_PSP_dsFac_32_fc_0_hdDS8_1_cnctHD_0_baseNW3hd_0_kerMbox_1_1stHdSameOpCh_1/sparse_fac0.5_0.8_53.26/ti-vgg-720x368-v2_ssdJacintoNetV2_iter_38000_53.26.caffemodel"
 params.Deploy="/user/a0875091/files/work/bitbucket_TI/caffe-jacinto-models/scripts/training/ti-vgg-720x368-v2/JDetNet/20180211_01-20_ds_PSP_dsFac_32_fc_0_hdDS8_1_cnctHD_0_baseNW3hd_0_kerMbox_1_1stHdSameOpCh_1/sparse_fac0.5_0.8_53.26/deploy.prototxt"
 params.LabelMap="/user/a0875091/files/work/github/weiliu89/caffe-ssd/data/TI_201712_720x368_V1/labelmap.prototxt"
-params.OpPath="/data/mmcodec_video2_tier3/users/soyeb/ObjectDetect/ssd/detetctedOp/20180220_JDetNet_720x368_1Gmac_fac0.8_53.26_ofstneg80_H720_ti_prop_demo/"
+params.OpPath="/data/mmcodec_video2_tier3/users/soyeb/ObjectDetect/ssd/detetctedOp/20180311_JDetNet_720x368_1Gmac_fac0.8_53.26_nms_objEval/"
 #dir containing GT annotations in KITTI format
 #gtDIR = '/data/mmcodec_video2_tier3/users/soyeb/ObjectDetect/ssd/data/tempdata_TI201708/data/train/Videos/'
 ##if BN is placed at the beginning then mean should not be explictly subtracted. Set to 0 in that case.
@@ -1625,9 +1636,57 @@ params.TileSizeH=368
 #params.CONF_TH = {'person':0.3,'car':0.6,'trafficsign':0.4,'bicycle':0.2,'train':0.6,'bus':0.6,'motorbike':0.2,} # pick all det obj at least with this score (def=0.6)
 #params.CONF_TH = {'person':0.4,'vehicle':0.5,'trafficsign':0.4} # pick all det obj at least with this score (def=0.6)
 params.CONF_TH=0.4
-params.EVAL_OBJ = False
+params.EVAL_OBJ = True
+params.gt_path = "/data/mmcodec_video2_tier3/users/soyeb/ObjectDetect/ssd/data/tempdata_TI_201712/data/train/annotations_kitti_format"
+params.gt_prefix = 'ti_munich_' 
+params.gt_suffix = '_I' 
 set_common_params(params)
 execute_test(params)
 
+#SET126: JDETNET_PSD_720x368, accu_78.5
+#params = Params()
+#params.ModelWeights="/user/a0875091/files/work/bitbucket_TI/caffe-jacinto-models/scripts/training/ti-psd/JDetNet/20180310_13-15_ds_PSP_dsFac_32_fc_0_hdDS8_1_cnctHD_0_baseNW3hd_0_kerMbox_1_1stHdSameOpCh_1/initial/ti-psd_ssdJacintoNetV2_iter_2000.caffemodel"
+#params.Deploy="/user/a0875091/files/work/bitbucket_TI/caffe-jacinto-models/scripts/training/ti-psd/JDetNet/20180310_13-15_ds_PSP_dsFac_32_fc_0_hdDS8_1_cnctHD_0_baseNW3hd_0_kerMbox_1_1stHdSameOpCh_1/initial/deploy.prototxt"
+#params.LabelMap="/user/a0875091/files/work/github/weiliu89/caffe-ssd/data/TI_PSD_201803/labelmap.prototxt"
+#params.OpPath="/data/mmcodec_video2_tier3/users/soyeb/ObjectDetect/ssd/detetctedOp/20180310_JDetNet_psd_720x368_1Gmac_psd/"
+##dir containing GT annotations in KITTI format
+##gtDIR = '/data/mmcodec_video2_tier3/users/soyeb/ObjectDetect/ssd/data/tempdata_TI201708/data/train/Videos/'
+###if BN is placed at the beginning then mean should not be explictly subtracted. Set to 0 in that case.
+#params.MEAN_PIX_VEC =[0,0,0]
+#params.IP_SCALE  = 1.0
+#params.TileSizeW=720
+#params.TileSizeH=368
+##params.CONF_TH = {'person':0.3,'car':0.6,'trafficsign':0.4,'bicycle':0.2,'train':0.6,'bus':0.6,'motorbike':0.2,} # pick all det obj at least with this score (def=0.6)
+##params.CONF_TH = {'person':0.4,'vehicle':0.5,'trafficsign':0.4} # pick all det obj at least with this score (def=0.6)
+#params.CONF_TH=0.4
+#params.EVAL_OBJ=True
+##params.gt_path = "/data/mmcodec_video2_tier3/users/soyeb/ObjectDetect/ssd/data/tempdata_TI_201712/data/train/annotations_kitti_format"
+##params.gt_prefix = 'ti_munich_' 
+##params.gt_suffix = '_I' 
+#set_common_params(params)
+#execute_test(params)
+
+#SET127: VGG_TI_201712_V1, 64.04%, OBJ_EVAL
+#params = Params()
+#params.ModelWeights="/user/a0875091/files/work/github/weiliu89/caffe-ssd/models/VGG/TI_201712_720x368_V1/SSD_720x368_Pre_CIT_TI_CAT_frz_T_bn_b_bnStart_F_tr_SSD_norm_T_fc_F_64.04/VGG_TI_201712_720x368_V1_SSD_720x368_Pre_CIT_TI_CAT_frz_T_bn_b_bnStart_F_tr_SSD_norm_T_fc_F_64.04_iter_14000.caffemodel"
+#params.Deploy="/user/a0875091/files/work/github/weiliu89/caffe-ssd/models/VGG/TI_201712_720x368_V1/SSD_720x368_Pre_CIT_TI_CAT_frz_T_bn_b_bnStart_F_tr_SSD_norm_T_fc_F_64.04/deploy.prototxt"
+#params.LabelMap="/user/a0875091/files/work/github/weiliu89/caffe-ssd/data/TI_201712_720x368_V1/labelmap.prototxt"
+#params.OpPath="/data/mmcodec_video2_tier3/users/soyeb/ObjectDetect/ssd/detetctedOp/20180311_VGG_1024x368_IMG_VOC_CITY_TI201712_V1_64.04_nms_objEval/"
+##dir containing GT annotations in KITTI format
+##gtDIR = '/data/mmcodec_video2_tier3/users/soyeb/ObjectDetect/ssd/data/tempdata_TI201708/data/train/Videos/'
+###if BN is placed at the beginning then mean should not be explictly subtracted. Set to 0 in that case.
+#params.MEAN_PIX_VEC =[104,117,123]
+#params.IP_SCALE  = 1.0
+#params.TileSizeW=720
+#params.TileSizeH=368
+##params.CONF_TH = {'person':0.3,'car':0.6,'trafficsign':0.4,'bicycle':0.2,'train':0.6,'bus':0.6,'motorbike':0.2,} # pick all det obj at least with this score (def=0.6)
+##params.CONF_TH = {'person':0.3,'vehicle':0.6,'trafficsign':0.4} # pick all det obj at least with this score (def=0.6)
+#params.CONF_TH=0.4
+#params.EVAL_OBJ = True
+#params.gt_path = "/data/mmcodec_video2_tier3/users/soyeb/ObjectDetect/ssd/data/tempdata_TI_201712/data/train/annotations_kitti_format"
+#params.gt_prefix = 'ti_munich_' 
+#params.gt_suffix = '_I' 
+#set_common_params(params)
+#execute_test(params)
 
 ########################################################################################################################################################################

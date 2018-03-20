@@ -588,7 +588,8 @@ void MatchBBox(const vector<NormalizedBBox>& gt_bboxes,
     const vector<NormalizedBBox>& pred_bboxes, const int label,
     const MatchType match_type, const float overlap_threshold,
     const bool ignore_cross_boundary_bbox,
-    vector<int>* match_indices, vector<float>* match_overlaps) {
+    vector<int>* match_indices, vector<float>* match_overlaps,
+    bool ignore_difficult_gt) {
   int num_pred = pred_bboxes.size();
   match_indices->clear();
   match_indices->resize(num_pred, -1);
@@ -624,11 +625,11 @@ void MatchBBox(const vector<NormalizedBBox>& gt_bboxes,
       continue;
     }
     for (int j = 0; j < num_gt; ++j) {
-      float overlap = JaccardOverlap(pred_bboxes[i], gt_bboxes[gt_indices[j]]);
-      if (overlap > 1e-6) {
-        (*match_overlaps)[i] = std::max((*match_overlaps)[i], overlap);
-        overlaps[i][j] = overlap;
-      }
+	  float overlap = JaccardOverlap(pred_bboxes[i], gt_bboxes[gt_indices[j]]);
+	  if (overlap > 1e-6) {
+		(*match_overlaps)[i] = std::max((*match_overlaps)[i], overlap);
+		overlaps[i][j] = overlap;
+	  }
     }
   }
 
@@ -670,10 +671,15 @@ void MatchBBox(const vector<NormalizedBBox>& gt_bboxes,
       break;
     } else {
       CHECK_EQ((*match_indices)[max_idx], -1);
-      (*match_indices)[max_idx] = gt_indices[max_gt_idx];
-      (*match_overlaps)[max_idx] = max_overlap;
-      // Erase the ground truth.
-      gt_pool.erase(std::find(gt_pool.begin(), gt_pool.end(), max_gt_idx));
+      bool is_ignored_gt = ignore_difficult_gt && gt_bboxes[gt_indices[max_gt_idx]].difficult();
+      if(is_ignored_gt) { //pred matches with ignored gt. set to -2 to ignore
+    	  (*match_indices)[max_idx] = -2;
+      } else {
+		  (*match_indices)[max_idx] = gt_indices[max_gt_idx];
+		  (*match_overlaps)[max_idx] = max_overlap;
+		  // Erase the ground truth.
+		  gt_pool.erase(std::find(gt_pool.begin(), gt_pool.end(), max_gt_idx));
+      }
     }
   }
 
@@ -776,7 +782,8 @@ void FindMatches(const vector<LabelBBox>& all_loc_preds,
                      all_loc_preds[i].find(label)->second, &loc_bboxes);
         MatchBBox(gt_bboxes, loc_bboxes, label, match_type,
                   overlap_threshold, ignore_cross_boundary_bbox,
-                  &match_indices[label], &match_overlaps[label]);
+                  &match_indices[label], &match_overlaps[label],
+                  multibox_loss_param.ignore_difficult_gt());
       }
     } else {
       // Use prior bboxes to match against all ground truth.
@@ -785,7 +792,7 @@ void FindMatches(const vector<LabelBBox>& all_loc_preds,
       const int label = -1;
       MatchBBox(gt_bboxes, prior_bboxes, label, match_type, overlap_threshold,
                 ignore_cross_boundary_bbox, &temp_match_indices,
-                &temp_match_overlaps);
+                &temp_match_overlaps, multibox_loss_param.ignore_difficult_gt());
       if (share_location) {
         match_indices[label] = temp_match_indices;
         match_overlaps[label] = temp_match_overlaps;

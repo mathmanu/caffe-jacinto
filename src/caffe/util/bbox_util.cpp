@@ -675,10 +675,10 @@ void MatchBBox(const vector<NormalizedBBox>& gt_bboxes,
       if(is_ignored_gt) { //pred matches with ignored gt. set to -2 to ignore
     	  (*match_indices)[max_idx] = -2;
       } else {
-		  (*match_indices)[max_idx] = gt_indices[max_gt_idx];
-		  (*match_overlaps)[max_idx] = max_overlap;
-		  // Erase the ground truth.
-		  gt_pool.erase(std::find(gt_pool.begin(), gt_pool.end(), max_gt_idx));
+		    (*match_indices)[max_idx] = gt_indices[max_gt_idx];
+		    (*match_overlaps)[max_idx] = max_overlap;
+		    // Erase the ground truth.
+		    gt_pool.erase(std::find(gt_pool.begin(), gt_pool.end(), max_gt_idx));
       }
     }
   }

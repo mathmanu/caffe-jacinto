@@ -2096,7 +2096,8 @@ void Net::FindAndApplyChannelThresholdNet(float threshold_fraction_low, float th
           float max_abs_value = std::max<float>(max_abs, min_abs);
           float step_size = max_abs_value * threshold_step_factor;
           float max_threshold_value = std::min<float>(std::min<float>(threshold_value_max, max_abs_value*threshold_value_maxratio), max_abs_value);
-          if(verbose) {
+          bool verbose_th_val = false;
+          if(verbose && verbose_th_val) {
             if ((max_abs_value*threshold_value_maxratio) > threshold_value_max) {
 	            LOG(INFO) << "threshold_value_max " << threshold_value_max;
 	            LOG(INFO) << "threshold_value_maxratio " << threshold_value_maxratio;

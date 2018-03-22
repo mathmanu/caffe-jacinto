@@ -356,6 +356,8 @@ bool ReadXMLToAnnotatedDatum(const string& labelfile, const int img_height,
           anno->set_instance_id(instance_id++);
         } else if (v2.first == "difficult") {
           difficult = pt2.data() == "1";
+          NormalizedBBox* bbox = anno->mutable_bbox();
+          bbox->set_difficult(difficult);
         } else if (v2.first == "bndbox") {
           int xmin = pt2.get("xmin", 0);
           int ymin = pt2.get("ymin", 0);

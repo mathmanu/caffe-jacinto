@@ -11,6 +11,7 @@ namespace caffe {
 template<typename Ftype, typename Btype>
 void CuDNNConvolutionLayer<Ftype, Btype>::Forward_gpu(const vector<Blob*>& bottom,
     const vector<Blob*>& top) {
+  this->Quantize_gpu(bottom, top);
   const Ftype* weight = this->blobs_[0]->template gpu_data<Ftype>();
   shared_ptr<GPUMemory::Workspace>& ws = GPUMemory::workspace_[Caffe::current_device()];
   if (use_v7grouping()) {
@@ -74,6 +75,8 @@ void CuDNNConvolutionLayer<Ftype, Btype>::Forward_gpu(const vector<Blob*>& botto
   }
 
   ++fwd_count_;
+  
+  this->Quantize_gpu(bottom, top);    
 }
 
 template <typename Ftype, typename Btype>

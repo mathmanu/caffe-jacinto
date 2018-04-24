@@ -28,6 +28,7 @@ __global__ void Concat(const int nthreads, const Dtype* in_data,
 template <typename Ftype, typename Btype>
 void ConcatLayer<Ftype, Btype>::Forward_gpu(const vector<Blob*>& bottom,
       const vector<Blob*>& top) {
+  this->Quantize_gpu(bottom, top);
   const Ftype* bottom_data = bottom[0]->gpu_data<Ftype>();
   Ftype* top_data = top[0]->mutable_gpu_data<Ftype>();
   int offset_concat_axis = 0;
@@ -57,6 +58,7 @@ void ConcatLayer<Ftype, Btype>::Forward_gpu(const vector<Blob*>& bottom,
     CUDA_CHECK(cudaStreamSynchronize(Caffe::thread_stream()));
     offset_concat_axis += bottom_concat_axis;
   }
+  this->Quantize_gpu(bottom, top);
 }
 
 template <typename Ftype, typename Btype>

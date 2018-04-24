@@ -9,6 +9,7 @@ namespace caffe {
 template<typename Ftype, typename Btype>
 void
 BatchNormLayer<Ftype, Btype>::Forward_gpu(const vector<Blob*>& bottom, const vector<Blob*>& top) {
+  this->Quantize_gpu(bottom, top);
   int N = bottom[0]->shape(0);
   int C = channels_;
   int S = bottom[0]->count(0) / (N * C);
@@ -88,6 +89,7 @@ BatchNormLayer<Ftype, Btype>::Forward_gpu(const vector<Blob*>& bottom, const vec
     caffe_gpu_add<Ftype>(top_size, top_data, temp_NCHW_->template mutable_gpu_data<Ftype>(),
         top_data);
   }
+  this->Quantize_gpu(bottom, top);
 }
 
 

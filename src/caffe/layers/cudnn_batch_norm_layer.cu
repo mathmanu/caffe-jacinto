@@ -12,7 +12,7 @@ namespace caffe {
 template <typename Ftype, typename Btype>
 void CuDNNBatchNormLayer<Ftype, Btype>::Forward_gpu(const vector<Blob*>& bottom,
     const vector<Blob*>& top) {
-
+  this->Quantize_gpu(bottom, top);
   const Ftype* bottom_data = bottom[0]->gpu_data<Ftype>();
   Ftype* top_data = top[0] == bottom[0] ?
       private_top_->mutable_gpu_data<Ftype>() : top[0]->mutable_gpu_data<Ftype>();
@@ -86,6 +86,7 @@ void CuDNNBatchNormLayer<Ftype, Btype>::Forward_gpu(const vector<Blob*>& bottom,
     private_bottom_->CopyDataFrom(*bottom[0]);
     top[0]->CopyDataFrom(*private_top_);
   }
+  this->Quantize_gpu(bottom, top);  
 }
 
 template <typename Ftype, typename Btype>

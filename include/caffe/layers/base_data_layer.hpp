@@ -12,6 +12,7 @@
 #include "caffe/layer.hpp"
 #include "caffe/proto/caffe.pb.h"
 #include "caffe/util/blocking_queue.hpp"
+#include "caffe/quantized_layer.hpp"
 
 namespace caffe {
 
@@ -21,7 +22,7 @@ namespace caffe {
  * TODO(dox): thorough documentation for Forward and proto params.
  */
 template<typename Ftype, typename Btype>
-class BaseDataLayer : public Layer<Ftype, Btype> {
+class BaseDataLayer : public QuantizedLayer<Ftype, Btype> {
  public:
   BaseDataLayer(const LayerParameter& param, size_t transf_num);
   virtual ~BaseDataLayer() {}

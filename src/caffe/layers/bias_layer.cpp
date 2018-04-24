@@ -71,6 +71,7 @@ void BiasLayer<Ftype, Btype>::Reshape(const vector<Blob*>& bottom,
 template <typename Ftype, typename Btype>
 void BiasLayer<Ftype, Btype>::Forward_cpu(const vector<Blob*>& bottom,
       const vector<Blob*>& top) {
+  this->Quantize_cpu(bottom, top);
   const Ftype* bias_data = ((bottom.size() > 1) ?
       bottom[1] : this->blobs_[0].get())->template cpu_data<Ftype>();
   Ftype* top_data = top[0]->mutable_cpu_data<Ftype>();
@@ -84,6 +85,7 @@ void BiasLayer<Ftype, Btype>::Forward_cpu(const vector<Blob*>& bottom,
         bias_multiplier_.cpu_data(), Ftype(1), top_data);
     top_data += dim_;
   }
+  this->Quantize_cpu(bottom, top);
 }
 
 template <typename Ftype, typename Btype>

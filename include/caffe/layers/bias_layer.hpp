@@ -6,6 +6,7 @@
 #include "caffe/blob.hpp"
 #include "caffe/layer.hpp"
 #include "caffe/proto/caffe.pb.h"
+#include "caffe/quantized_layer.hpp"
 
 namespace caffe {
 
@@ -19,10 +20,10 @@ namespace caffe {
  * of the layer.
  */
 template <typename Ftype, typename Btype>
-class BiasLayer : public Layer<Ftype, Btype> {
+class BiasLayer : public QuantizedLayer<Ftype, Btype> {
  public:
   explicit BiasLayer(const LayerParameter& param)
-      : Layer<Ftype, Btype>(param) {}
+      : QuantizedLayer<Ftype, Btype>(param) {}
   virtual void LayerSetUp(const vector<Blob*>& bottom,
       const vector<Blob*>& top);
   virtual void Reshape(const vector<Blob*>& bottom,

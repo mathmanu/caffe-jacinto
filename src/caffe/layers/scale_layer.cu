@@ -29,6 +29,8 @@ __global__ void ScaleBiasForward(const int n, const Dtype* in,
 template <typename Ftype, typename Btype>
 void ScaleLayer<Ftype, Btype>::Forward_gpu(
     const vector<Blob*>& bottom, const vector<Blob*>& top) {
+  this->Quantize_gpu(bottom, top);
+  
   if (bottom[0] == top[0]) {
     // in-place computation; need to store bottom data before overwriting it.
     // Note that this is only necessary for Backward; we could skip this if not
@@ -53,6 +55,8 @@ void ScaleLayer<Ftype, Btype>::Forward_gpu(
         count, bottom_data, scale_data, scale_dim_, inner_dim_, top_data);
   }
   CUDA_CHECK(cudaStreamSynchronize(stream));
+  
+  this->Quantize_gpu(bottom, top);
 }
 
 template <typename Ftype, typename Btype>

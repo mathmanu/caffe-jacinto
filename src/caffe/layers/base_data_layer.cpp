@@ -46,7 +46,7 @@ bool BasePrefetchingDataLayer<Ftype, Btype>::auto_mode(const LayerParameter& par
 
 template<typename Ftype, typename Btype>
 BaseDataLayer<Ftype, Btype>::BaseDataLayer(const LayerParameter& param, size_t transf_num)
-    : Layer<Ftype, Btype>(param), transform_param_(param.transform_param()) {}
+    : QuantizedLayer<Ftype, Btype>(param), transform_param_(param.transform_param()) {}
 
 template<typename Ftype, typename Btype>
 void BaseDataLayer<Ftype, Btype>::LayerSetUp(const vector<Blob*>& bottom,
@@ -179,6 +179,8 @@ void BasePrefetchingDataLayer<Ftype, Btype>::Forward_cpu(const vector<Blob*>& bo
     top[1]->Swap(*batch->label_);
   }
   this->batch_transformer_->processed_push(batch);
+
+  this->Quantize_cpu(bottom, top);
 }
 
 INSTANTIATE_CLASS_FB(BaseDataLayer);

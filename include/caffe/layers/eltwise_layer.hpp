@@ -6,6 +6,7 @@
 #include "caffe/blob.hpp"
 #include "caffe/layer.hpp"
 #include "caffe/proto/caffe.pb.h"
+#include "caffe/quantized_layer.hpp"
 
 namespace caffe {
 
@@ -16,10 +17,10 @@ namespace caffe {
  * TODO(dox): thorough documentation for Forward, Backward, and proto params.
  */
 template <typename Ftype, typename Btype>
-class EltwiseLayer : public Layer<Ftype, Btype> {
+class EltwiseLayer : public QuantizedLayer<Ftype, Btype> {
  public:
   explicit EltwiseLayer(const LayerParameter& param)
-      : Layer<Ftype, Btype>(param) {}
+      : QuantizedLayer<Ftype, Btype>(param) {}
   virtual void LayerSetUp(const vector<Blob*>& bottom,
       const vector<Blob*>& top);
   virtual void Reshape(const vector<Blob*>& bottom,

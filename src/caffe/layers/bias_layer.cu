@@ -19,6 +19,7 @@ __global__ void BiasForward(const int n, const Dtype* in,
 template <typename Ftype, typename Btype>
 void BiasLayer<Ftype, Btype>::Forward_gpu(const vector<Blob*>& bottom,
       const vector<Blob*>& top) {
+  this->Quantize_gpu(bottom, top);
   const int count = top[0]->count();
   const Ftype* bottom_data = bottom[0]->gpu_data<Ftype>();
   const Ftype* bias_data =
@@ -28,6 +29,7 @@ void BiasLayer<Ftype, Btype>::Forward_gpu(const vector<Blob*>& bottom,
       <<<CAFFE_GET_BLOCKS(count), CAFFE_CUDA_NUM_THREADS, 0, Caffe::thread_stream()>>>(
       count, bottom_data, bias_data, bias_dim_, inner_dim_, top_data);
   CUDA_CHECK(cudaStreamSynchronize(Caffe::thread_stream()));
+  this->Quantize_gpu(bottom, top);
 }
 
 template <typename Ftype, typename Btype>

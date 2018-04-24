@@ -19,7 +19,7 @@ namespace caffe {
 
 template <typename Ftype, typename Btype>
 ImageLabelDataLayer<Ftype, Btype>::ImageLabelDataLayer(const LayerParameter& param, size_t solver_rank) :
-  Layer<Ftype, Btype>(param), solver_rank_(solver_rank) {
+  QuantizedLayer<Ftype, Btype>(param), solver_rank_(solver_rank) {
 }
 
 template <typename Ftype, typename Btype>
@@ -129,6 +129,8 @@ void ImageLabelDataLayer<Ftype, Btype>::Forward_cpu(const vector<Blob*>& bottom,
 
   data_layer_->Forward(data_bottom_vec, data_top_vec);
   label_layer_->Forward(label_bottom_vec, label_top_vec);  
+  
+  this->Quantize_cpu(bottom, top);
 }
 
 INSTANTIATE_CLASS_FB(ImageLabelDataLayer);

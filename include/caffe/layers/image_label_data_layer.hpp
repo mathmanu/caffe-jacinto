@@ -12,11 +12,12 @@
 #include "caffe/layers/data_layer.hpp"
 #include "caffe/util/rng.hpp"
 #include "caffe/proto/caffe.pb.h"
+#include "caffe/quantized_layer.hpp"
 
 namespace caffe {
 
 template <typename Ftype, typename Btype>
-class ImageLabelDataLayer : public Layer<Ftype, Btype> {
+class ImageLabelDataLayer : public QuantizedLayer<Ftype, Btype> {
  public:
   explicit ImageLabelDataLayer(const LayerParameter& param, size_t solver_rank);
   virtual ~ImageLabelDataLayer();

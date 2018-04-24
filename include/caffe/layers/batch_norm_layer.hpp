@@ -6,6 +6,7 @@
 #include "caffe/blob.hpp"
 #include "caffe/layer.hpp"
 #include "caffe/proto/caffe.pb.h"
+#include "caffe/quantized_layer.hpp"
 
 #define BN_VAR_CLIP_START 200
 #define BN_VAR_CLIP_CONST 4.0
@@ -43,10 +44,10 @@ namespace caffe {
  * TODO(dox): thorough documentation for Forward, Backward, and proto params.
  */
 template <typename Ftype, typename Btype>
-class BatchNormLayer : public Layer<Ftype, Btype> {
+class BatchNormLayer : public QuantizedLayer<Ftype, Btype> {
  public:
   explicit BatchNormLayer(const LayerParameter& param)
-      : Layer<Ftype, Btype>(param) {}
+      : QuantizedLayer<Ftype, Btype>(param) {}
   virtual void LayerSetUp(const vector<Blob*>& bottom, const vector<Blob*>& top);
   virtual void Reshape(const vector<Blob*>& bottom, const vector<Blob*>& top);
 

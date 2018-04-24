@@ -16,6 +16,8 @@ __global__ void ReLUForward(const int n, const Dtype* in, Dtype* out,
 template <typename Ftype, typename Btype>
 void ReLULayer<Ftype, Btype>::Forward_gpu(const vector<Blob*>& bottom,
     const vector<Blob*>& top) {
+  this->Quantize_gpu(bottom, top);
+  
   const Ftype* bottom_data = bottom[0]->gpu_data<Ftype>();
   Ftype* top_data = top[0]->mutable_gpu_data<Ftype>();
 
@@ -26,6 +28,8 @@ void ReLULayer<Ftype, Btype>::Forward_gpu(const vector<Blob*>& bottom,
       count, bottom_data, top_data, negative_slope);
   CUDA_POST_KERNEL_CHECK;
   CUDA_CHECK(cudaStreamSynchronize(Caffe::thread_stream()));
+  
+  this->Quantize_gpu(bottom, top);
 }
 
 template <typename Dtype>

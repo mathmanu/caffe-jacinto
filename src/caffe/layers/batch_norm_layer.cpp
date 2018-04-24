@@ -164,6 +164,7 @@ void BatchNormLayer<Ftype, Btype>::Reshape(const vector<Blob*>& bottom, const ve
 template<typename Ftype, typename Btype>
 void
 BatchNormLayer<Ftype, Btype>::Forward_cpu(const vector<Blob*>& bottom, const vector<Blob*>& top) {
+  this->Quantize_cpu(bottom, top);
   int N = bottom[0]->shape(0);
   int C = channels_;
   int S = bottom[0]->count(0) / (N * C);
@@ -249,6 +250,7 @@ BatchNormLayer<Ftype, Btype>::Forward_cpu(const vector<Blob*>& bottom, const vec
        temp_NCHW_->template mutable_cpu_data<Ftype>());
     caffe_add<Ftype>(top_size, top_data, temp_NCHW_->template mutable_cpu_data<Ftype>(), top_data);
   }
+  this->Quantize_cpu(bottom, top);
 }
 
 template<typename Ftype, typename Btype>

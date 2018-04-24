@@ -109,6 +109,7 @@ void ScaleLayer<Ftype, Btype>::Reshape(const vector<Blob*>& bottom,
 template <typename Ftype, typename Btype>
 void ScaleLayer<Ftype, Btype>::Forward_cpu(
     const vector<Blob*>& bottom, const vector<Blob*>& top) {
+  this->Quantize_cpu(bottom, top);
   const Ftype* bottom_data = bottom[0]->cpu_data<Ftype>();
   if (bottom[0] == top[0]) {
     // In-place computation; need to store bottom data before overwriting it.
@@ -132,6 +133,7 @@ void ScaleLayer<Ftype, Btype>::Forward_cpu(
   if (bias_layer_) {
     bias_layer_->Forward(bias_bottom_vec_, top);
   }
+  this->Quantize_cpu(bottom, top);
 }
 
 template <typename Ftype, typename Btype>

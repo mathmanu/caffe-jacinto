@@ -2397,7 +2397,7 @@ message NetQuantizationParameter {
   repeated string ignored_layer_names = 17;
 }
 
-message ImageSliceParameter {
+message ImageSliceInfo {
   repeated uint32 dim = 1;
   repeated uint32 stride = 2;
   repeated uint32 offset = 3;
@@ -2429,7 +2429,7 @@ message ImageLabelDataParameter {
 
   optional string data_dir = 9 [default = ""];
 
-  optional ImageSliceParameter label_slice = 10;
+  optional ImageSliceInfo label_slice = 10;
 
   optional string image_dir = 11 [default = ""];
   optional string label_dir = 12 [default = ""];

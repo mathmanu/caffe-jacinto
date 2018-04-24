@@ -13,6 +13,7 @@
 #include "caffe/util/math_functions.hpp"
 #include "caffe/util/signal_handler.h"
 #include "caffe/util/upgrade_proto.hpp"
+#include "caffe/filler.hpp"
 
 #include "caffe/test/test_caffe_main.hpp"
 
@@ -680,6 +681,9 @@ void Net::AppendParam(const NetParameter& param, const int layer_id, const int p
 float Net::ForwardFromTo(int start, int end) {
   CHECK_GE(start, 0);
   CHECK_LT(end, layers_.size());
+
+  this->StartQuantization();
+
   float loss = 0;
   for (int i = start; i <= end; ++i) {
     // LOG(INFO) << " ****** [Forward] (" << i << ") Layer '" << layer_names_[i];
@@ -689,6 +693,9 @@ float Net::ForwardFromTo(int start, int end) {
     loss += layer_loss;
     if (debug_info_) { ForwardDebugInfo(i); }
   }
+
+  this->FinishQuantization();
+
   ++infer_count_;
   return loss;
 }
@@ -1239,14 +1246,42 @@ void Net::CopyTrainedLayersFromHDF5(const string trained_filename) {
   H5Fclose(file_hid);
 }
 
-void Net::ToProto(NetParameter* param, bool write_diff) const {
+void Net::ToProto(NetParameter* param, bool write_diff, bool write_data) const {
   param->Clear();
-  param->set_name(name_);
+
   // Add bottom and top
+  if(net_param_.has_quantize()) {
+      param->set_name(name_ + "___QUANTIZED__SEE_END_OFTHE_FILE");
+      param->set_quantize(net_param_.quantize());
+  } else {
+      param->set_name(name_);
+  }
+
+  if(net_param_.has_net_quantization_param()) {
+      *param->mutable_net_quantization_param() = net_param_.net_quantization_param();
+  }
   DLOG(INFO) << "Serializing " << layers_.size() << " layers";
   for (int i = 0; i < layers_.size(); ++i) {
     LayerParameter* layer_param = param->add_layer();
-    layers_[i]->ToProto(layer_param, write_diff);
+    layers_[i]->ToProto(layer_param, write_diff, write_data);
+  }
+}
+
+template<typename Dtype>
+void Net::Convert2FixedPoint_cpu(Dtype* data, const int cnt, const int bit_width, int fl, bool is_unsigned, bool clip) const {
+  for (int index = 0; index < cnt; ++index) {
+    data[index] = data[index] * powf(2, fl);
+    // Saturate data
+#if CLIP_QUANT
+      if(clip) {
+          int qrange = is_unsigned? bit_width :  (bit_width - 1);
+          Dtype max_data = +(powf(2, qrange) - 1);
+          Dtype min_data = is_unsigned? 0 : -(powf(2, qrange));
+          data[index] = std::max(std::min(data[index], max_data), min_data);
+      }
+#endif
+    data[index] = round(data[index]);
+    //data[index] = data[index] * pow(2, -fl);
   }
 }
 
@@ -1459,5 +1494,1059 @@ const vector<Type>& Net::learnable_types(bool reset) {
   }
   return learnable_types_;
 }
+
+template <typename Dtype>
+void Net::OptimizeNet() {
+  auto set_blob_data_at = [&](shared_ptr<Blob>& blob, const int n, const int c, const int h, const int w, const Dtype& value) {
+    if(blob != NULL && blob->count() > 0) {
+      Dtype* data = blob->mutable_cpu_data<Dtype>();
+      int idx = blob->offset(n, c, h, w);
+      data[idx] = value;
+    }
+  };
+  
+  auto set_blob_data_at_chan = [&](shared_ptr<Blob>& blob, const int c, const Dtype& value) {
+    if(blob != NULL && blob->count() > 0) {  
+      Dtype* data = blob->mutable_cpu_data<Dtype>();  
+      int idx = blob->shape().size()>1 && blob->shape(0)==1? blob->offset(0,c,0,0): blob->offset(c);
+      data[idx] = value;
+    }
+  };
+    
+  enum LayerSequenceType {
+      LAYER_SEQ_TYPE_OTHER,
+      LAYER_SEQ_TYPE_CONV_BN,
+      LAYER_SEQ_TYPE_CONV_BN_SCALE,
+      LAYER_SEQ_TYPE_BN_CONV,
+      LAYER_SEQ_TYPE_BN_SCALE_CONV
+  };
+
+  auto layer_sequence_type = [&](int i) {
+    LayerSequenceType type = LAYER_SEQ_TYPE_OTHER;
+    if ((i < (layers_.size()-2)) && layers_[i]->type() == std::string("Convolution") &&
+      layers_[i+1]->type() == std::string("BatchNorm") &&
+      layers_[i+2]->type() == std::string("Scale")) {
+        type = LAYER_SEQ_TYPE_CONV_BN_SCALE;
+    } else if ((i < (layers_.size()-1)) && layers_[i]->type() == std::string("Convolution") &&
+      layers_[i+1]->type() == std::string("BatchNorm")) {
+        type = LAYER_SEQ_TYPE_CONV_BN;
+    } else if ((i < (layers_.size()-1)) && layers_[i]->type() == std::string("BatchNorm") &&
+      layers_[i+1]->type() == std::string("Convolution")) {
+        type = LAYER_SEQ_TYPE_BN_CONV;
+    } else if ((i < (layers_.size()-2)) && layers_[i]->type() == std::string("BatchNorm") &&
+       layers_[i+1]->type() == std::string("Scale") &&
+       layers_[i+2]->type() == std::string("Convolution")) {
+        if(i>0 && layers_[i-1]->type() != std::string("Convolution")) {
+          type = LAYER_SEQ_TYPE_BN_SCALE_CONV;
+        }
+    }
+    return type;
+  };
+
+
+  for (int i = 0; i < (layers_.size()-1); i++) {
+    LayerSequenceType layer_seq_type = layer_sequence_type(i);
+    if (layer_seq_type == LAYER_SEQ_TYPE_CONV_BN || layer_seq_type == LAYER_SEQ_TYPE_CONV_BN_SCALE) {
+      LOG(INFO) << "Optimizing layer: " << layers_[i]->type() << " " << layers_[i]->name();
+      LayerBase& conv_layer = *layers_[i];
+      //int num_groups = conv_layer.layer_param().convolution_param().group();
+
+      // Set bias term if it not there, as it is needed when combining BN
+      if(conv_layer.blobs().size()==1) {
+        shared_ptr<Blob> conv_weights = conv_layer.blobs()[0];
+        int channels = (conv_weights->num_axes() == 1)? conv_weights->count() : conv_weights->shape(0);
+        int outputs = channels;
+
+        bool bias_term = true;
+        conv_layer.mutable_layer_param().mutable_convolution_param()->set_bias_term(bias_term);
+        conv_layer.mutable_layer_param().mutable_convolution_param()->mutable_bias_filler()->set_type("constant");
+        conv_layer.mutable_layer_param().mutable_convolution_param()->mutable_bias_filler()->set_value(0);
+
+        //TODO: Revisit if needed
+        conv_layer.blobs().resize(2);
+        vector<int> bias_shape(1, outputs);
+        conv_layer.blobs()[1] = Blob::create<Dtype>(bias_shape);
+        shared_ptr<Filler<Dtype> > bias_filler(GetFiller<Dtype>(
+            conv_layer.layer_param().convolution_param().bias_filler()));
+        bias_filler->Fill(conv_layer.blobs()[1].get());
+      }
+
+      shared_ptr<Blob>& conv_weights = conv_layer.blobs()[0];
+      int channels = (conv_weights->num_axes() == 1)? conv_weights->count() : conv_weights->shape(0);
+      //int outputs = channels;
+
+      LayerBase& batch_norm_layer = *layers_[i+1];
+      bool scale_bias = (batch_norm_layer.blobs().size() == 5);//layers_[i+1]->layer_param().batch_norm_param().scale_bias();
+      bool has_scale_layer = (layer_seq_type == LAYER_SEQ_TYPE_CONV_BN_SCALE);
+      shared_ptr<LayerBase> scale_layer = has_scale_layer? layers_[i+2] : NULL;
+      bool has_scale_layer_bias = (has_scale_layer && scale_layer->blobs().size()>1);
+
+      shared_ptr<Blob>& batch_norm_mean = batch_norm_layer.blobs()[0];
+      shared_ptr<Blob>& batch_norm_var = batch_norm_layer.blobs()[1];
+      double eps = batch_norm_layer.layer_param().batch_norm_param().eps();
+
+      // Absorb the BatchNorm into convolution
+      for(int no=0; no<conv_weights->shape(0); no++) {
+        double var = batch_norm_var->data_at(no) + eps;
+        double stdev_inv = std::pow(var, double(-0.5));
+        double scale = scale_bias? batch_norm_layer.blobs()[3]->data_at(no) :
+                (has_scale_layer? scale_layer->blobs()[0]->data_at(no) : 1.0);
+        for(int ni=0; ni<conv_weights->shape(1); ni++) {
+          for(int w=0; w<conv_weights->shape(2); w++) {
+            for(int h=0; h<conv_weights->shape(3); h++) {
+                double weights = conv_weights->data_at(no,ni,w,h);
+                weights = (weights * stdev_inv * scale);
+                set_blob_data_at(conv_weights, no, ni, w, h, weights);
+            }
+          }
+        }
+      }
+
+      shared_ptr<Blob>& conv_bias = conv_layer.blobs()[1];
+      for(int no=0; no<channels; no++) {
+        double var = batch_norm_var->data_at(no) + eps;
+        double stdev_inv = std::pow(var, double(-0.5));
+        double scale = scale_bias? batch_norm_layer.blobs()[3]->data_at(no) :
+                (has_scale_layer? scale_layer->blobs()[0]->data_at(no) : 1.0);
+        double bias = scale_bias? batch_norm_layer.blobs()[4]->data_at(no) :
+                (has_scale_layer && has_scale_layer_bias? scale_layer->blobs()[1]->data_at(no) : 0.0);
+        double mean = batch_norm_mean->data_at(no);
+        double weights_bias = conv_bias->data_at(no);
+        weights_bias = ((weights_bias - mean) * stdev_inv * scale + bias);
+        set_blob_data_at_chan(conv_bias, no, weights_bias);
+      }
+
+      // Set the batch norm (and subsequent scale layer if present) to identity
+      for(int no=0; no<channels; no++) {
+        if(scale_bias) {
+          set_blob_data_at_chan(batch_norm_layer.blobs()[3], no, Dtype(1.0));
+          set_blob_data_at_chan(batch_norm_layer.blobs()[4], no, Dtype(0.0));
+        }
+        if(has_scale_layer) {
+          set_blob_data_at_chan(scale_layer->blobs()[0], no, Dtype(1.0));
+          if(has_scale_layer_bias) {
+            set_blob_data_at_chan(scale_layer->blobs()[1], no, Dtype(0.0));
+          }
+        }
+        set_blob_data_at_chan(batch_norm_mean, no, Dtype(0.0));
+        //Change var so that after adding eps, it becomes 1.0
+        set_blob_data_at_chan(batch_norm_var, no, Dtype(1.0 - eps));
+      }
+
+      //transfer back to gpu
+      for(int blob_id=0; blob_id<conv_layer.blobs().size(); blob_id++) {
+          conv_layer.blobs()[blob_id]->gpu_data<Dtype>();
+      }
+      for(int blob_id=0; blob_id<batch_norm_layer.blobs().size(); blob_id++) {
+          batch_norm_layer.blobs()[blob_id]->gpu_data<Dtype>();
+      }
+      if(has_scale_layer) {
+          for(int blob_id=0; blob_id<scale_layer->blobs().size(); blob_id++) {
+              scale_layer->blobs()[blob_id]->gpu_data<Dtype>();
+          }
+      }
+    }
+  }
+
+
+#if 0
+  //Merge a BatchNorm layer that comes before convolution layer
+  //This is not needed now. BN can be run separately if it cannot be merged
+  for (int i = 0; i < (layers_.size()-1); i++) {
+    LayerSequenceType layer_seq_type = layer_sequence_type(i);
+    if (layer_seq_type == LAYER_SEQ_TYPE_BN_CONV || layer_seq_type == LAYER_SEQ_TYPE_BN_SCALE_CONV) {
+      LayerBase& batch_norm_layer = *layers_[i];
+      LayerBase& conv_layer = (layer_seq_type == LAYER_SEQ_TYPE_BN_SCALE_CONV)? *layers_[i+2] : *layers_[i+1];
+      shared_ptr<Blob>& conv_weights = conv_layer.blobs()[0];
+      shared_ptr<Blob>& conv_bias = conv_layer.blobs()[1];
+      //int channels = (conv_weights->num_axes() == 1)? conv_weights->count() : conv_weights->shape(0);
+      int bn_channels = conv_weights->shape(1);
+      LOG(INFO) << "Optimizing layer: " << layers_[i]->type() << " " << layers_[i]->name();
+      //int num_groups = conv_layer.layer_param().convolution_param().group();
+
+      // Set bias term if it not there, as it is needed when combining BN
+      if(conv_layer.blobs().size()==1) {
+        shared_ptr<Blob> conv_weights = conv_layer.blobs()[0];
+        int channels = (conv_weights->num_axes() == 1)? conv_weights->count() : conv_weights->shape(0);
+        int outputs = channels;
+
+        bool bias_term = true;
+        conv_layer.mutable_layer_param().mutable_convolution_param()->set_bias_term(bias_term);
+        conv_layer.mutable_layer_param().mutable_convolution_param()->mutable_bias_filler()->set_type("constant");
+        conv_layer.mutable_layer_param().mutable_convolution_param()->mutable_bias_filler()->set_value(0);
+
+        //TODO: Revisit if needed
+        conv_layer.blobs().resize(2);
+        vector<int> bias_shape(1, outputs);
+        conv_layer.blobs()[1] = Blob::create<Dtype>(bias_shape);
+        shared_ptr<Filler<Dtype> > bias_filler(GetFiller<Dtype>(
+            conv_layer.layer_param().convolution_param().bias_filler()));
+        bias_filler->Fill(conv_layer.blobs()[1].get());
+      }
+
+      bool scale_bias = layers_[i]->layer_param().batch_norm_param().scale_bias();
+      bool has_scale_layer = (layer_seq_type == LAYER_SEQ_TYPE_BN_SCALE_CONV);
+      shared_ptr<LayerBase> scale_layer = has_scale_layer? layers_[i+1] : NULL;
+      bool has_scale_layer_bias = (has_scale_layer && scale_layer->blobs().size()>1);
+
+      shared_ptr<Blob>& batch_norm_mean = batch_norm_layer.blobs()[0];
+      shared_ptr<Blob>& batch_norm_var = batch_norm_layer.blobs()[1];
+
+      Dtype eps = batch_norm_layer.layer_param().batch_norm_param().eps();
+
+      // Absorb the BatchNorm into convolution
+      for(int no=0; no<conv_weights->shape(0); no++) {
+        Dtype bias_sum1 = 0;
+        Dtype bias_sum2 = 0;
+        for(int ni=0; ni<bn_channels; ni++) {
+          Dtype var = batch_norm_var->data_at(ni) + eps;
+          Dtype stdev_inv = std::pow(var, Dtype(-0.5));
+          Dtype scale = scale_bias? batch_norm_layer.blobs()[3]->data_at(ni) : (has_scale_layer? scale_layer->blobs()[0]->data_at(ni) : 1.0);
+          Dtype bias = scale_bias? batch_norm_layer.blobs()[4]->data_at(ni) : (has_scale_layer && has_scale_layer_bias? scale_layer->blobs()[1]->data_at(ni) : 0.0);
+          Dtype mean = batch_norm_mean->data_at(ni);
+
+          for(int w=0; w<conv_weights->shape(2); w++) {
+            for(int h=0; h<conv_weights->shape(3); h++) {
+              bias_sum1 += bias * conv_weights->data_at(no,ni,w,h);
+              bias_sum2 += mean * stdev_inv * conv_weights->data_at(no,ni,w,h);
+              set_blob_data_at(conv_weights,no,ni,w,h, conv_weights->data_at(no,ni,w,h) * stdev_inv * scale);
+            }
+          }
+        }
+        set_blob_data_at_chan(conv_bias,no, conv_bias->data_at(no) + bias_sum1 - bias_sum2);
+      }
+
+      // Set the batch norm to identity
+      for(int ni=0; ni<bn_channels; ni++) {
+        if(scale_bias) {      
+          set_blob_data_at_chan(batch_norm_layer.blobs()[3], ni, Dtype(1.0));
+          set_blob_data_at_chan(batch_norm_layer.blobs()[4], ni, Dtype(0.0));
+        } else if(has_scale_layer) {
+          set_blob_data_at_chan(scale_layer->blobs()[0], ni, Dtype(1.0));
+          if(has_scale_layer_bias) {
+            set_blob_data_at_chan(scale_layer->blobs()[1], ni, Dtype(0.0));
+          }
+        }
+        set_blob_data_at_chan(batch_norm_mean, ni, Dtype(0.0));
+        //Change var so that after adding eps, it becomes 1.0
+        set_blob_data_at_chan(batch_norm_var, ni, Dtype(1.0 - eps));
+      }
+
+      //transfer back to gpu
+      for(int blob_id=0; blob_id<conv_layer.blobs().size(); blob_id++) {
+          conv_layer.blobs()[blob_id]->gpu_data<Dtype>();
+      }
+      for(int blob_id=0; blob_id<batch_norm_layer.blobs().size(); blob_id++) {
+          batch_norm_layer.blobs()[blob_id]->gpu_data<Dtype>();
+      }
+      if(has_scale_layer) {
+          for(int blob_id=0; blob_id<scale_layer->blobs().size(); blob_id++) {
+              scale_layer->blobs()[blob_id]->gpu_data<Dtype>();
+          }
+      }
+
+    }
+  }
+#endif
+
+}
+
+
+template void Net::OptimizeNet<float>();
+
+
+void Net::StartQuantization() {
+  bool quantize = (net_param_.quantize() && net_param_.net_quantization_param().quantization_start() > 0);
+  if(quantize) {
+    const NetQuantizationParameter& net_qparam = net_param_.net_quantization_param();
+    if(infer_count_ >= net_qparam.quantization_start()) {
+      this->SetQuantizationParams();
+      if(infer_count_ == net_qparam.quantization_start()) {
+        LOG(INFO)<< "Enabling quantization flag in quantization_param at infer/iter index: " << infer_count_;
+        this->EnableQuantizationForSelectedLayers();
+      }
+    }
+  }
+}
+
+void Net::FinishQuantization() {
+  bool quantize = (net_param_.quantize() && net_param_.net_quantization_param().quantization_start() > 0);
+  if(quantize) {
+    const NetQuantizationParameter& net_qparam = net_param_.net_quantization_param();
+    this->UpdateQuantizationRangeInLayers();
+
+    if(net_qparam.quantization_start() > 0 && infer_count_ >= net_qparam.quantization_start()) {
+      string phase = this->phase() == caffe::TRAIN ? "Train" : "Test";
+      if (net_qparam.display_quantization() > 0 && (infer_count_ % net_qparam.display_quantization() == 0)) {
+        LOG(INFO)<< "Quantizing the net: " << this->name() + " " + phase;
+        this->DisplayQuantizationParams();
+      }
+    }
+  }
+}
+
+void Net::ClearQuantizationRangeInLayers() {
+  max_in_.clear();
+  max_out_.clear();
+  max_weights_.clear();
+
+  min_in_.clear();
+  min_out_.clear();
+  min_weights_.clear();
+}
+
+void Net::CopyQuantizationRangeInLayers() {
+  max_in_.resize(layers_.size());
+  max_out_.resize(layers_.size());
+  max_weights_.resize(layers_.size());
+
+  min_in_.resize(layers_.size());
+  min_out_.resize(layers_.size());
+  min_weights_.resize(layers_.size());
+
+  for (int layer_id = 0; layer_id < layers_.size(); layer_id++) {
+    min_in_[layer_id].resize(bottom_vecs_[layer_id].size(), 0);
+    max_in_[layer_id].resize(bottom_vecs_[layer_id].size(), 0);
+    min_weights_[layer_id].resize(layers_[layer_id]->blobs().size(), 0);
+    max_weights_[layer_id].resize(layers_[layer_id]->blobs().size(), 0);
+    min_out_[layer_id].resize(top_vecs_[layer_id].size(), 0);
+    max_out_[layer_id].resize(top_vecs_[layer_id].size(), 0);
+  }
+
+  for (int layer_id = 0; layer_id < layers_.size(); layer_id++) {
+    if(!layers_[layer_id]->layer_param().has_quantization_param()) {
+      continue;
+    }
+    const QuantizationParameter& source_quantization_param = layers_[layer_id]->layer_param().quantization_param();
+    for(int blob_id = 0; blob_id<min_in_[layer_id].size(); blob_id++) {
+      min_in_[layer_id][blob_id] = source_quantization_param.qparam_in(blob_id).min();
+      max_in_[layer_id][blob_id] = source_quantization_param.qparam_in(blob_id).max();
+    }
+    for(int blob_id = 0; blob_id<layers_[layer_id]->blobs().size(); blob_id++) {
+      min_weights_[layer_id][blob_id] = source_quantization_param.qparam_w(blob_id).min();
+      max_weights_[layer_id][blob_id] = source_quantization_param.qparam_w(blob_id).max();
+    }
+    for(int blob_id = 0; blob_id<min_out_[layer_id].size(); blob_id++) {
+      min_out_[layer_id][blob_id] = source_quantization_param.qparam_out(blob_id).min();
+      max_out_[layer_id][blob_id] = source_quantization_param.qparam_out(blob_id).max();
+    }
+  }
+}
+
+void Net::UpdateQuantizationRangeInLayers() {
+  const NetQuantizationParameter& net_qparam = net_param_.net_quantization_param();
+
+  max_in_.resize(layers_.size());
+  max_out_.resize(layers_.size());
+  max_weights_.resize(layers_.size());
+
+  min_in_.resize(layers_.size());
+  min_out_.resize(layers_.size());
+  min_weights_.resize(layers_.size());
+
+  for (int layer_id = 0; layer_id < layers_.size(); layer_id++) {
+    min_in_[layer_id].resize(bottom_vecs_[layer_id].size(), 0);
+    max_in_[layer_id].resize(bottom_vecs_[layer_id].size(), 0);
+    min_weights_[layer_id].resize(layers_[layer_id]->blobs().size(), 0);
+    max_weights_[layer_id].resize(layers_[layer_id]->blobs().size(), 0);
+    min_out_[layer_id].resize(top_vecs_[layer_id].size(), 0);
+    max_out_[layer_id].resize(top_vecs_[layer_id].size(), 0);
+  }
+
+  // Find maximal values.
+  float range_expansion_factor = net_qparam.range_expansion_factor();
+  float beta = (infer_count_ == 0? 1.0 : net_qparam.range_update_factor());
+  float alpha = (1.0 - beta);
+
+  for (int layer_id = 0; layer_id < layers_.size(); layer_id++) {
+    if(bottom_vecs_[layer_id].size()>0) {
+        for(int blob_id = 0; blob_id<bottom_vecs_[layer_id].size(); blob_id++) {
+            float min_in = bottom_vecs_[layer_id][blob_id]->min(0, 0);
+            float max_in = bottom_vecs_[layer_id][blob_id]->max(0, 0);
+            min_in *= range_expansion_factor;
+            max_in *= range_expansion_factor;
+            min_in_[layer_id][blob_id] = min_in_[layer_id][blob_id] * alpha +  min_in * beta;
+            max_in_[layer_id][blob_id] = max_in_[layer_id][blob_id] * alpha +  max_in * beta;
+        }
+    }
+
+    if(top_vecs_[layer_id].size()>0) {
+        for(int blob_id = 0; blob_id<top_vecs_[layer_id].size(); blob_id++) {
+            float min_out = top_vecs_[layer_id][blob_id]->min(0, 0);
+            float max_out = top_vecs_[layer_id][blob_id]->max(0, 0);
+            min_out *= range_expansion_factor;
+            max_out *= range_expansion_factor;
+            min_out_[layer_id][blob_id] = min_out_[layer_id][blob_id] * alpha +  min_out * beta;
+            max_out_[layer_id][blob_id] = max_out_[layer_id][blob_id] * alpha +  max_out * beta;
+        }
+    }
+
+    //TODO: Set to 1 to consider the weights only, and ignore the bias
+    int max_params_to_consider = INT_MAX;
+    int num_params = std::min((int)layers_[layer_id]->blobs().size(), max_params_to_consider);
+    if(num_params > 0) {
+        for(int blob_id = 0; blob_id < num_params; blob_id++) {
+          float min_weights = (float)layers_[layer_id]->blobs()[blob_id]->min(0, 0);
+          float max_weights = (float)layers_[layer_id]->blobs()[blob_id]->max(0, 0);
+          //for weights, we can use the actual range - no need for running average.
+          //min_weights *= expansion_factor;
+          //max_weights *= expansion_factor;
+          //min_weights_[layer_id] = min_weights_[layer_id] * alpha + min_weights * beta;
+          //max_weights_[layer_id] = max_weights_[layer_id] * alpha + max_weights * beta;
+          min_weights_[layer_id][blob_id] = min_weights;
+          max_weights_[layer_id][blob_id] = max_weights;
+        }
+    }
+  }
+}
+
+
+void Net::EnableQuantizationForSelectedLayers() {
+  const NetQuantizationParameter& net_qparam = net_param_.net_quantization_param();
+  if(net_qparam.insert_quantization_param()) {
+    for (int layer_id = 0; layer_id < layers_.size(); layer_id++) {
+      std::string layer_name = layers_[layer_id]->layer_param().name();
+      std::string layer_type = layers_[layer_id]->layer_param().type();
+      std::string layer_type_next = ((layer_id+1) < layers_.size())? layers_[layer_id+1]->layer_param().type() : "";
+      std::string layer_type_next2 = ((layer_id+2) < layers_.size())? layers_[layer_id+2]->layer_param().type() : "";
+      std::string layer_type_prev = (layer_id>0)? layers_[layer_id-1]->layer_param().type() : "";
+      std::string layer_type_prev2 = (layer_id>1)? layers_[layer_id-2]->layer_param().type() : "";
+
+     //It is assumed that operations across multiple blobs (such as eltwise) is done in high precision.
+     //So, we don't need to align the quantization ranges of different inputs.
+     //Infact we don't quantize the input - it is assumed to be already quantized when it reaches the current layer.
+
+      //quantize weights
+      if(net_qparam.quantize_weights()) {
+        if(layer_type == "Convolution" || layer_type == "InnerProduct" || layer_type == "Deconvolution") {
+          QuantizationParameter& quantization_param = *layers_[layer_id]->mutable_layer_param().mutable_quantization_param();
+          for(int blob_id=0; blob_id<layers_[layer_id]->blobs().size(); blob_id++) {
+            if(quantization_param.qparam_w_size() <= blob_id) {
+              quantization_param.add_qparam_w();
+            }
+            quantization_param.mutable_qparam_w(blob_id)->set_quantize(true);
+          }
+        }
+      }
+
+      bool is_merged_layer = false;
+      if(layer_type == "Convolution" || layer_type == "InnerProduct" || "Deconvolution") {
+          if(layer_type_next == "BatchNorm" || layer_type_next == "Scale" || layer_type_next == "ReLU") {
+              is_merged_layer = true;
+          }
+      } else if(layer_type == "BatchNorm") {
+          if(layer_type_next == "Scale" || layer_type_next == "ReLU") {
+              is_merged_layer = true;
+          } else if(layer_type_next == "Convolution") {
+              if(layer_type_prev != "Convolution") {
+                  is_merged_layer = true;
+              }
+          } else if(layer_type_next == "Convolution" || layer_type_next == "Scale") {
+              if(layer_type_prev != "Convolution") {
+                  is_merged_layer = true;
+              }
+          }
+      } else if(layer_type == "Scale") {
+          if(layer_type_next == "ReLU") {
+              is_merged_layer = true;
+          } else if(layer_type_next == "Convolution") {
+              if(layer_type_prev != "Convolution" && layer_type_prev2 != "Convolution") {
+                  is_merged_layer = true;
+              }
+          }
+      }
+
+      //for data layers, only quantize the first output and ignore the others (eg. label)
+      int max_blobs_to_quantize = INT_MAX;
+      string layer_type_lower = layer_type;
+      std::transform(layer_type_lower.begin(), layer_type_lower.end(), layer_type_lower.begin(),
+              [](unsigned char c) {return std::tolower(c);}
+      );
+      if(layer_type_lower.find("data") != string::npos) {
+          max_blobs_to_quantize = 1;
+      }
+
+      bool is_quantized_layer_type = false;
+      if(layer_type == "Convolution" || layer_type == "InnerProduct" || layer_type == "Deconvolution" ||
+              layer_type == "BatchNorm" || layer_type == "Scale" || layer_type == "ReLU" ||
+              layer_type == "PReLU" || layer_type == "Eltwise" || layer_type == "Concat") {
+          is_quantized_layer_type = true;
+      }
+      if(layer_type_lower.find("data") != string::npos) {
+          is_quantized_layer_type = true;
+      }
+
+      bool is_ignored_layer_name = false;
+      for(int i=0; i<net_qparam.ignored_layer_names_size(); i++) {
+          if(layer_name == net_qparam.ignored_layer_names(i)) {
+              is_ignored_layer_name = true;
+          }
+      }
+
+      //quantize output activations
+      if(net_qparam.quantize_activations()) {
+          if(is_quantized_layer_type && (!is_merged_layer) && (!is_ignored_layer_name)) {
+              QuantizationParameter& quantization_param = *layers_[layer_id]->mutable_layer_param().mutable_quantization_param();
+              for(int blob_id=0; blob_id<top_vecs_[layer_id].size(); blob_id++) {
+                if(quantization_param.qparam_out_size() <= blob_id) {
+                  quantization_param.add_qparam_out();
+                }
+                if(blob_id < max_blobs_to_quantize) {
+                  quantization_param.mutable_qparam_out(blob_id)->set_quantize(true);
+                }
+              }
+              LOG(INFO) << "Enabling quantization at output of: " << layer_type << " " << layer_name;
+          }
+      }
+    }
+  }
+}
+
+void Net::SetQuantizationParams() {
+  const NetQuantizationParameter& net_qparam = net_param_.net_quantization_param();
+
+  if(net_qparam.insert_quantization_param()) {
+    //insert quantization_param in the layers that do not have it
+    QuantizationParameter_Rounding rounding_scheme = (this->phase() == caffe::TRAIN ?
+            QuantizationParameter_Rounding_STOCHASTIC : net_qparam.rounding_scheme());
+
+    for (int layer_id = 0; layer_id < layers_.size(); layer_id++) {
+      if (true/*!layers_[layer_id]->layer_param().has_quantization_param()*/) {
+        QuantizationParameter& quantization_param = *layers_[layer_id]->mutable_layer_param().mutable_quantization_param();
+
+        quantization_param.set_precision(net_qparam.precision());
+        quantization_param.set_rounding_scheme(rounding_scheme);
+        quantization_param.set_power2_scale_weights(net_qparam.power2_scale_weights());
+        quantization_param.set_power2_scale_activations(net_qparam.power2_scale_activations());
+        quantization_param.set_quantized_infer_count(infer_count_ - net_qparam.quantization_start());
+
+        // quantize parameters
+        SetQuantizationParamsLayerWeights(layer_id);
+
+        // quantize input activations
+        SetQuantizationParamsLayerInput(layer_id);
+
+        // quantize output activations
+        SetQuantizationParamsLayerOutput(layer_id);
+      }
+    }
+  }
+}
+
+int Net::EstimateAbsBits(float val) {
+    return (val!=0)? ceil(log2(std::fabs(val))) : 0;
+}
+
+void Net::EstiamteQScaleParams(float min, float max, int bitwidth, bool power2_scale,
+    bool unsigned_data, bool apply_offset, QuantizationParameter::QParams& qparam_xx) {
+  qparam_xx.set_bitwidth(bitwidth);
+  qparam_xx.set_unsigned_data(unsigned_data);
+  qparam_xx.set_unsigned_quant(unsigned_data || apply_offset);
+  qparam_xx.set_min(min);
+  qparam_xx.set_max(max);
+
+  float max_val_abs = std::max(std::fabs(max), std::fabs(min));
+  float max_val_range = std::abs(max - min);
+
+  if(power2_scale) {
+    int estimated_bits = apply_offset? EstimateAbsBits(max_val_range) :
+        (unsigned_data? EstimateAbsBits(max_val_abs) : (EstimateAbsBits(max_val_abs)+1));
+    int fracbits = bitwidth - estimated_bits;
+    qparam_xx.set_fracbits(fracbits);
+
+    float scale = fracbits>0? float(1<<fracbits) : float(1.0/(1<<std::abs(fracbits)));
+    qparam_xx.set_scale(scale);
+    qparam_xx.set_offset(apply_offset? (0 - min * scale) : 0);
+  } else {
+    //We can even use (1L<<bitwidth). Since we clip the quantized output - this should not be an issue.
+    //However found that ((1L<<bitwidth)-1) gave slightly better quality
+    float max_qrange = ((1L<<bitwidth)-1);
+    float max_qrange_half = ((1L<<(bitwidth-1))-1);
+    float scale = apply_offset? max_qrange/max_val_range :
+        (unsigned_data? max_qrange/max_val_abs : max_qrange_half/max_val_abs);
+    qparam_xx.set_scale(scale);
+
+    //fracbits is not integer - so cannot be set accurately.
+    qparam_xx.set_fracbits(0);
+    qparam_xx.set_offset(apply_offset? (0 - min * scale) : 0);
+  }
+}
+
+void Net::SetQuantizationParamsLayerInput(const int layer_id) {
+  const NetQuantizationParameter& net_qparam = net_param_.net_quantization_param();
+  QuantizationParameter& quantization_param = *layers_[layer_id]->mutable_layer_param().mutable_quantization_param();
+
+  int num_bottom_vecs = bottom_vecs_[layer_id].size();
+  //It is assumed that operations across multiple blobs (such as eltwise) is done in high precision.
+  //So, we don't need to align the quantization ranges of different inputs.
+  for(int blob_id = 0; blob_id<num_bottom_vecs; blob_id++) {
+    if(quantization_param.qparam_in_size() <= blob_id) {
+      quantization_param.add_qparam_in();
+    }
+    float min_layer = min_in_[layer_id][blob_id];
+    float max_layer = max_in_[layer_id][blob_id];
+
+    bool unsigned_data = (min_layer>=0);
+    QuantizationParameter::QParams& qparam_in = *quantization_param.mutable_qparam_in(blob_id);
+    EstiamteQScaleParams(min_layer, max_layer, net_qparam.bitwidth_activations(),
+       net_qparam.power2_scale_activations(), unsigned_data, net_qparam.apply_offset_activations(), qparam_in);
+  }
+}
+
+void Net::SetQuantizationParamsLayerOutput(const int layer_id) {
+  const NetQuantizationParameter& net_qparam = net_param_.net_quantization_param();
+  QuantizationParameter& quantization_param = *layers_[layer_id]->mutable_layer_param().mutable_quantization_param();
+  int num_top_vecs = top_vecs_[layer_id].size();
+  for(int blob_id = 0; blob_id<num_top_vecs; blob_id++) {
+      if(quantization_param.qparam_out_size() <= blob_id) {
+        quantization_param.add_qparam_out();
+      }
+      float min_layer = min_out_[layer_id][blob_id];
+      float max_layer = max_out_[layer_id][blob_id];
+      bool unsigned_data = (min_layer>=0);
+
+      QuantizationParameter::QParams& qparam_out = *quantization_param.mutable_qparam_out(blob_id);
+      EstiamteQScaleParams(min_layer, max_layer, net_qparam.bitwidth_activations(),
+          net_qparam.power2_scale_activations(), unsigned_data, net_qparam.apply_offset_activations(), qparam_out);
+
+      int num_blobs = layers_[layer_id]->blobs().size();
+      int fracbits_in = quantization_param.qparam_in_size()>0? quantization_param.qparam_in(0).fracbits() : 0;
+      int fracbits_weights = num_blobs>0? quantization_param.qparam_w(0).fracbits() : 0;
+      int fracbits_out = qparam_out.fracbits();
+      //avoid left shift at output - will lose accuracy
+      if((fracbits_in + fracbits_weights) < fracbits_out) {
+        fracbits_out = (fracbits_in + fracbits_weights);
+        qparam_out.set_fracbits(fracbits_out);
+      }
+
+      //qparam_out.set_fractbits(fracbits_out);
+      if(qparam_out.quantize()) {
+        if(num_blobs>0 && quantization_param.qparam_in_size()>0 && (fracbits_in + fracbits_weights) < fracbits_out) {
+          LOG(FATAL) << "Qformat error for layer: " << layers_[layer_id]->layer_param().name()
+              << "  fracbits_in:" << fracbits_in << " fracbits_weights:" << fracbits_weights
+              << " fracbits_out:" << fracbits_out;
+        }
+      }
+  }
+}
+
+void Net::SetQuantizationParamsLayerWeights(const int layer_id) {
+  const NetQuantizationParameter& net_qparam = net_param_.net_quantization_param();
+  QuantizationParameter& quantization_param = *layers_[layer_id]->mutable_layer_param().mutable_quantization_param();
+  std::string layer_type = layers_[layer_id]->layer_param().type();
+
+  int num_blobs = layers_[layer_id]->blobs().size();
+  for(int blob_id = 0; blob_id<num_blobs; blob_id++) {
+    if(quantization_param.qparam_w_size() <= blob_id) {
+      quantization_param.add_qparam_w();
+    }
+
+    float min_layer = min_weights_[layer_id][blob_id];
+    float max_layer = max_weights_[layer_id][blob_id];
+    bool unsigned_data = (min_layer>=0);
+    int bitwidth = (layer_type == "BatchNorm" || blob_id > 0)? net_qparam.bitwidth_bias() : net_qparam.bitwidth_weights();
+    QuantizationParameter::QParams& qparam_w = *quantization_param.mutable_qparam_w(blob_id);
+    EstiamteQScaleParams(min_layer, max_layer, bitwidth,
+        net_qparam.power2_scale_weights(), unsigned_data, net_qparam.apply_offset_weights(), qparam_w);
+  }
+}
+
+
+void Net::DisplayQuantizationParams() {
+  const NetQuantizationParameter& net_qparam = net_param_.net_quantization_param();
+
+  for (int i = 0; i < layers_.size(); ++i) {
+    if (layers_[i]->layer_param().has_quantization_param()) {
+      // if this is a convolutional layer which should be quantized ...
+      QuantizationParameter& quantization_param = *layers_[i]->mutable_layer_param().mutable_quantization_param();
+      int num_blobs = layers_[i]->blobs().size();
+      if (quantization_param.qparam_w_size()>0 && net_qparam.quantize_weights() && num_blobs>0 && quantization_param.qparam_w(0).quantize()) {
+        LOG(INFO)<<" Q weights:" << i << " Name:" << layers_[i]->layer_param().name() <<
+        " bitwidth:" << quantization_param.qparam_w(0).bitwidth() <<
+        " fracbits:" << quantization_param.qparam_w(0).fracbits() <<
+        " scale:" << quantization_param.qparam_w(0).scale() <<
+        " offset:" << quantization_param.qparam_w(0).offset() <<
+        " unsigned_data:" << quantization_param.qparam_w(0).unsigned_data() <<
+        " min:" << quantization_param.qparam_w(0).min() <<
+        " max:" << quantization_param.qparam_w(0).max();
+      }
+
+      if (quantization_param.qparam_w_size()>1 && net_qparam.quantize_weights() && num_blobs>1 && quantization_param.qparam_w(1).quantize()) {
+        LOG(INFO)<<" Q bias:" << i << " Name:" << layers_[i]->layer_param().name() <<
+        " bitwidth:" << quantization_param.qparam_w(1).bitwidth() <<
+        " fracbits:" << quantization_param.qparam_w(1).fracbits() <<
+        " scale:" << quantization_param.qparam_w(1).scale() <<
+        " offset:" << quantization_param.qparam_w(1).offset() <<
+        " unsigned_data:" << quantization_param.qparam_w(1).unsigned_data() <<
+        " min:" << quantization_param.qparam_w(1).min() <<
+        " max:" << quantization_param.qparam_w(1).max();
+      }
+
+      if (quantization_param.qparam_in_size()>0 && net_qparam.quantize_activations() && quantization_param.qparam_in(0).quantize()) {
+        int num_bottom_vecs = bottom_vecs_[i].size();
+        std::stringstream ss;
+        ss << " Q input :" << i << " Name:" << layers_[i]->layer_param().name();
+        for(int blob_id=0; blob_id<std::min<int>(num_bottom_vecs, quantization_param.qparam_in_size()); blob_id++) {
+          ss << " bitwidth:" << quantization_param.qparam_in(blob_id).bitwidth();
+          ss << " fracbits:" << quantization_param.qparam_in(blob_id).fracbits();
+          ss << " scale:" << quantization_param.qparam_in(blob_id).scale() ;
+          ss << " offset:" << quantization_param.qparam_in(blob_id).offset() ;
+          ss << " unsigned_data:" << quantization_param.qparam_in(blob_id).unsigned_data();
+          ss << " min:" << quantization_param.qparam_in(blob_id).min();
+          ss << " max:" << quantization_param.qparam_in(blob_id).max();
+        }
+        LOG(INFO) << ss.str();
+      }
+
+      if (quantization_param.qparam_out_size()>0 && net_qparam.quantize_activations() && quantization_param.qparam_out(0).quantize()) {
+        LOG(INFO)<< " Q output:" << i << " Name:" << layers_[i]->layer_param().name() <<
+        " bitwidth:" << quantization_param.qparam_out(0).bitwidth() <<
+        " fracbits:" << quantization_param.qparam_out(0).fracbits() <<
+        " scale:" << quantization_param.qparam_out(0).scale() <<
+        " offset:" << quantization_param.qparam_out(0).offset() <<
+        " unsigned_data:" << quantization_param.qparam_out(0).unsigned_data() <<
+        " min:" << quantization_param.qparam_out(0).min() <<
+        " max:" << quantization_param.qparam_out(0).max();
+      }
+    }
+  }
+}
+
+void Net::DisableQuantization() {
+  for (int i = 0; i < layers_.size(); ++i) {
+    if (layers_[i]->layer_param().has_quantization_param()) {
+      QuantizationParameter& quantization_param = *layers_[i]->mutable_layer_param().mutable_quantization_param();
+      quantization_param.set_precision(QuantizationParameter_Precision_FLOAT);
+    }
+  }
+}
+
+
+//Old, deprecated function.
+void Net::FindAndApplyThresholdNet(float threshold_fraction_low, float threshold_fraction_mid, float threshold_fraction_high,
+    float threshold_value_maxratio, float threshold_value_max, float threshold_step_factor, bool verbose) {
+
+  for (int i = 0; i < layers_.size(); i++) {
+    if (layers_[i]->type() == std::string("Convolution")) {
+      LayerBase& conv_layer = *layers_[i];
+      Blob& conv_weights = *conv_layer.blobs()[0];
+      int num_group = layers_[i]->layer_param().convolution_param().group();
+      //int stride = layers_[i]->layer_param().convolution_param().stride_size()>0? layers_[i]->layer_param().convolution_param().stride(0) : 1;
+
+      int no = (conv_weights.num_axes() == 1)? conv_weights.count() : conv_weights.shape(0);
+      int ni = ((conv_weights.num_axes() == 1)? conv_weights.count() : conv_weights.shape(1))*num_group;
+      float count = conv_weights.count();
+    if(verbose) {
+        LOG(WARNING) << layers_[i]->layer_param().name() << " ni=" << ni << " no=" << no;
+    }
+
+      if((ni>=32 || no >= 32) && num_group<no) {
+        float threshold_fraction_selected = ((ni>=256 && no >= 512)? threshold_fraction_high :
+            ((ni>=32 && no >= 32)? threshold_fraction_mid: threshold_fraction_low));
+        float selected_threshold = 0;
+        float max_abs = std::abs(conv_weights.max(0, 0));
+        float min_abs = std::abs(conv_weights.min(0, 0));
+        float max_abs_value = std::max<float>(max_abs, min_abs);
+        float step_size = max_abs_value * threshold_step_factor;
+        float max_threshold_value = std::min<float>(threshold_value_max, max_abs_value*threshold_value_maxratio);
+
+        float step_sizeX = step_size*100;
+        float selected_thresholdX = 0;
+        for(float step=0; step<max_abs_value && step<max_threshold_value; step+=step_sizeX) {
+          float zcount = conv_weights.count_zero((float)step, 0, 0);
+          float zratio = zcount / count;
+          if(zratio <= threshold_fraction_selected) {
+            selected_thresholdX = step;
+          } else {
+            break;
+          }
+        }
+
+        for(float step=std::max((selected_thresholdX-step_sizeX),0.0f);
+            step<(selected_thresholdX+step_sizeX) && step<max_abs_value && step<max_threshold_value;
+            step+=step_size) {
+          float zcount = conv_weights.count_zero((float)step, 0, 0);
+          float zratio = zcount / count;
+          if(zratio <= threshold_fraction_selected) {
+            selected_threshold = step;
+          } else {
+            break;
+          }
+        }
+
+        conv_weights.zerout(selected_threshold, 0, 0);
+
+        if(verbose) {
+          float zcount = conv_weights.count_zero(0.0, 0, 0);
+          LOG(WARNING) << layers_[i]->layer_param().name() << " MaxAbsWeight=" << max_abs_value
+              << " MaxThreshold=" << max_threshold_value << " SelectedThreshold=" << selected_threshold
+              << " ZeroPercentage=" << (zcount*100/count);
+        }
+      }
+    }
+  }
+}
+
+
+void Net::FindAndApplyChannelThresholdNet(float threshold_fraction_low, float threshold_fraction_mid, float threshold_fraction_high,
+    float threshold_value_maxratio, float threshold_value_max, float threshold_step_factor, bool verbose) {
+
+  for (int i = 0; i < layers_.size(); i++) {
+    if (layers_[i]->type() == std::string("Convolution")) {
+      LayerBase& conv_layer = *layers_[i];
+      Blob& conv_weights = *conv_layer.blobs()[0];
+      const ConvolutionParameter& conv_param = layers_[i]->layer_param().convolution_param();
+      const string layer_name = layers_[i]->layer_param().name();
+
+      int num_group = conv_param.group();
+      //int stride = conv_param.stride_size()>0? conv_param.stride(0) : 1;
+      int kernel_shape_data[2];
+      if (conv_param.has_kernel_h() || conv_param.has_kernel_w()) {
+        kernel_shape_data[0] = conv_param.kernel_h();
+        kernel_shape_data[1] = conv_param.kernel_w();
+      } else {
+        const int num_kernel_dims = conv_param.kernel_size_size();
+        for (int i = 0; i < 2; ++i) {
+          kernel_shape_data[i] = conv_param.kernel_size((num_kernel_dims == 1) ? 0 : i);
+        }
+      }
+
+      int no = (conv_weights.num_axes() == 1)? conv_weights.count() : conv_weights.shape(0);
+      int ni = ((conv_weights.num_axes() == 1)? conv_weights.count() : conv_weights.shape(1))*num_group;
+      float count = conv_weights.count();
+      if(verbose) {
+        LOG(WARNING) << layers_[i]->layer_param().name() << " ni=" << ni << " no=" << no;
+      }
+
+      //need to add it as cfg option :FIX_ME:SN
+      const bool no_sparsity_for_small_kernel = true;
+      bool need_sparsity_for_this_layer = true;
+      if (no_sparsity_for_small_kernel)
+        need_sparsity_for_this_layer = ( kernel_shape_data[0] > 2) && (kernel_shape_data[1] > 2);  
+
+
+      //apply sparsity only to certain layers. exclude layers with small number of input and outputs
+      //also exclude depth-wise separable layers.
+      if((ni>=32 || no >= 32)  && (num_group<no) && need_sparsity_for_this_layer) {
+        float threshold_fraction_selected = ((ni>=256 && no >= 512)? threshold_fraction_high :
+            ((ni>=32 && no >= 32)? threshold_fraction_mid: threshold_fraction_low));
+
+        for(int c=0; c<no; c++) {
+          int weight_count_channel = ni * kernel_shape_data[0] * kernel_shape_data[1] / num_group;
+          int start_index = weight_count_channel * c;
+
+          float max_abs = std::abs(conv_weights.max(start_index, weight_count_channel));
+          float min_abs = std::abs(conv_weights.min(start_index, weight_count_channel));
+          float max_abs_value = std::max<float>(max_abs, min_abs);
+          float step_size = max_abs_value * threshold_step_factor;
+          float max_threshold_value = std::min<float>(std::min<float>(threshold_value_max, max_abs_value*threshold_value_maxratio), max_abs_value);
+          bool verbose_th_val = false;
+          if(verbose && verbose_th_val) {
+            if ((max_abs_value*threshold_value_maxratio) > threshold_value_max) {
+                LOG(INFO) << "threshold_value_max " << threshold_value_max;
+                LOG(INFO) << "threshold_value_maxratio " << threshold_value_maxratio;
+                LOG(INFO) << "max_abs_value*threshold_value_maxratio " << (max_abs_value*threshold_value_maxratio);
+                LOG(INFO) << "final threshold_value used" << max_threshold_value; 
+            }
+          }
+
+          float selected_threshold = 0;
+          float granurality_start = 1000;
+          for(float granurality = granurality_start, search_iter=0; granurality>=1; granurality=granurality/10, search_iter++) {
+            float step_sizeX = step_size * granurality;
+            float range_sizeX = step_sizeX*10*2;
+            float start_valueX = selected_threshold;
+
+            float min_step_val = search_iter>0? std::max((start_valueX-range_sizeX),0.0f) : 0;
+            float max_step_val = search_iter>0? (start_valueX+range_sizeX) : max_threshold_value;
+            for(float step= min_step_val; step<max_step_val && step<max_threshold_value; step+=step_sizeX) {
+              float zcount = conv_weights.count_zero((float)step, start_index, weight_count_channel);
+              float zratio = zcount / weight_count_channel;
+              if(zratio <= threshold_fraction_selected) {
+                selected_threshold = step;
+              } else {
+                break;
+              }
+            }
+          }
+
+          conv_weights.zerout(selected_threshold, start_index, weight_count_channel);
+          //LOG(INFO) << "Layer:" << layer_name << " channel:" << c << " threshold:"
+          //   << selected_threshold << " sparsity:"<< conv_weights.count_zero(0.0, start_index, weight_count_channel);
+        }
+
+        if(verbose) {
+          float zcount = conv_weights.count_zero(0.0, 0, 0);
+          LOG(WARNING) << layers_[i]->layer_param().name()
+              //<< " MaxAbsWeight=" << max_abs_value
+              //<< " MaxThreshold=" << max_threshold_value << " SelectedThreshold=" << selected_threshold
+              << " ZeroWeightsFraction=" << (zcount/count);
+        }
+      }
+    }
+  }
+}
+
+
+/**
+ * ApplySparseModeConnectivity
+ * Yet another way to do this is to store the threshold for each layer in FindAndApplyThresholdNet
+ * And just use it here. But the current implementation of this cuntion is more generic
+ * since it can be used when thresholding is completely outside.
+ */
+void Net::ApplySparseModeConnectivity() {
+  for (int i = 0; i < layers_.size(); i++) {
+    if (layers_[i]->type() == std::string("Convolution")) {
+      LayerBase& conv_layer = *layers_[i];
+      Blob& conv_weights = *conv_layer.blobs()[0];
+
+      //Use the connectivity information in the blob and zerout values accordingly.
+      conv_weights.ComputeSparseData();
+
+      //This is strictly not necessary
+      //conv_weights.ComputeSparseDiff();
+    }
+  }
+}
+
+void Net::StoreSparseModeConnectivity(SparseMode mode) {
+  LOG_IF(INFO, Caffe::root_solver()) << "All zero weights of convolution layers are frozen";
+  if(mode != SPARSE_NONE) {
+    for(int i=0; i<layers_.size(); i++) {
+      if(layers_[i]->type() == std::string("Convolution")) {
+        LayerBase& conv_layer = *layers_[i];
+        Blob& conv_weights = *conv_layer.blobs()[0];
+
+        //Store the non-zero weight information
+        conv_weights.StoreSparseModeConnectivity(mode);
+      }
+    }
+  }
+}
+
+float Net::DisplaySparsity(bool verbose) {
+  float total_zero_count = 0, total_count = 0;
+  {
+    std::map<std::string, std::pair<int,int> > spasity_map;
+    int blob_count = this->GetSparsity(spasity_map);
+    if(verbose) {
+      LOG(INFO) << "Num Params(" << blob_count << "), " << "Sparsity (zero_weights/count): ";
+    }
+
+    for(std::map<std::string, std::pair<int,int> >::iterator
+        iter = spasity_map.begin(); iter != spasity_map.end(); iter++) {
+      std::string param_name = iter->first;
+      float zero_count = iter->second.first;
+      float count = iter->second.second;
+      total_zero_count += zero_count;
+      total_count += count;
+      if(verbose) {
+        LOG(INFO) << param_name << "(" << std::setprecision(3) << (zero_count/count) << ") ";
+      }
+    }
+    if(verbose) {
+      LOG(INFO) << "Total Sparsity (zero_weights/count) = "
+          << " (" << total_zero_count << "/" << total_count << ") "
+          << std::setprecision(3) << (total_zero_count/total_count);
+    }
+  }
+
+  return (total_zero_count/total_count);
+}
+
+float Net::DisplayConnectivitySparsity(bool verbose) {
+  float total_zero_count = 0, total_count = 0;
+
+  std::map<std::string, std::pair<int,int> > spasity_map;
+  int blob_count = this->GetConnectivitySparsity(spasity_map);
+  if(verbose) {
+    LOG(INFO) << "Num Params(" << blob_count << "), " << "ConnectivitySparsity (zero_weights/count): ";
+  }
+
+  for(std::map<std::string, std::pair<int,int> >::iterator
+      iter = spasity_map.begin(); iter != spasity_map.end(); iter++) {
+    std::string param_name = iter->first;
+    float zero_count = iter->second.first;
+    float count = iter->second.second;
+    total_zero_count += zero_count;
+    total_count += count;
+    if(verbose) {
+      LOG(INFO) << param_name << "(" << std::setprecision(3) << (zero_count/count) << ") ";
+    }
+  }
+  if(verbose) {
+    LOG(INFO) << "Total ConnectivitySparsity (zero_weights/count) = "
+        << " (" << total_zero_count << "/" << total_count << ") "
+        << std::setprecision(3) << (total_zero_count/total_count);
+  }
+
+  return (total_zero_count/total_count);
+}
+
+int Net::GetSparsity(std::map<std::string, std::pair<int,int> >& sparsity_map){
+  int blob_count = 0;
+  float threshold = 0.0f;
+  sparsity_map.clear();
+  int max_params_to_check = 1;
+  for (int layer_id = 0; layer_id < layers_.size(); ++layer_id) {
+      const LayerParameter& layer_param = layers_[layer_id]->layer_param();
+
+      bool next_layer_is_softmax = false;
+      if((layer_id+1) < layers_.size() && (layers_[layer_id+1]->layer_param().type() == "Softmax" ||
+          layers_[layer_id+1]->layer_param().type() == "SoftmaxWithLoss")) {
+        next_layer_is_softmax = true;
+      }
+      bool next_layer_is_not_softmax = (!next_layer_is_softmax);
+      bool is_candidate_layer = (layer_param.type() == "Convolution" /*|| layer_param.type() == "InnerProduct"*/);
+
+      if(next_layer_is_not_softmax && is_candidate_layer)  {
+          int num_params_to_check = std::min<int>(max_params_to_check, layers_[layer_id]->blobs().size());
+          for (int param_id = 0; param_id < num_params_to_check;++param_id) {
+            const Blob& blob = *layers_[layer_id]->blobs()[param_id];
+            const int net_param_id = param_id_vecs_[layer_id][param_id];
+            const string& blob_name = param_display_names_[net_param_id];
+            //const Dtype data_abs_val_mean = blob.asum_data() / blob.count();
+            std::pair<int,int> sp_map = std::make_pair(blob.count_zero(threshold, 0, 0), blob.count());
+            sparsity_map[layer_names_[layer_id] + "_param_" + blob_name] = sp_map;
+            blob_count++;
+          }
+      }
+  }
+  return blob_count;
+}
+
+int Net::GetConnectivitySparsity(std::map<std::string, std::pair<int,int> >& sparsity_map){
+  int blob_count = 0;
+  float threshold = 0.0f;
+  sparsity_map.clear();
+  int max_params_to_check = 1;
+  for (int layer_id = 0; layer_id < layers_.size(); ++layer_id) {
+      const LayerParameter& layer_param = layers_[layer_id]->layer_param();
+
+      bool next_layer_is_softmax = false;
+      if((layer_id+1) < layers_.size() && (layers_[layer_id+1]->layer_param().type() == "Softmax" ||
+          layers_[layer_id+1]->layer_param().type() == "SoftmaxWithLoss")) {
+        next_layer_is_softmax = true;
+      }
+      bool next_layer_is_not_softmax = (!next_layer_is_softmax);
+      bool is_candidate_layer = (layer_param.type() == "Convolution" /*|| layer_param.type() == "InnerProduct"*/);
+
+      if(next_layer_is_not_softmax && is_candidate_layer) {
+          int num_params_to_check = std::min<int>(max_params_to_check, layers_[layer_id]->blobs().size());
+          for (int param_id = 0; param_id < num_params_to_check;++param_id) {
+            const Blob& blob = *layers_[layer_id]->blobs()[param_id];
+            const int net_param_id = param_id_vecs_[layer_id][param_id];
+            const string& blob_name = param_display_names_[net_param_id];
+            //const Dtype data_abs_val_mean = blob.asum_data() / blob.count();
+            std::pair<int,int> sp_map = std::make_pair(blob.count_zero_connectivity(threshold, 0, 0), blob.count());
+            sparsity_map[layer_names_[layer_id] + "_param_" + blob_name] = sp_map;
+            blob_count++;
+          }
+      }
+  }
+  return blob_count;
+}
+
+template void Net::Convert2FixedPoint_cpu(float* data, const int cnt, const int bw, int fl, bool unsigned_data, bool clip) const;
 
 }  // namespace caffe

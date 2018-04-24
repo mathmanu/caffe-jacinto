@@ -319,6 +319,9 @@ message NetParameter {
 
   // Sets the default "cudnn_math_override" value for every layer
   optional int32 default_cudnn_math_override = 19 [default = -1];
+  
+  optional bool quantize = 200 [default = false];  
+  optional NetQuantizationParameter net_quantization_param = 201;  
 }
 
 // NOTE
@@ -509,6 +512,23 @@ message SolverParameter {
   optional bool store_blobs_in_old_format = 45 [default = false];
   // If set to N>0, makes Caffe to test and snapshot last N epochs
   optional int32 test_and_snapshot_last_epochs = 54 [default = 0];
+  // Ignore mismatching blobs and continue while loading weights
+  optional bool ignore_shape_mismatch = 150 [default = true];
+    
+  // Wite additional snapshot in txt format
+  optional bool snapshot_log = 151 [default = false];
+
+  // Sparsity params
+  optional int32 display_sparsity = 152 [default = 0];
+  optional SparseMode sparse_mode = 153 [default = SPARSE_NONE];  
+  optional float sparsity_target = 154 [default = 0.0]; //desired sparsity as a fraction
+  optional float sparsity_step_factor = 155 [default = 0.01];  //sprsity step factor. 0.01 is 1%
+  optional int32 sparsity_step_iter = 156 [default = 1000];  //sprsity step increment iterations
+  optional int32 sparsity_start_iter = 157 [default = 0];  //sprsity start iteration  
+  optional float sparsity_start_factor = 158 [default = 0.0];  //sprsity start factor
+  optional float sparsity_threshold_maxratio = 159 [default = 0.2]; //default ratio of the max threshold allowed to the max weight
+  optional bool sparsity_itr_increment_bfr_applying = 160 [default = true]; //true:itr increment before applying sparsity(old behaviour), false: after applying sparsity
+  optional float sparsity_threshold_value_max = 161 [default = 0.2]; //threshold_value_max
 }
 
 // A message that stores the solver snapshots
@@ -706,6 +726,10 @@ message LayerParameter {
   // NVIDIA PARAMETERS (Start with 68 because NV is 68 on an old-style phone)
   optional DetectNetGroundTruthParameter detectnet_groundtruth_param = 6801;
   optional DetectNetAugmentationParameter detectnet_augmentation_param = 6802;
+
+  // TI PARAMETERS (Start with 84 because TI is 84 on an old-style phone)   
+  optional ImageLabelDataParameter image_label_data_param = 8403;
+  optional QuantizationParameter quantization_param = 8404;
 }
 
 // Message that stores parameters used to apply transformation
@@ -1687,6 +1711,7 @@ message MultiBoxLossParameter {
   optional NonMaximumSuppressionParameter nms_param = 21;
   optional int32 sample_size = 22 [default = 64];
   optional bool use_prior_for_nms = 23 [default = false];
+  optional bool ignore_difficult_gt = 24 [default = false];
 }
 
 message MVNParameter {
@@ -2295,3 +2320,136 @@ message PReLUParameter {
   // Whether or not slope parameters are shared across channels.
   optional bool channel_shared = 2 [default = false];
 }
+
+// Specifies how to deal with connections whose weights are recovered/initialized as zeros. 
+// Used for fine-tuning
+enum SparseMode {
+  SPARSE_NONE = 0;               //keep connected
+  SPARSE_UPDATE = 1;             //disconnect all zero-weight connections during back propagation udpate
+} 
+
+// Message for layers with reduced word with arithmetic
+enum QuantizationParameter_Precision {
+  QuantizationParameter_Precision_FLOAT = 0;    
+  QuantizationParameter_Precision_DYNAMIC_FIXED_POINT = 1;
+}
+enum QuantizationParameter_Rounding {
+  QuantizationParameter_Rounding_NEAREST = 0;
+  QuantizationParameter_Rounding_STOCHASTIC = 1;
+}
+
+// Quantization params for a layer
+message QuantizationParameter {  
+  optional QuantizationParameter_Precision precision = 1 [default = QuantizationParameter_Precision_DYNAMIC_FIXED_POINT];  
+  optional QuantizationParameter_Rounding rounding_scheme = 2 [default = QuantizationParameter_Rounding_NEAREST];
+  optional bool power2_scale_weights = 3 [default = false];
+  optional bool power2_scale_activations = 4 [default = false];  
+          
+  // Dynamic fixed point params
+  message QParams {
+    optional bool quantize = 1 [default = false];  
+    optional uint32 bitwidth = 2 [default = 8];    
+    optional int32 fracbits = 3 [default = 0];
+    optional bool unsigned_data = 4 [ default = false];
+    optional bool unsigned_quant = 5 [ default = false];    
+    optional float scale = 6 [default = 0];
+    optional float offset = 7 [default = 0];    
+    optional float min = 8 [default = 0];
+    optional float max = 9 [default = 0];    
+  }
+  repeated QParams qparam_in = 5;
+  repeated QParams qparam_w = 6;
+  repeated QParams qparam_out = 7;  
+  
+  optional int32 quantized_infer_count = 8 [ default = 0];  
+}
+
+// Quantization params for the net  
+message NetQuantizationParameter {
+  optional bool quantize_weights = 1 [default = true];
+  optional bool quantize_activations = 2 [default = true];  
+          
+  //8-bits doesn't seem to be working for classification if previous frame's range is used.  
+  optional uint32 bitwidth_weights = 3 [default = 12];
+  optional uint32 bitwidth_activations = 4 [default = 8];
+  optional uint32 bitwidth_bias = 5 [default = 16];
+        
+  //indicates whether quantized range is power of 2 or not. 
+  //if input is quantized with power2 range, the output quantized value can be obtained by shifting with fracbits
+  optional bool power2_scale_weights = 6 [default = false];
+  optional bool power2_scale_activations = 7 [default = false];
+      
+  //apply offset to make quantized range unsigned and optimal.
+  optional bool apply_offset_weights = 8 [default = true];
+  optional bool apply_offset_activations = 9 [default = false];  
+  
+  optional QuantizationParameter_Precision precision = 10 [default = QuantizationParameter_Precision_DYNAMIC_FIXED_POINT];  
+  optional QuantizationParameter_Rounding rounding_scheme = 11 [default = QuantizationParameter_Rounding_NEAREST];  
+    
+  optional int32 display_quantization = 12 [default = 2000];
+  optional bool insert_quantization_param = 13 [default = true];
+  
+  //frame/iter at which quantization is introduced    
+  optional int32 quantization_start = 14 [default = 1];  
+  optional float range_update_factor = 15 [default = 0.10];
+  optional float range_expansion_factor = 16 [default = 1.1]; 
+  
+  repeated string ignored_layer_names = 17;
+}
+
+message ImageSliceParameter {
+  repeated uint32 dim = 1;
+  repeated uint32 stride = 2;
+  repeated uint32 offset = 3;
+}
+
+
+message ImageLabelDataParameter {
+  enum DB {
+    LEVELDB = 0;
+    LMDB = 1;
+  }
+  // Specify the data source.
+  optional string image_list_path = 1;
+  optional string label_list_path = 2;
+  // Specify the batch size.
+  optional uint32 batch_size = 3 [default = 1];
+  // The rand_skip variable is for the data layer to skip a few data points
+  // to avoid all asynchronous sgd clients to start at the same point. The skip
+  // point would be set as rand_skip * rand(0,1). Note that rand_skip should not
+  // be larger than the number of keys in the database.
+  optional uint32 rand_skip = 4 [default = 0];
+  // Whether or not ImageLayer should shuffle the list of files at every epoch.
+  optional bool shuffle = 5 [default = false];
+
+  // Whether random sample image scales
+  optional float scale_prob = 6 [default = 0];
+  optional float scale_min = 7  [default = 1];
+  optional float scale_max = 8  [default = 1];
+
+  optional string data_dir = 9 [default = ""];
+
+  optional ImageSliceParameter label_slice = 10;
+
+  optional string image_dir = 11 [default = ""];
+  optional string label_dir = 12 [default = ""];
+
+  enum Padding {
+    ZERO = 0;
+    REFLECT = 1;
+  }
+
+  optional Padding padding = 13 [default = REFLECT];
+  
+  optional string image_dir2 = 14 [default = ""];  
+  optional string image_list_path2 = 15;  
+  
+  optional uint32 threads = 16 [default = 0];
+  optional uint32 size_min = 17 [default = 0];  
+  optional uint32 size_max = 18 [default = 0]; 
+  
+  optional bool check_image_files = 19 [default = false];
+  
+  optional DB backend = 20 [default = LEVELDB];  
+}
+

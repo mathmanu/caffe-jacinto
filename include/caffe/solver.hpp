@@ -211,6 +211,12 @@ class Solver {
     }
   }
 
+
+  void ThresholdNet();
+  void StoreSparseModeConnectivity();
+  float DisplaySparsity(bool verbose);
+  float DisplayConnectivitySparsity(bool verbose);
+  
   const SolverParameter param_;
   const Type data_type_;
   int iter_;
@@ -249,6 +255,8 @@ class Solver {
 
   static constexpr size_t MAX_SNAPSHOT_SCORES = 5;
 
+  float sparsity_factor_;
+  
   DISABLE_COPY_MOVE_AND_ASSIGN(Solver);
 };
 

@@ -51,14 +51,14 @@ Layer<Ftype, Btype>::Layer(const LayerParameter& param) : LayerBase(param) {
 
 // Serialize LayerParameter to protocol buffer
 template<typename Ftype, typename Btype>
-void Layer<Ftype, Btype>::ToProto(LayerParameter* param, bool write_diff) {
+void Layer<Ftype, Btype>::ToProto(LayerParameter* param, bool write_diff, bool write_data) {
   param->Clear();
   param->CopyFrom(layer_param_);
   param->clear_blobs();
   const bool old_format = this->parent_solver() != nullptr &&
       this->parent_solver()->param().store_blobs_in_old_format();
   for (int i = 0; i < blobs_.size(); ++i) {
-    blobs_[i]->ToProto(param->add_blobs(), old_format, write_diff);
+    blobs_[i]->ToProto(param->add_blobs(), old_format, write_diff, write_data);
   }
 }
 

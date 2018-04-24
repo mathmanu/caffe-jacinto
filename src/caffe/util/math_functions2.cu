@@ -4,6 +4,17 @@
 #include "caffe/util/math_functions.hpp"
 #include "caffe/util/gpu_math_functions.cuh"
 
+
+#include <thrust/device_ptr.h>
+#include <thrust/device_vector.h>
+#include <thrust/functional.h>  // thrust::plus
+#include <thrust/reduce.h>
+#include <thrust/extrema.h>
+#include <thrust/pair.h>
+#include <thrust/count.h>
+
+#include <cuda_fp16.h>
+
 namespace caffe {
 
 
@@ -504,5 +515,111 @@ void caffe_gpu_eltwise_min<float16>(const int N,
   CUDA_POST_KERNEL_CHECK;
   CUDA_CHECK(cudaStreamSynchronize(stream));
 }
+
+
+DEFINE_AND_INSTANTIATE_GPU_UNARY_FUNC(if_zero, y[index] = ((x[index] <= Dtype(0) && x[index] >= Dtype(-0) ) ? 1 : 0) );
+DEFINE_AND_INSTANTIATE_GPU_UNARY_FUNC(if_nonzero, y[index] = ((x[index] > Dtype(0) || x[index] < Dtype(-0) ) ? 1 : 0) )
+DEFINE_AND_INSTANTIATE_GPU_UNARY_FUNC(eltwise_multi, y[index] = y[index]*x[index] )
+
+DEFINE_AND_INSTANTIATE_GPU_1NARY_FUNC(set, x[index] = value, value )
+
+DEFINE_AND_INSTANTIATE_GPU_X2NARY_FUNC(zerout, y[index] = ((x[index] <= Dtype(threshold) && x[index] >= Dtype(-threshold)) ? Dtype(0) : x[index]), threshold )
+
+template <typename Dtype>
+struct CheckZeroFunctor {
+  CheckZeroFunctor(const Dtype threshold) : threshold(threshold) {
+  }
+  __host__ __device__ bool operator()(const Dtype& x) {
+    return (x<=(threshold) && x>=(-threshold));
+  }
+  const Dtype threshold;
+};
+
+//use an int return type always.
+template <typename Dtype>
+int caffe_gpu_count_zero(const int N, const Dtype* x, Dtype threshold) {
+  CheckZeroFunctor<Dtype> check_zero(threshold);
+  thrust::device_ptr<const Dtype> pWrapper(x);
+  int count = thrust::count_if(pWrapper, pWrapper+N, check_zero);
+  return count;
+}
+
+
+template
+int caffe_gpu_count_zero<float>(const int N, const float* x, float threshold);
+template
+int caffe_gpu_count_zero<double>(const int N, const double* x, double threshold);
+#if 0
+template
+int caffe_gpu_count_zero<float16>(const int N, const float16* x, float16 threshold);
+#else
+template<>
+int caffe_gpu_count_zero<float16>(const int N, const float16* x, float16 threshold) {
+  CHECK(false) << "caffe_gpu_count_zero<float16>() is disabled due to compilation error";
+  return 0;
+}
+#endif
+
+struct transform_op_float16_to_float {
+  __host__ __device__ float operator()(const float16 v1) {
+    return float(v1);
+  }  
+};
+
+template <typename Dtype>
+Dtype caffe_gpu_min(const int N, const Dtype* x) {
+  thrust::device_ptr<const Dtype> pWrapper(x);
+  const thrust::device_ptr<const Dtype> min_val = thrust::min_element(pWrapper, pWrapper+N);
+  return *min_val;
+}
+template
+float caffe_gpu_min(const int N, const float* x);
+template
+double caffe_gpu_min(const int N, const double* x);
+#if 0
+//Avoid float16 errors, probably because thrust::greater(), thrust::lesser() 
+//are not available for float16: provide a different specializer here
+template<>
+float16 caffe_gpu_min(const int N, const float16* x){
+  thrust::device_ptr<const float16> pWrapper(x);
+  float min_val = thrust::transform_reduce(pWrapper, pWrapper+N, transform_op_float16_to_float(), 
+    0, thrust::less<float>());
+  return min_val;
+}
+#else
+template<>
+float16 caffe_gpu_min(const int N, const float16* x){
+  CHECK(false) << "caffe_gpu_min<float16>() is disabled due to compilation error";
+  return 0;
+}
+#endif
+
+template <typename Dtype>
+Dtype caffe_gpu_max(const int N, const Dtype* x) {
+  thrust::device_ptr<const Dtype> pWrapper(x);
+  const thrust::device_ptr<const Dtype> max_val = thrust::max_element(pWrapper, pWrapper+N);
+  return *max_val;
+}
+template
+float caffe_gpu_max(const int N, const float* x);
+template
+double caffe_gpu_max(const int N, const double* x);
+#if 0
+//Avoid float16 errors, probably because thrust::greater(), thrust::lesser() 
+//are not available for float16: provide a different specializer here
+template<> 
+float16 caffe_gpu_max(const int N, const float16* x) {
+  thrust::device_ptr<const float16> pWrapper(x);
+   thrust::transform_reduce(pWrapper, pWrapper+N, transform_op_float16_to_float(), 
+    0., thrust::greater<float>());
+  return 0;
+}
+#else
+template<>
+float16 caffe_gpu_max(const int N, const float16* x){
+  CHECK(false) << "caffe_gpu_max<float16>() is disabled due to compilation error";
+  return 0;
+}
+#endif
 
 }  // namespace caffe

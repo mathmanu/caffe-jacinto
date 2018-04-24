@@ -27,7 +27,8 @@ Solver::Solver(const SolverParameter& param, size_t rank, const Solver* root_sol
     : param_(param), data_type_(param_.solver_data_type()), iter_(0), id_(0), net_(),
       callback_(nullptr), root_solver_(root_solver), rank_(rank),
       requested_early_exit_(false), iteration_timer_(make_shared<Timer>()),
-      test_timer_(make_shared<Timer>()), iterations_last_(0), iterations_restored_(0) {
+      test_timer_(make_shared<Timer>()), iterations_last_(0), iterations_restored_(0),
+      sparsity_factor_(0) {
   Init();
 }
 
@@ -55,6 +56,7 @@ void Solver::Init() {
   iter_ = 0;
   total_lapse_ = 0.F;
   current_step_ = 0;
+  sparsity_factor_ = param_.sparsity_start_factor();
 }
 
 void Solver::InitTrainNet() {
@@ -379,6 +381,15 @@ void Solver::Step(int iters) {
       PrintRate();
       iterations_last_ = iter_;
     }
+
+    //apply thresholding for sparsity
+    this->ThresholdNet();
+    if(Caffe::root_solver() && param_.display_sparsity() > 0 &&
+      ((iter_ % param_.display_sparsity()) == 0)) {
+        LOG(INFO) << "Sparsity after update:";
+        net_->DisplaySparsity(true);
+    }
+    
     // Increment the internal iter_ counter -- its value should always indicate
     // the number of times the weights have been updated.
     ++iter_;
@@ -401,6 +412,13 @@ void Solver::Step(int iters) {
     net_->update_grad_scale();
   }
   Finalize();
+
+  //apply thresholding for sparsity
+  this->ThresholdNet();
+  if(Caffe::root_solver() && param_.display_sparsity() > 0) {
+      LOG(INFO) << "Sparsity after training:";
+      net_->DisplaySparsity(true);
+  }
 }
 
 void Solver::Finalize() {
@@ -430,6 +448,8 @@ void Solver::Reduce(Callback* callback, int device, Caffe::Brew mode, uint64_t r
 }
 
 bool Solver::Solve(const char* resume_file) {
+  this->StoreSparseModeConnectivity();
+  
   LOG(INFO) << "Solving " << net_->name();
   LOG(INFO) << "Learning Rate Policy: " << param_.lr_policy();
   // Initialize to false every time we start solving.
@@ -827,6 +847,82 @@ float Solver::perf_report(std::ostream& os, int device, int align) const {
       << " = " << perf << " img/sec (" << relative_iter()
       << " itr in " << total_lapse() << " sec)";
   return perf;
+}
+
+void Solver::ThresholdNet() {
+  //induce incremental sparsity
+  if (param_.sparse_mode() != SPARSE_NONE && Caffe::root_solver()) {
+    if((param_.sparsity_target() > 0.0) && (iter_ >= param_.sparsity_start_iter()) &&
+        ((iter_ % param_.sparsity_step_iter())==0) ) {
+      float threshold_fraction_low = this->sparsity_factor_/2;
+      float threshold_fraction_mid = this->sparsity_factor_;
+      float threshold_fraction_high = this->sparsity_factor_;
+      float threshold_step_factor = 1e-7;//1e-6;
+      float sparsity_target_max = std::min((param_.sparsity_target() + 0.15), 0.95);
+
+      float sparsity_achieved = this->DisplayConnectivitySparsity(false);
+      if(this->sparsity_factor_ <= sparsity_target_max && sparsity_achieved < param_.sparsity_target()) {
+
+        float threshold_value_maxratio = param_.sparsity_threshold_maxratio();//dflt:0.2;
+        //float threshold_value_max = 0.2;
+        float threshold_value_max = param_.sparsity_threshold_value_max(); //dflt:0.2
+
+        //if(this->sparsity_factor_ >= sparsity_target_max) {
+        //  //if sparsity is still not achieved, make the factors more aggressive
+        //  threshold_value_maxratio = 0.5;
+        //  threshold_value_max = 0.5;
+        //}
+
+        LOG(INFO) << "Finding and applying sparsity: sparsity_target=" << param_.sparsity_target()
+          << " sparsity_factor=" << sparsity_factor_ << " sparsity_achieved=" << sparsity_achieved
+          << " iter=" << iter_;
+
+        //try output channel-wise sparsity
+        net_->FindAndApplyChannelThresholdNet(threshold_fraction_low, threshold_fraction_mid, threshold_fraction_high,
+          threshold_value_maxratio, threshold_value_max, threshold_step_factor, true);
+
+        //if sparsity is still not achieved, try to achieve by layer-wise sparsity and aggressive factors.
+        //if(sparsity_factor_ >= sparsity_target_max) {
+        //  net_->FindAndApplyThresholdNet(threshold_fraction_low, threshold_fraction_mid, threshold_fraction_high,
+        //    threshold_value_maxratio, threshold_value_max, threshold_step_factor, false);
+        //}
+
+        this->StoreSparseModeConnectivity();
+
+        this->sparsity_factor_ += param_.sparsity_step_factor();
+      }
+    }
+
+    net_->ApplySparseModeConnectivity();
+  }
+}
+
+void Solver::StoreSparseModeConnectivity() {
+  if (param_.sparse_mode() != caffe::SPARSE_NONE) {
+    net_->StoreSparseModeConnectivity(param_.sparse_mode());
+  }
+}
+
+float Solver::DisplaySparsity(bool verbose) {
+  float sparsity_achieved = net_->DisplaySparsity(verbose);
+  if(verbose) {
+    LOG(INFO) << "sparsity_target=" << param_.sparsity_target()
+      << " sparsity_factor=" << sparsity_factor_
+      << " sparsity_achieved=" << sparsity_achieved
+      << " iter=" << iter_;
+  }
+  return sparsity_achieved;
+}
+
+float Solver::DisplayConnectivitySparsity(bool verbose) {
+  float sparsity_achieved = net_->DisplayConnectivitySparsity(verbose);
+  if(verbose) {
+    LOG(INFO) << "ConnectivitySparsity: sparsity_target=" << param_.sparsity_target()
+      << " sparsity_factor=" << sparsity_factor_
+      << " sparsity_achieved=" << sparsity_achieved
+      << " iter=" << iter_;
+  }
+  return sparsity_achieved;
 }
 
 }  // namespace caffe

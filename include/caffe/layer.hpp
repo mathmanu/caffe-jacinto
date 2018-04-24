@@ -121,6 +121,7 @@ class LayerBase {
    * @brief Returns the layer parameter.
    */
   const LayerParameter& layer_param() const { return layer_param_; }
+  LayerParameter& mutable_layer_param() { return layer_param_; }
 
   /**
    * @brief Returns the layer type.
@@ -371,7 +372,7 @@ class LayerBase {
   /**
    * @brief Writes the layer parameter to a protocol buffer
    */
-  virtual void ToProto(LayerParameter* param, bool write_diff = false) = 0;
+  virtual void ToProto(LayerParameter* param, bool write_diff = false, bool write_data = true) = 0;
 
   std::string print_current_device() const;
 
@@ -465,7 +466,7 @@ class Layer : public LayerBase {
   virtual void Backward(const vector<Blob*>& top, const vector<bool>& propagate_down,
       const vector<Blob*>& bottom);
 
-  void ToProto(LayerParameter* param, bool write_diff = false) override;
+  void ToProto(LayerParameter* param, bool write_diff = false, bool write_data = true) override;
 
   /**
  * @brief Returns the scalar loss associated with a top blob at a given index.

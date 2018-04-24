@@ -297,6 +297,29 @@ unsigned int P2PSync::divide_batch_size(NetParameter* net) {
         }
       }
     }
+    if (net->layer(i).has_image_label_data_param()) {
+      if (net->layer(i).image_label_data_param().has_batch_size()) {
+        uint32_t total = net->layer(i).image_label_data_param().batch_size();
+        uint32_t batch = batch_per_gpu(total);
+        net->mutable_layer(i)->mutable_image_label_data_param()->set_batch_size(batch);
+        if (ret == 0U) {
+          ret = batch;
+        }
+      }
+    }	
+	/*
+	//not required - already done above as it uses data_param()
+    if (net->layer(i).has_annotated_data_param()) {
+      if (net->layer(i).data_param().has_batch_size()) {
+        uint32_t total = net->layer(i).data_param().batch_size();
+        uint32_t batch = batch_per_gpu(total);
+        net->mutable_layer(i)->mutable_data_param()->set_batch_size(batch);
+        if (ret == 0U) {
+          ret = batch;
+        }
+      }
+    }
+    */
   }
   return ret;
 }

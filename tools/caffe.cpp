@@ -12,7 +12,7 @@ namespace bp = boost::python;
 #include "caffe/caffe.hpp"
 #include "caffe/util/signal_handler.h"
 #include "caffe/util/bbox_util.hpp"
-
+#include "caffe/util/io.hpp"
 
 using caffe::TBlob;
 using caffe::Blob;
@@ -46,6 +46,8 @@ DEFINE_string(snapshot, "",
 DEFINE_string(weights, "",
     "Optional; the pretrained weights to initialize finetuning, "
     "separated by ', '. Cannot be set simultaneously with snapshot.");
+DEFINE_string(output_model, "",
+    "Prefix for output prototxt and caffemodel");
 DEFINE_int32(iterations, 50,
     "The number of iterations to run.");
 DEFINE_string(sigint_effect, "stop",
@@ -58,6 +60,8 @@ DEFINE_string(ap_version, "11point",
     "Average Precision type for object detection");
 DEFINE_bool(show_per_class_result, true,
     "Show per class result for object detection");
+DEFINE_bool(display_sparsity, false, "Display the amount of sparsity");
+DEFINE_bool(optimize_net, false, "Optimize the Net (Merge BN to Conv) before test");
 
 // A simple registry for caffe commands.
 typedef int (*BrewFunction)();
@@ -306,6 +310,10 @@ int test() {
   caffe_net.CopyTrainedLayersFrom(FLAGS_weights);
   LOG(INFO) << "Running for " << FLAGS_iterations << " iterations.";
 
+  if(FLAGS_optimize_net) {
+    caffe_net.OptimizeNet<float>();
+  }
+
   vector<int> test_score_output_id;
   vector<float> test_score;
   float loss = 0;
@@ -346,6 +354,29 @@ int test() {
     }
     LOG(INFO) << output_name << " = " << mean_score << loss_msg_stream.str();
   }
+
+  if(FLAGS_display_sparsity) {
+    LOG(INFO) << "=========================";
+    LOG(INFO) << "Sparsity of the test net:";
+    caffe_net.DisplaySparsity(true);
+    LOG(INFO) << "=========================";
+  }
+
+  if(FLAGS_output_model != "") {
+    boost::filesystem::path output_path(FLAGS_output_model);
+    string output_prefix = output_path.parent_path().string() + "/" + output_path.stem().string();
+    string model_filename = output_prefix + ".prototxt";
+    string binary_filename = output_prefix + ".caffemodel";
+
+    caffe::NetParameter net_txt;
+	caffe_net.ToProto(&net_txt, false, false);
+	caffe::WriteProtoToTextFile(net_txt, model_filename);
+
+	caffe::NetParameter net_param;
+	caffe_net.ToProto(&net_param, false, true);
+	caffe::WriteProtoToBinaryFile(net_param, binary_filename);
+  }
+
   return 0;
 }
 RegisterBrewFunction(test);
@@ -410,11 +441,12 @@ int test_detection() {
         } else {
           test_score[idx] += score;
         }
-        const std::string& output_name = caffe_net.blob_names()[
-            caffe_net.output_blob_indices()[j]];
-        LOG(INFO) << "Batch " << i << ", " << output_name << " = " << score;
+        //const std::string& output_name = caffe_net.blob_names()[
+        //    caffe_net.output_blob_indices()[j]];
+        //LOG(INFO) << "Batch " << i << ", " << output_name << " = " << score;
       }
     }
+    LOG(INFO) << "Batch " << i;
 
     //To compute mAP
     for (int j = 0; j < result.size(); ++j) {
@@ -519,6 +551,29 @@ int test_detection() {
     const string& output_name = caffe_net.blob_names()[output_blob_index];
     LOG(INFO) << "Test net output mAP #" << i << ": " << output_name << " = " << mAP;
   }
+
+  if(FLAGS_display_sparsity) {
+    LOG(INFO) << "=========================";
+    LOG(INFO) << "Sparsity of the test net:";
+    caffe_net.DisplaySparsity(true);
+    LOG(INFO) << "=========================";
+  }
+
+  if(FLAGS_output_model != "") {
+    boost::filesystem::path output_path(FLAGS_output_model);
+    string output_prefix = output_path.parent_path().string() + "/" + output_path.stem().string();
+    string model_filename = output_prefix + ".prototxt";
+    string binary_filename = output_prefix + ".caffemodel";
+
+    caffe::NetParameter net_txt;
+    caffe_net.ToProto(&net_txt, false, false);
+    caffe::WriteProtoToTextFile(net_txt, model_filename);
+
+    caffe::NetParameter net_param;
+    caffe_net.ToProto(&net_param, false, true);
+    caffe::WriteProtoToBinaryFile(net_param, binary_filename);
+  }
+  
   return 0;
 }
 RegisterBrewFunction(test_detection);
@@ -650,6 +705,64 @@ int time() {
 }
 RegisterBrewFunction(time);
 
+// Optimize a model.
+int optimize() {
+  CHECK_GT(FLAGS_model.size(), 0) << "Need a model definition to optimize.";
+  CHECK_GT(FLAGS_weights.size(), 0) << "Need model weights to optimize.";
+
+  // Read flags for list of GPUs
+  vector<int> gpus;
+  get_gpus(&gpus);
+  while (gpus.size() > 1) {
+    // Only use one GPU
+    LOG(INFO) << "Not using GPU #" << gpus.back() << " for single-GPU function";
+    gpus.pop_back();
+  }
+#ifndef CPU_ONLY
+  caffe::GPUMemory::Scope gpu_memory_scope(gpus);
+#endif
+
+  // Set mode and device id
+  if (gpus.size() != 0) {
+    LOG(INFO) << "Use GPU with device ID " << gpus[0];
+#ifndef CPU_ONLY
+    cudaDeviceProp device_prop;
+    cudaGetDeviceProperties(&device_prop, gpus[0]);
+    LOG(INFO) << "GPU device name: " << device_prop.name;
+#endif
+    Caffe::SetDevice(gpus[0]);
+    Caffe::set_mode(Caffe::GPU);
+  } else {
+    LOG(INFO) << "Use CPU.";
+    Caffe::set_mode(Caffe::CPU);
+  }
+
+  // Instantiate the caffe net.
+  Net caffe_net(FLAGS_model, caffe::TEST);
+  caffe_net.CopyTrainedLayersFrom(FLAGS_weights);
+
+  LOG(INFO) << "Optimizing Net " << FLAGS_model;
+  //hardcode the data type to float for now
+  caffe_net.OptimizeNet<float>();
+
+  boost::filesystem::path output_path(FLAGS_output_model);
+  string output_prefix = output_path.parent_path().string() + "/" + output_path.stem().string();
+
+  caffe::NetParameter net_txt;
+  caffe_net.ToProto(&net_txt, false, false);
+  string model_filename = output_prefix + ".prototxt";
+  LOG(INFO) << "Snapshotting optimized prototxt to file " << model_filename;
+  caffe::WriteProtoToTextFile(net_txt, model_filename);
+
+  caffe::NetParameter net_param;
+  caffe_net.ToProto(&net_param, false);
+  string binary_filename = output_prefix + ".caffemodel";
+  LOG(INFO) << "Snapshotting optimized caffemodel to file " << binary_filename;
+  caffe::WriteProtoToBinaryFile(net_param, binary_filename);
+
+  return 0;
+}
+RegisterBrewFunction(optimize);
 int main(int argc, char** argv) {
   // Print output to stderr (while still logging).
   FLAGS_alsologtostderr = 1;

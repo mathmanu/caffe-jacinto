@@ -37,6 +37,7 @@ class Blob {
   void Swap(Blob& other) noexcept {
     std::swap(data_tensor_, other.data_tensor_);
     std::swap(diff_tensor_, other.diff_tensor_);
+    std::swap(connectivity_, other.connectivity_);	
     std::swap(shape_data_, other.shape_data_);
     std::swap(shape_, other.shape_);
     std::swap(count_, other.count_);
@@ -461,10 +462,10 @@ class Blob {
    */
   void ShareDiff(const Blob& other);
 
-  void ToProto(BlobProto* proto, bool store_in_old_format, bool write_diff = false) const;
-  void ToProtoBVLC(BlobProto* proto, bool write_diff = false) const;
+  void ToProto(BlobProto* proto, bool store_in_old_format, bool write_diff = false, bool write_data = true) const;
+  void ToProtoBVLC(BlobProto* proto, bool write_diff = false, bool write_data = true) const;
 
-  void FromProto(const BlobProto& proto, bool reshape = true);
+  void FromProto(const BlobProto& proto, bool reshape = true, bool ignore_shape_mismatch = false);
   bool ShapeEquals(const BlobProto& other);
   std::string to_string(int indent = 0) const;  // debug helper
 
@@ -559,7 +560,39 @@ class Blob {
       LOG(FATAL) << "Unknown data or diff: " << Type_Name(dtype);
     }
   }
+  
+  void cpu_eltwise_multi(int count, Type dtype, const void* X, void* Y);
+  void gpu_eltwise_multi(int count, Type dtype, const void* X, void* Y);
+  float cpu_max(int count, Type dtype, const void* X, const int start_index) const;
+  float gpu_max(int count, Type dtype, const void* X, const int start_index) const;
+  float max(const int start_index, const int count) const;
+  
+  float cpu_min(int count, Type dtype, const void* X, const int start_index) const;
+  float gpu_min(int count, Type dtype, const void* X, const int start_index) const;
+  float min(const int start_index, const int count) const;
+    
+  int cpu_count_zero(int count, Type dtype, const void* X, float threshold, const int start_index) const;
+  int gpu_count_zero(int count, Type dtype, const void* X, float threshold, const int start_index) const;
+  int count_zero(float threshold, const int start_index, const int count) const;
+  int count_zero_connectivity(float threshold, const int start_index, const int count) const;
+  void cpu_if_nonzero(int count, Type dtype, const void* X, void* Y) const;
+  void gpu_if_nonzero(int count, Type dtype, const void* X, void* Y) const;
+  void cpu_set(int count, Type dtype, void* X, float val);
+  void gpu_set(int count, Type dtype, void* X, float val);
+  
+  void cpu_zerout(int count, Type dtype, const void* X, void* Y, float threshold, const int start_index);
+  void gpu_zerout(int count, Type dtype, const void* X, void* Y, float threshold, const int start_index);
+  void zerout(float threshold, const int start_index, const int count);
 
+  //For sparse operation
+  inline const shared_ptr<Tensor>& connectivity() const {
+    return connectivity_;
+  }
+  void InitializeConnectivity(float val = 1.0);
+  void ComputeSparseDiff();
+  void ComputeSparseData();
+  void StoreSparseModeConnectivity(const SparseMode mode);
+  
   DISABLE_COPY_MOVE_AND_ASSIGN(Blob);
 
  protected:
@@ -568,6 +601,9 @@ class Blob {
   shared_ptr<SyncedMemory> shape_data_;
   vector<int> shape_;
   int count_;
+
+  //For sparse operation  
+  mutable shared_ptr<Tensor> connectivity_;
 
   bool is_current_data_valid() const {
     return data_tensor_->is_current_valid();

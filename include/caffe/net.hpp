@@ -126,7 +126,7 @@ class Net {
   void CopyTrainedLayersFromBinaryProto(const string trained_filename);
   void CopyTrainedLayersFromHDF5(const string trained_filename);
   /// @brief Writes the net to a proto.
-  void ToProto(NetParameter* param, bool write_diff = false) const;
+  void ToProto(NetParameter* param, bool write_diff = false, bool write_data = true) const;
   /// @brief Writes the net to an HDF5 file.
   void ToHDF5(const string& filename, bool write_diff = false) const;
 
@@ -314,6 +314,43 @@ class Net {
     return bytes;
   }
 
+  //Quantization
+  void StartQuantization();
+  void FinishQuantization();
+  void EnableQuantizationForSelectedLayers();
+
+  void ClearQuantizationRangeInLayers();
+  void UpdateQuantizationRangeInLayers();
+  void CopyQuantizationRangeInLayers();
+  void SetQuantizationParamsLayerWeights(const int layer_id);
+  void SetQuantizationParamsLayerInput(const int layer_id);
+  void SetQuantizationParamsLayerOutput(const int layer_id);
+  void SetQuantizationParams();
+  void DisplayQuantizationParams();
+  void DisableQuantization();
+
+  template <typename Dtype> void Convert2FixedPoint_cpu(Dtype* data, const int cnt,
+      const int bw, int fl, bool unsigned_data, bool clip) const;
+
+  int EstimateAbsBits(float val);
+  void EstiamteQScaleParams(float min, float max, int bitwidth, bool power2_quant,
+      bool unsigned_data, bool apply_offset, QuantizationParameter::QParams& qparam_xx);
+
+  //Sparsity
+  int GetSparsity(std::map<std::string, std::pair<int,int> >& sparsity_map);
+  int GetConnectivitySparsity(std::map<std::string, std::pair<int,int> >& sparsity_map);
+  void FindAndApplyThresholdNet(float threshold_fraction_low, float threshold_fraction_mid, float threshold_fraction_high,
+      float threshold_value_maxratio, float threshold_value, float threshold_step_factor, bool verbose = true);
+  void FindAndApplyChannelThresholdNet(float threshold_fraction_low, float threshold_fraction_mid, float threshold_fraction_high,
+      float threshold_value_maxratio, float threshold_value, float threshold_step_factor, bool verbose = true);
+  void ApplySparseModeConnectivity();  
+  void StoreSparseModeConnectivity(SparseMode mode);
+  float DisplaySparsity(bool verbose);
+  float DisplayConnectivitySparsity(bool verbose);
+  
+  //Batch Norm  Optimization
+  template <typename Dtype> void OptimizeNet();
+  
  protected:
   // Helpers for Init.
   /// @brief Append a new top blob to the net.
@@ -449,6 +486,14 @@ class Net {
   static constexpr int END_OF_ITERATION = -1;
   static constexpr int END_OF_TRAIN = -2;
 
+  // Range values
+  vector<vector<float> > max_in_;
+  vector<vector<float> > min_in_;
+  vector<vector<float> > max_out_;
+  vector<vector<float> > min_out_;
+  vector<vector<float> > max_weights_;
+  vector<vector<float> > min_weights_;
+  
   DISABLE_COPY_MOVE_AND_ASSIGN(Net);
 };
 

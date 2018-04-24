@@ -4,6 +4,7 @@
 #include <caffe/util/cudnn.hpp>
 #endif
 #include "caffe/blob.hpp"
+#include "caffe/util/math_functions.hpp"
 
 namespace caffe {
 
@@ -255,7 +256,7 @@ void Blob::CopyFrom(const Blob& source, bool copy_diff, bool reshape,
   dst->validate();
 }
 
-void Blob::FromProto(const BlobProto& proto, bool reshape) {
+void Blob::FromProto(const BlobProto& proto, bool reshape, bool ignore_shape_mismatch) {
   if (reshape) {
     vector<int> shape;
     if (proto.has_num() || proto.has_channels() ||
@@ -274,7 +275,7 @@ void Blob::FromProto(const BlobProto& proto, bool reshape) {
       }
     }
     Reshape(shape);
-  } else {
+  } else if(!ignore_shape_mismatch) {
     CHECK(ShapeEquals(proto)) << "shape mismatch (reshape not set)";
   }
   // copy data
@@ -355,9 +356,9 @@ void Blob::FromProto(const BlobProto& proto, bool reshape) {
   }
 }
 
-void Blob::ToProto(BlobProto* proto, bool store_in_old_format, bool write_diff) const {
+void Blob::ToProto(BlobProto* proto, bool store_in_old_format, bool write_diff, bool write_data) const {
   if (store_in_old_format) {
-    ToProtoBVLC(proto, write_diff);
+    ToProtoBVLC(proto, write_diff, write_data);
     return;
   }
   CHECK(is_current_data_valid());
@@ -378,28 +379,30 @@ void Blob::ToProto(BlobProto* proto, bool store_in_old_format, bool write_diff) 
   }
 }
 
-void Blob::ToProtoBVLC(BlobProto* proto, bool write_diff) const {
+void Blob::ToProtoBVLC(BlobProto* proto, bool write_diff, bool write_data) const {
   CHECK(is_current_data_valid());
   CHECK(is_current_diff_valid());
-  proto->clear_shape();
-  for (int i = 0; i < shape_.size(); ++i) {
-    proto->mutable_shape()->add_dim(shape_[i]);
-  }
-  const void* pdata = current_data_memory(false);
-  if (data_type() == tp<float>()) {
-    proto->clear_data();
-    const float* data_vec = static_cast<const float*>(pdata);
-    for (int i = 0; i < count_; ++i) {
-      proto->add_data(data_vec[i]);
+  if (write_data) {
+    proto->clear_shape();
+    for (int i = 0; i < shape_.size(); ++i) {
+      proto->mutable_shape()->add_dim(shape_[i]);
     }
-  } else if (data_type() == tp<double>()) {
-    proto->clear_double_data();
-    const double* data_vec = static_cast<const double*>(pdata);
-    for (int i = 0; i < count_; ++i) {
-      proto->add_double_data(data_vec[i]);
+    const void* pdata = current_data_memory(false);
+    if (data_type() == tp<float>()) {
+      proto->clear_data();
+      const float* data_vec = static_cast<const float*>(pdata);
+      for (int i = 0; i < count_; ++i) {
+        proto->add_data(data_vec[i]);
+      }
+    } else if (data_type() == tp<double>()) {
+      proto->clear_double_data();
+      const double* data_vec = static_cast<const double*>(pdata);
+      for (int i = 0; i < count_; ++i) {
+        proto->add_double_data(data_vec[i]);
+      }
+    } else {
+      LOG(FATAL) << "BVLC format doesn't support data type " << Type_Name(data_type());
     }
-  } else {
-    LOG(FATAL) << "BVLC format doesn't support data type " << Type_Name(data_type());
   }
 
   if (!write_diff) {
@@ -443,6 +446,464 @@ std::string Blob::to_string(int indent) const {  // debug helper
   }
   os << std::endl;
   return os.str();
+}
+
+void Blob::cpu_eltwise_multi(int count, Type dtype, const void* X, void* Y) {
+  if (is_type<float>(dtype)) {
+    caffe_cpu_eltwise_multi(count, static_cast<const float*>(X), static_cast<float*>(Y));
+  } else if (is_type<float16>(dtype)) {
+    caffe_cpu_eltwise_multi(count, static_cast<const float16*>(X), static_cast<float16*>(Y));
+  } else if (is_type<double>(dtype)) {
+    caffe_cpu_eltwise_multi(count, static_cast<const double*>(X), static_cast<double*>(Y));
+  } else {
+    LOG(FATAL) << "Unsupported data type: " << Type_Name(dtype);
+  }
+}
+
+void Blob::gpu_eltwise_multi(int count, Type dtype, const void* X, void* Y) {
+  if (is_type<float>(dtype)) {
+    caffe_gpu_eltwise_multi(count, static_cast<const float*>(X), static_cast<float*>(Y));
+  } else if (is_type<float16>(dtype)) {
+    caffe_gpu_eltwise_multi(count, static_cast<const float16*>(X), static_cast<float16*>(Y));
+  } else if (is_type<double>(dtype)) {
+    caffe_gpu_eltwise_multi(count, static_cast<const double*>(X), static_cast<double*>(Y));
+  } else {
+    LOG(FATAL) << "Unsupported data type: " << Type_Name(dtype);
+  }
+}
+float Blob::cpu_max(int count, Type dtype, const void* X, const int start_index) const {
+  if (is_type<float>(dtype)) {
+    return caffe_cpu_max(count, static_cast<const float*>(X)+start_index);
+  } else if (is_type<float16>(dtype)) {
+    return caffe_cpu_max(count, static_cast<const float16*>(X)+start_index);
+  } else if (is_type<double>(dtype)) {
+    return caffe_cpu_max(count, static_cast<const double*>(X)+start_index);
+  } else {
+    LOG(FATAL) << "Unsupported data type: " << Type_Name(dtype);
+	return 0;
+  }
+  return 0;
+}
+
+float Blob::gpu_max(int count, Type dtype, const void* X, const int start_index) const {
+  if (is_type<float>(dtype)) {
+    return caffe_gpu_max(count, static_cast<const float*>(X)+start_index);
+  } else if (is_type<float16>(dtype)) {
+    return caffe_gpu_max(count, static_cast<const float16*>(X)+start_index);
+  } else if (is_type<double>(dtype)) {
+    return caffe_gpu_max(count, static_cast<const double*>(X)+start_index);
+  } else {
+    LOG(FATAL) << "Unsupported data type: " << Type_Name(dtype);
+	return 0;
+  }
+  return 0;  
+}
+
+float Blob::max(const int start_index, const int count) const {
+    const shared_ptr<SyncedMemory>& data_mem = data_tensor_->synced_mem();
+	if (!data_tensor_) {
+		return 0;
+	}
+
+	int n = count? count : this->count();
+
+	// We will perform update based on where the data is located.
+	switch (data_mem->head()) {
+	case SyncedMemory::HEAD_AT_CPU:
+	{
+		// perform computation on CPU
+		auto max_val = cpu_max(n, data_type(), data_mem->cpu_data(), start_index);
+		return max_val;
+	}
+	case SyncedMemory::HEAD_AT_GPU:
+	case SyncedMemory::SYNCED:
+	{
+		// perform computation on GPU
+		float max_val = gpu_max(n, data_type(), data_mem->gpu_data(), start_index);
+		return max_val;
+		return 0;
+	}
+	default:
+		LOG(WARNING)<< "Syncedmem not initialized.";
+		return 0;
+	}
+	return 0;
+}
+
+
+float Blob::cpu_min(int count, Type dtype, const void* X, const int start_index) const {
+  if (is_type<float>(dtype)) {
+    return caffe_cpu_min(count, static_cast<const float*>(X)+start_index);
+  } else if (is_type<float16>(dtype)) {
+    return caffe_cpu_min(count, static_cast<const float16*>(X)+start_index);
+  } else if (is_type<double>(dtype)) {
+    return caffe_cpu_min(count, static_cast<const double*>(X)+start_index);
+  } else {
+    LOG(FATAL) << "Unsupported data type: " << Type_Name(dtype);
+	return 0;
+  }
+  return 0;
+}
+
+float Blob::gpu_min(int count, Type dtype, const void* X, const int start_index) const {
+  if (is_type<float>(dtype)) {
+    return caffe_gpu_min(count, static_cast<const float*>(X)+start_index);
+  } else if (is_type<float16>(dtype)) {
+    return caffe_gpu_min(count, static_cast<const float16*>(X)+start_index);
+  } else if (is_type<double>(dtype)) {
+    return caffe_gpu_min(count, static_cast<const double*>(X)+start_index);
+  } else {
+    LOG(FATAL) << "Unsupported data type: " << Type_Name(dtype);
+	return 0;
+  }
+  return 0;
+}
+
+float Blob::min(const int start_index, const int count) const {
+    const shared_ptr<SyncedMemory>& data_mem = data_tensor_->synced_mem();
+	if (!data_tensor_) {
+		return 0;
+	}
+
+    int n = count? count : this->count();
+
+	// We will perform update based on where the data is located.
+	switch (data_mem->head()) {
+	case SyncedMemory::HEAD_AT_CPU:
+	{
+		// perform computation on CPU
+		auto min_val = cpu_min(n, data_type(), data_mem->cpu_data(), start_index);
+		return min_val;
+	}
+	case SyncedMemory::HEAD_AT_GPU:
+	case SyncedMemory::SYNCED:
+	{
+		// perform computation on GPU
+		float min_val = gpu_min(n, data_type(), data_mem->gpu_data(), start_index);
+		return min_val;
+	}
+	default:
+		LOG(WARNING)<< "Syncedmem not initialized.";
+		return 0;
+	}
+}
+
+void Blob::cpu_if_nonzero(int count, Type dtype, const void* X, void* Y) const {
+  if (is_type<float>(dtype)) {
+    caffe_cpu_if_nonzero(count, static_cast<const float*>(X), static_cast<float*>(Y));
+  } else if (is_type<float16>(dtype)) {
+    caffe_cpu_if_nonzero(count, static_cast<const float16*>(X), static_cast<float16*>(Y));
+  } else if (is_type<double>(dtype)) {
+    caffe_cpu_if_nonzero(count, static_cast<const double*>(X), static_cast<double*>(Y));
+  } else {
+    LOG(FATAL) << "Unsupported data type: " << Type_Name(dtype);
+  }
+}
+
+void Blob::gpu_if_nonzero(int count, Type dtype, const void* X, void* Y) const {
+  if (is_type<float>(dtype)) {
+    caffe_gpu_if_nonzero(count, static_cast<const float*>(X), static_cast<float*>(Y));
+  } else if (is_type<float16>(dtype)) {
+    caffe_gpu_if_nonzero(count, static_cast<const float16*>(X), static_cast<float16*>(Y));
+  } else if (is_type<double>(dtype)) {
+    caffe_gpu_if_nonzero(count, static_cast<const double*>(X), static_cast<double*>(Y));
+  } else {
+    LOG(FATAL) << "Unsupported data type: " << Type_Name(dtype);
+  }
+}
+
+
+int Blob::cpu_count_zero(int count, Type dtype, const void* X, float threshold, const int start_index) const {
+  if (is_type<float>(dtype)) {
+    return caffe_cpu_count_zero(count, static_cast<const float*>(X)+start_index, (float)threshold);
+  } else if (is_type<float16>(dtype)) {
+    return caffe_cpu_count_zero(count, static_cast<const float16*>(X)+start_index, (float16)threshold);
+  } else if (is_type<double>(dtype)) {
+    return caffe_cpu_count_zero(count, static_cast<const double*>(X)+start_index,  (double)threshold);
+  } else {
+    LOG(FATAL) << "Unsupported data type: " << Type_Name(dtype);
+	return 0;
+  }
+}
+
+int Blob::gpu_count_zero(int count, Type dtype, const void* X, float threshold, const int start_index) const {
+  if (is_type<float>(dtype)) {
+    return caffe_gpu_count_zero(count, static_cast<const float*>(X)+start_index, (float)threshold);
+  } else if (is_type<float16>(dtype)) {
+    return caffe_gpu_count_zero(count, static_cast<const float16*>(X)+start_index, (float16)threshold);
+  } else if (is_type<double>(dtype)) {
+    return caffe_gpu_count_zero(count, static_cast<const double*>(X)+start_index, (double)threshold);
+  } else {
+    LOG(FATAL) << "Unsupported data type: " << Type_Name(dtype);
+	return 0;
+  }
+}
+
+int Blob::count_zero(float threshold, const int start_index, const int count) const {
+    const shared_ptr<SyncedMemory>& data_mem = data_tensor_->synced_mem();
+	if (!data_mem) {
+		return 0;
+	}
+
+	int n = count? count : this->count();
+
+	// We will perform update based on where the data is located.
+	switch (data_mem->head()) {
+	case SyncedMemory::HEAD_AT_CPU:
+	{
+		// perform computation on CPU
+		int zero_num = cpu_count_zero(n, data_type(), data_mem->cpu_data(), threshold, start_index);
+		return zero_num;
+	}
+	case SyncedMemory::HEAD_AT_GPU:
+	case SyncedMemory::SYNCED:
+	{
+		// perform computation on GPU
+		int zero_num = gpu_count_zero(n, data_type(), data_mem->gpu_data(), threshold, start_index);
+		return zero_num;
+		return 0;
+	}
+	default:
+		LOG(WARNING)<< "Syncedmem not initialized.";
+		return 0;
+	}
+}
+
+
+void Blob::cpu_set(int count, Type dtype, void* X, float val) {
+  if (is_type<float>(dtype)) {
+    caffe::caffe_set(count, (float)val, static_cast<float*>(X));
+  } else if (is_type<float16>(dtype)) {
+    caffe::caffe_set(count, (float16)val, static_cast<float16*>(X));
+  } else if (is_type<double>(dtype)) {
+    caffe::caffe_set(count, (double)val, static_cast<double*>(X));
+  } else {
+    LOG(FATAL) << "Unsupported data type: " << Type_Name(dtype);
+  }
+}
+
+void Blob::gpu_set(int count, Type dtype, void* X, float val) {
+  if (is_type<float>(dtype)) {
+    caffe_gpu_set(count, static_cast<float*>(X), (float)val);
+  } else if (is_type<float16>(dtype)) {
+    caffe_gpu_set(count, static_cast<float16*>(X), (float16)val);
+  } else if (is_type<double>(dtype)) {
+    caffe_gpu_set(count, static_cast<double*>(X), (double)val);
+  } else {
+    LOG(FATAL) << "Unsupported data type: " << Type_Name(dtype);
+  }
+}
+
+
+
+
+void Blob::cpu_zerout(int count, Type dtype, const void* X, void* Y, float threshold, const int start_index) {
+  if (is_type<float>(dtype)) {
+    caffe_cpu_zerout(count, static_cast<const float*>(X)+start_index, static_cast<float*>(Y)+start_index, (float)threshold);
+  } else if (is_type<float16>(dtype)) {
+    caffe_cpu_zerout(count, static_cast<const float16*>(X)+start_index, static_cast<float16*>(Y)+start_index, (float16)threshold);
+  } else if (is_type<double>(dtype)) {
+    caffe_cpu_zerout(count, static_cast<const double*>(X)+start_index, static_cast<double*>(Y)+start_index, (double)threshold);
+  } else {
+    LOG(FATAL) << "Unsupported data type: " << Type_Name(dtype);
+  }
+}
+
+#ifndef CPU_ONLY
+void Blob::gpu_zerout(int count, Type dtype, const void* X, void* Y, float threshold, const int start_index) {
+  if (is_type<float>(dtype)) {
+    caffe_gpu_zerout(count, static_cast<const float*>(X)+start_index, static_cast<float*>(Y)+start_index, (float)threshold);
+  } else if (is_type<float16>(dtype)) {
+    caffe_gpu_zerout(count, static_cast<const float16*>(X)+start_index, static_cast<float16*>(Y)+start_index, (float16)threshold);
+  } else if (is_type<double>(dtype)) {
+    caffe_gpu_zerout(count, static_cast<const double*>(X)+start_index, static_cast<double*>(Y)+start_index, (double)threshold);
+  } else {
+    LOG(FATAL) << "Unsupported data type: " << Type_Name(dtype);
+  }
+}
+#endif
+
+void Blob::zerout(float threshold, const int start_index, const int count) {
+  if (!data_tensor_) {
+      return;
+  }
+
+  int n = count? count : this->count();
+
+  const shared_ptr<SyncedMemory>& data_mem = data_tensor_->synced_mem();
+
+	// We will perform update based on where the data is located.
+  switch (data_mem->head()) {
+  case SyncedMemory::HEAD_AT_CPU:
+  {
+	// perform computation on CPU
+	cpu_zerout(n, data_type(), data_mem->cpu_data(), data_mem->mutable_cpu_data(), threshold, start_index);
+	break;
+  }
+  case SyncedMemory::HEAD_AT_GPU:
+  case SyncedMemory::SYNCED:
+  {
+ 	// perform computation on GPU
+	gpu_zerout(n, data_type(), data_mem->gpu_data(), data_mem->mutable_gpu_data(), threshold, start_index);
+	break;
+  }
+  default:
+	LOG(WARNING)<< "Syncedmem not initialized.";
+	return;
+  }
+}
+
+
+void Blob::InitializeConnectivity(float val) {
+    if(!connectivity_) {
+      connectivity_ = make_shared<Tensor>(data_type());
+    }
+    connectivity_->Reshape(count_); 
+	
+    shared_ptr<SyncedMemory>& data_mem = data_tensor_->mutable_synced_mem();
+    const shared_ptr<SyncedMemory>& connectivity_mem = connectivity_->synced_mem();
+	if (!connectivity_mem) {
+		return;
+	}
+
+	// We will perform update based on where the data is located.
+	switch (data_mem->head()) {
+	case SyncedMemory::HEAD_AT_CPU:
+	{
+		// perform computation on CPU
+		cpu_set(this->count(), data_type(), connectivity_mem->mutable_cpu_data(), val);
+		break;
+	}
+	case SyncedMemory::HEAD_AT_GPU:
+	case SyncedMemory::SYNCED:
+	{
+		// perform computation on GPU
+		gpu_set(this->count(), data_type(), connectivity_mem->mutable_gpu_data(), val);
+		break;
+	}
+	default:
+		LOG(WARNING)<< "Syncedmem not initialized.";
+		return;
+	}
+}
+
+void Blob::ComputeSparseDiff() {
+  if(connectivity_ == NULL) {
+    return;
+  }
+
+  convert_diff(data_type());  // align data&diff types
+  shared_ptr<SyncedMemory>& data_mem = data_tensor_->mutable_synced_mem();
+  const shared_ptr<SyncedMemory>& diff_mem = diff_tensor_->synced_mem();
+  const shared_ptr<SyncedMemory>& connectivity_mem = connectivity_->synced_mem();
+
+  // We will perform update based on where the data is located.
+  switch (data_mem->head()) {
+  case SyncedMemory::HEAD_AT_CPU:
+    // perform computation on CPU
+    cpu_eltwise_multi(count_, data_type(),
+          connectivity_mem->cpu_data(), diff_mem->mutable_cpu_data() );
+    break;
+  case SyncedMemory::HEAD_AT_GPU:
+  case SyncedMemory::SYNCED:
+    gpu_eltwise_multi(count_, data_type(),
+          connectivity_mem->gpu_data(), diff_mem->mutable_gpu_data() );
+    break;
+    default:
+    LOG(FATAL) << "Syncedmem not initialized.";
+  }
+  CHECK(is_current_data_valid());
+  CHECK(is_current_diff_valid());
+}
+
+void Blob::ComputeSparseData() {
+  if(connectivity_ == NULL) {
+    return;
+  }
+
+  shared_ptr<SyncedMemory>& data_mem = data_tensor_->mutable_synced_mem();
+  const shared_ptr<SyncedMemory>& connectivity_mem = connectivity_->synced_mem();
+
+  // We will perform update based on where the data is located.
+  switch (data_mem->head()) {
+  case SyncedMemory::HEAD_AT_CPU:
+    // perform computation on CPU
+    cpu_eltwise_multi(count_, data_type(),
+          connectivity_mem->cpu_data(), data_mem->mutable_cpu_data() );
+    break;
+  case SyncedMemory::HEAD_AT_GPU:
+  case SyncedMemory::SYNCED:
+    gpu_eltwise_multi(count_, data_type(),
+          connectivity_mem->gpu_data(), data_mem->mutable_gpu_data() );
+    break;
+    default:
+    LOG(FATAL) << "Syncedmem not initialized.";
+  }
+  CHECK(is_current_data_valid());
+}
+
+void Blob::StoreSparseModeConnectivity(const SparseMode mode) {
+    CHECK(mode != SPARSE_NONE);
+	
+	InitializeConnectivity();
+	
+    const shared_ptr<SyncedMemory>& data_mem = data_tensor_->synced_mem();
+	if (!data_mem) {
+		return;
+	}
+		
+    shared_ptr<SyncedMemory>& connectivity_mem = connectivity_->mutable_synced_mem();
+
+	switch (data_mem->head()) {
+	case SyncedMemory::HEAD_AT_CPU:
+	{
+	  cpu_if_nonzero(count_, data_type(), data_mem->cpu_data(), connectivity_mem->mutable_cpu_data());
+	  break;
+	}
+	case SyncedMemory::HEAD_AT_GPU:
+	case SyncedMemory::SYNCED:
+	{
+      gpu_if_nonzero(count_, data_type(), data_mem->cpu_data(), connectivity_mem->mutable_gpu_data());
+      break;
+    }
+	default:
+	  LOG(FATAL) << "Unknown caffe mode: " << Caffe::mode();
+	}
+}
+
+int Blob::count_zero_connectivity(float threshold, const int start_index, const int count) const {
+    if(!connectivity_) {
+      return 0;
+    }
+
+    const shared_ptr<SyncedMemory>& data_mem = data_tensor_->synced_mem();
+    const shared_ptr<SyncedMemory>& connectivity_mem = connectivity_->synced_mem();
+    if ((!data_mem) || (!connectivity_mem)) {
+        return 0;
+    }
+
+    int n = count? count : this->count();
+
+    // We will perform update based on where the data is located.
+    switch (data_mem->head()) {
+    case SyncedMemory::HEAD_AT_CPU:
+    {
+        // perform computation on CPU
+        int zero_num = cpu_count_zero(n, data_type(), connectivity_mem->cpu_data(), threshold, start_index);
+        return zero_num;
+    }
+    case SyncedMemory::HEAD_AT_GPU:
+    case SyncedMemory::SYNCED:
+    {
+        // perform computation on GPU
+        int zero_num = gpu_count_zero(n, data_type(), connectivity_mem->gpu_data(), threshold, start_index);
+        return zero_num;
+        return 0;
+    }
+    default:
+        LOG(WARNING)<< "Syncedmem not initialized.";
+        return 0;
+    }
 }
 
 INSTANTIATE_CLASS(TBlob);

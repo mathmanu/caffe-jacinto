@@ -190,6 +190,8 @@ class Solver {
   virtual float ApplyUpdate(int param_id, void* handle, float rate, bool normalize,
       bool clear_grads) = 0;
 
+  static float getIOUScoreForLabel(vector<vector<float> >& confusion_matrix, int label, bool& valid);
+  
  protected:
   string SnapshotFilename(const string& extension, const vector<float>& scores) const;
   string SnapshotToBinaryProto(const vector<float>& scores);
@@ -198,6 +200,7 @@ class Solver {
   vector<float> TestAll(const int iters = 0, bool use_multi_gpu = false);
   vector<float> Test(const int test_net_id = 0, const int iters = 0, bool use_multi_gpu = false);
   vector<float> TestDetection(const int test_net_id = 0);
+  vector<float> TestSegmentation(const int test_net_id = 0);
   virtual void SnapshotSolverState(const string& model_filename) = 0;
   virtual void RestoreSolverStateFromHDF5(const string& state_file) = 0;
   virtual void RestoreSolverStateFromBinaryProto(const string& state_file) = 0;
@@ -216,7 +219,7 @@ class Solver {
   void StoreSparseModeConnectivity();
   float DisplaySparsity(bool verbose);
   float DisplayConnectivitySparsity(bool verbose);
-  
+
   const SolverParameter param_;
   const Type data_type_;
   int iter_;

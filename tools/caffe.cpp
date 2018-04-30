@@ -579,6 +579,115 @@ int test_detection() {
 RegisterBrewFunction(test_detection);
 
 
+// Test: score a segmentation model.
+int test_segmentation() {
+  typedef float Dtype;
+  CHECK_GT(FLAGS_model.size(), 0) << "Need a model definition to score.";
+  CHECK_GT(FLAGS_weights.size(), 0) << "Need model weights to score.";
+
+  // Read flags for list of GPUs
+  vector<int> gpus;
+  get_gpus(&gpus);
+  while (gpus.size() > 1) {
+    // Only use one GPU
+    LOG(INFO) << "Not using GPU #" << gpus.back() << " for single-GPU function";
+    gpus.pop_back();
+  }
+  if (gpus.size() > 0) {
+    Caffe::SetDevice(gpus[0]);
+  }
+  caffe::GPUMemory::Scope gpu_memory_scope(gpus);
+
+  // Set mode and device id
+  if (gpus.size() != 0) {
+    LOG(INFO) << "Use GPU with device ID " << gpus[0];
+    cudaDeviceProp device_prop;
+    cudaGetDeviceProperties(&device_prop, gpus[0]);
+    LOG(INFO) << "GPU device name: " << device_prop.name;
+    Caffe::set_mode(Caffe::GPU);
+  } else {
+    LOG(INFO) << "Use CPU.";
+    Caffe::set_mode(Caffe::CPU);
+  }
+
+  // Instantiate the caffe net.
+  Net caffe_net(FLAGS_model, caffe::TEST, 0U);
+  caffe_net.CopyTrainedLayersFrom(FLAGS_weights);
+  LOG(INFO) << "Running for " << FLAGS_iterations << " iterations.";
+
+  int num_labels = 0, num_predictions = 0;
+  vector<vector<vector<float> > > confusion_matrix;
+  vector<int> test_score_output_id;
+  vector<float> test_score;
+  float loss = 0;
+  for (int i = 0; i < FLAGS_iterations; ++i) {
+    float iter_loss;
+    const vector<Blob*>& result = caffe_net.Forward(&iter_loss);
+    loss += iter_loss;
+    //int idx = 0;
+    confusion_matrix.resize(result.size());
+    for (int j = 0; j < result.size(); ++j) {
+      if (confusion_matrix.size() == 0) {
+        num_labels = result[j]->height();
+        num_predictions = result[j]->width();
+        confusion_matrix[j].resize(num_labels, vector<float>(num_predictions, 0.0));
+      }
+
+      const Dtype* result_vec = result[j]->cpu_data<Dtype>();
+      for (int label_idx = 0; label_idx < num_labels; ++label_idx) {
+        for (int pred_idx = 0; pred_idx < num_predictions; ++pred_idx) {
+          confusion_matrix[j][label_idx][pred_idx] += result_vec[num_labels*label_idx+pred_idx];
+        }
+      }
+    }
+  }
+  
+  for (int j = 0; j < confusion_matrix.size(); ++j) {
+    vector<float> class_iou(num_labels, 0.0f);
+    float mean_iou = 0.0f;
+    for (int label_idx = 0; label_idx < num_labels; ++label_idx) {
+      bool valid = true;
+      class_iou[label_idx] = Solver::getIOUScoreForLabel(confusion_matrix[j], label_idx, valid);
+      mean_iou += class_iou[label_idx];
+    }
+    mean_iou /= num_labels;
+  
+    const int output_blob_index = caffe_net.output_blob_indices()[j];
+    const string& output_name = caffe_net.blob_names()[output_blob_index];
+    for (int label_idx = 0; label_idx < num_labels; ++label_idx) {
+      LOG(INFO) << "Test net output Class IoU #" << j << ": " << output_name << " class " << label_idx << " = " << class_iou[label_idx];
+    }
+    LOG(INFO) << "=========================";
+    LOG(INFO) << "Test net output Mean IoU #" << j << ": " << output_name << " = " << mean_iou;
+    LOG(INFO) << "=========================";
+  }
+  
+  if(FLAGS_display_sparsity) {
+    LOG(INFO) << "=========================";
+    LOG(INFO) << "Sparsity of the test net:";
+    caffe_net.DisplaySparsity(true);
+    LOG(INFO) << "=========================";
+  }
+
+  if(FLAGS_output_model != "") {
+    boost::filesystem::path output_path(FLAGS_output_model);
+    string output_prefix = output_path.parent_path().string() + "/" + output_path.stem().string();
+    string model_filename = output_prefix + ".prototxt";
+    string binary_filename = output_prefix + ".caffemodel";
+
+    caffe::NetParameter net_txt;
+    caffe_net.ToProto(&net_txt, false, false);
+    caffe::WriteProtoToTextFile(net_txt, model_filename);
+
+    caffe::NetParameter net_param;
+    caffe_net.ToProto(&net_param, false, true);
+    caffe::WriteProtoToBinaryFile(net_param, binary_filename);
+  }
+  
+  return 0;
+}
+RegisterBrewFunction(test_segmentation);
+
 // Time: benchmark the execution time of a model.
 int time() {
   CHECK_GT(FLAGS_model.size(), 0) << "Need a model definition to time.";

@@ -518,6 +518,8 @@ vector<float> Solver::TestAll(const int iters, bool use_multi_gpu) {
     vector<float> scores;
     if (param_.eval_type() == "detection") {
       scores = TestDetection(test_net_id);
+    } else if (param_.eval_type() == "segmentation") {
+      scores = TestSegmentation(test_net_id);
     } else {
       scores = Test(test_net_id, iters, use_multi_gpu);
     }
@@ -752,6 +754,107 @@ vector<float>   Solver::TestDetection(const int test_net_id) {
               << mAP;
   }
   return scores;
+}
+
+vector<float>   Solver::TestSegmentation(const int test_net_id) {
+  typedef float Dtype;
+  LOG_IF(INFO, Caffe::root_solver()) << "Iteration " << iter_
+            << ", Testing net (#" << test_net_id << ")";
+  if (!test_nets_[test_net_id]->trained_layers_shared()) {
+    CHECK_NOTNULL(test_nets_[test_net_id].get())->ShareTrainedLayersWith(net_.get());
+  }
+  
+  int num_labels = 0, num_predictions = 0;
+  vector<float> scores;
+  vector<vector<vector<float> > > confusion_matrix;
+  const shared_ptr<Net >& test_net = test_nets_[test_net_id];
+  Dtype loss = 0;
+  for (int i = 0; i < param_.test_iter(test_net_id); ++i) {
+    SolverAction::Enum request = GetRequestedAction();
+    // Check to see if stoppage of testing/training has been requested.
+    while (request != SolverAction::NONE) {
+        if (SolverAction::SNAPSHOT == request) {
+          Snapshot();
+        } else if (SolverAction::STOP == request) {
+          requested_early_exit_ = true;
+        }
+        request = GetRequestedAction();
+    }
+    if (requested_early_exit_) {
+      // break out of test loop.
+      break;
+    }
+
+    Dtype iter_loss;
+    const vector<Blob*>& result = test_net->Forward(&iter_loss);
+    if (param_.test_compute_loss()) {
+      loss += iter_loss;
+    }
+  
+    for (int j = 0; j < result.size(); ++j) {
+      if (confusion_matrix.size() == 0) {
+        confusion_matrix.resize(result.size());
+        num_labels = result[j]->height();
+        num_predictions = result[j]->width();
+        confusion_matrix[j].resize(num_labels, vector<float>(num_predictions, 0.0));
+      }
+  
+      const Dtype* result_vec = result[j]->cpu_data<Dtype>();
+      for (int label_idx = 0; label_idx < num_labels; ++label_idx) {
+        for (int pred_idx = 0; pred_idx < num_predictions; ++pred_idx) {
+          confusion_matrix[j][label_idx][pred_idx] += result_vec[num_labels*label_idx+pred_idx];
+        }
+      }
+    }
+  }
+  if (requested_early_exit_) {
+    LOG(INFO) << "Test interrupted.";
+    return scores;
+  }
+  if (param_.test_compute_loss()) {
+    loss /= param_.test_iter(test_net_id);
+    LOG(INFO) << "Test loss: " << loss;
+  }
+
+  for (int j = 0; j < confusion_matrix.size(); ++j) {
+    vector<float> class_iou(num_labels, 0.0f);
+    float mean_iou = 0.0f;
+    for (int label_idx = 0; label_idx < num_labels; ++label_idx) {
+      bool valid = true;
+      class_iou[label_idx] = Solver::getIOUScoreForLabel(confusion_matrix[j], label_idx, valid);
+      mean_iou += class_iou[label_idx];
+    }
+    mean_iou /= num_labels;
+  
+    const int output_blob_index = test_net->output_blob_indices()[j];
+    const string& output_name = test_net->blob_names()[output_blob_index];
+    for (int label_idx = 0; label_idx < num_labels; ++label_idx) {
+      LOG(INFO) << "Test net output Class IoU #" << j << ": " << output_name << " class " << label_idx << " = " << class_iou[label_idx];
+    }
+    LOG(INFO) << "=========================";
+    LOG(INFO) << "Test net output Mean IoU #" << j << ": " << output_name << " = " << mean_iou;
+    LOG(INFO) << "=========================";
+  }
+  
+  return scores;
+}
+
+//Information: See definition of IU (a.k.a. IOU) here: https://arxiv.org/abs/1411.4038
+float Solver::getIOUScoreForLabel(vector<vector<float> >& confusion_matrix, int label, bool& valid) {
+  float ture_pos = confusion_matrix[label][label];
+  float label_count = 0;
+  for(int j=0; j<confusion_matrix[label].size(); j++) {
+    label_count += confusion_matrix[label][j];
+  }
+  float label_observed = 0;
+  for(int j=0; j<confusion_matrix[label].size(); j++) {
+    label_observed += confusion_matrix[j][label];
+  }
+  float den = label_count + label_observed - ture_pos;
+  valid = (den>0);
+  float score = (valid? (ture_pos/den) : 0);
+
+  return score;
 }
 
 void Solver::SnapshotWithScores(const vector<float>& scores) {

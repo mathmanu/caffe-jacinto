@@ -2230,17 +2230,36 @@ void Net::FindAndApplyThresholdNet(float threshold_fraction_low, float threshold
     if (layers_[i]->type() == std::string("Convolution")) {
       LayerBase& conv_layer = *layers_[i];
       Blob& conv_weights = *conv_layer.blobs()[0];
+      const ConvolutionParameter& conv_param = layers_[i]->layer_param().convolution_param();
       int num_group = layers_[i]->layer_param().convolution_param().group();
       //int stride = layers_[i]->layer_param().convolution_param().stride_size()>0? layers_[i]->layer_param().convolution_param().stride(0) : 1;
 
       int no = (conv_weights.num_axes() == 1)? conv_weights.count() : conv_weights.shape(0);
       int ni = ((conv_weights.num_axes() == 1)? conv_weights.count() : conv_weights.shape(1))*num_group;
       float count = conv_weights.count();
-    if(verbose) {
+      if(verbose) {
         LOG(WARNING) << layers_[i]->layer_param().name() << " ni=" << ni << " no=" << no;
-    }
+      }
 
-      if((ni>=32 || no >= 32) && num_group<no) {
+      int kernel_shape_data[2];
+      if (conv_param.has_kernel_h() || conv_param.has_kernel_w()) {
+        kernel_shape_data[0] = conv_param.kernel_h();
+        kernel_shape_data[1] = conv_param.kernel_w();
+      } else {
+        const int num_kernel_dims = conv_param.kernel_size_size();
+        for (int i = 0; i < 2; ++i) {
+          kernel_shape_data[i] = conv_param.kernel_size((num_kernel_dims == 1) ? 0 : i);
+        }
+      }
+
+      //need to add it as cfg option :FIX_ME:SN
+      const bool no_sparsity_for_small_kernel = true;
+      bool need_sparsity_for_this_layer = true;
+      if (no_sparsity_for_small_kernel) {
+        need_sparsity_for_this_layer = (kernel_shape_data[0] > 2) && (kernel_shape_data[1] > 2) && (num_group != no);
+      }
+
+      if((ni>=32 || no >= 32) && num_group<no && need_sparsity_for_this_layer) {
         float threshold_fraction_selected = ((ni>=256 && no >= 512)? threshold_fraction_high :
             ((ni>=32 && no >= 32)? threshold_fraction_mid: threshold_fraction_low));
         float selected_threshold = 0;
@@ -2321,9 +2340,9 @@ void Net::FindAndApplyChannelThresholdNet(float threshold_fraction_low, float th
       //need to add it as cfg option :FIX_ME:SN
       const bool no_sparsity_for_small_kernel = true;
       bool need_sparsity_for_this_layer = true;
-      if (no_sparsity_for_small_kernel)
-        need_sparsity_for_this_layer = ( kernel_shape_data[0] > 2) && (kernel_shape_data[1] > 2);  
-
+      if (no_sparsity_for_small_kernel) {
+        need_sparsity_for_this_layer = (kernel_shape_data[0] > 2) && (kernel_shape_data[1] > 2) && (num_group != no);
+      }
 
       //apply sparsity only to certain layers. exclude layers with small number of input and outputs
       //also exclude depth-wise separable layers.

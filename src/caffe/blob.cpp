@@ -368,9 +368,11 @@ void Blob::ToProto(BlobProto* proto, bool store_in_old_format, bool write_diff, 
   for (int i = 0; i < shape_.size(); ++i) {
     proto->mutable_shape()->add_dim(shape_[i]);
   }
-  const void* pdata = current_data_memory(false);
-  proto->set_raw_data_type(dt);
-  proto->set_raw_data(pdata, count_ * tsize(dt));
+  if (write_data) {
+    const void* pdata = current_data_memory(false);
+    proto->set_raw_data_type(dt);
+    proto->set_raw_data(pdata, count_ * tsize(dt));
+  }
   if (write_diff) {
     dt = diff_type();
     const void* pdiff = current_diff_memory(false);

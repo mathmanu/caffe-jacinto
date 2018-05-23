@@ -351,6 +351,15 @@ class Net {
   //Batch Norm  Optimization
   template <typename Dtype> void OptimizeNet();
   
+  //Some utility functions
+  vector<int> GetTopLayerIds(int layer_id);
+  vector<int> GetBottomLayerIds(int layer_id);
+  string GetTopLayerType(int layer_id);
+  string GetBottomLayerType(int layer_id);
+  string GetTopLayerType2(int layer_id);
+  string GetBottomLayerType2(int layer_id);
+  vector<const QuantizationParameter::QParams*> GetBottomLayerQParams(int layer_id);
+
  protected:
   // Helpers for Init.
   /// @brief Append a new top blob to the net.

@@ -1194,14 +1194,23 @@ void Net::CopyTrainedLayersFrom(const NetParameter& param) {
                           
             const bool kReshape = false;
             target_blobs[j]->FromProto(source_layer.blobs(j), kReshape, ignore_shape_mismatch);
-          }     else {
-            LOG(FATAL) << "Cannot copy param " << j << " weights from layer '"
-              << source_layer_name << "'; shape mismatch.  Source param shape is "
-              << source_blob->shape_string() << "; target param shape is "
-              << target_blobs[j]->shape_string() << ". "
-              << "To learn this layer's parameters from scratch rather than "
-              << "copying from a saved net, rename the layer.";
-        }
+          } else {
+            if(ignore_shape_mismatch) {
+              LOG(WARNING) << "Cannot copy param " << j << " weights from layer '"
+                << source_layer_name << "'; shape mismatch.  Source param shape is "
+                << source_blob->shape_string() << "; target param shape is "
+                << target_blobs[j]->shape_string() << ". "
+                << "To learn this layer's parameters from scratch rather than "
+                << "copying from a saved net, rename the layer.";
+              } else {
+                LOG(FATAL) << "Cannot copy param " << j << " weights from layer '"
+                  << source_layer_name << "'; shape mismatch.  Source param shape is "
+                  << source_blob->shape_string() << "; target param shape is "
+                  << target_blobs[j]->shape_string() << ". "
+                  << "To learn this layer's parameters from scratch rather than "
+                  << "copying from a saved net, rename the layer.";
+             }
+          }
         } else {
           //Go ahead and copy: exactly matching blobs
           const bool kReshape = false;

@@ -125,6 +125,7 @@ class SoftmaxWithLossLayer : public LossLayer<Ftype, Btype> {
   LossParameter_NormalizationMode normalization_;
 
   int softmax_axis_, outer_num_, inner_num_;
+  TBlob<float> label_weights_;
 };
 
 }  // namespace caffe

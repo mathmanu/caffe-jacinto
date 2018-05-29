@@ -39,6 +39,15 @@ void SoftmaxWithLossLayer<Ftype, Btype>::LayerSetUp(
   } else {
     normalization_ = this->layer_param_.loss_param().normalization();
   }
+
+  if(this->layer_param_.loss_param().label_weights_size()>0) {
+    vector<int> label_weight_shape;
+    label_weight_shape.push_back(this->layer_param_.loss_param().label_weights_size());
+    label_weights_.Reshape(label_weight_shape);
+    for(int i=0; i<this->layer_param_.loss_param().label_weights_size(); i++) {
+      label_weights_.mutable_cpu_data()[i] = this->layer_param_.loss_param().label_weights(i);
+    }
+  }
 }
 
 template <typename Ftype, typename Btype>
@@ -101,6 +110,7 @@ void SoftmaxWithLossLayer<Ftype, Btype>::Forward_cpu(
   int dim = prob_->count() / outer_num_;
   int count = 0;
   float loss = 0.F;
+  const float *label_weights = label_weights_.count()>0? label_weights_.cpu_data() : NULL;
   for (int i = 0; i < outer_num_; ++i) {
     for (int j = 0; j < inner_num_; j++) {
       const int label_value = static_cast<int>(label[i * inner_num_ + j]);
@@ -109,8 +119,9 @@ void SoftmaxWithLossLayer<Ftype, Btype>::Forward_cpu(
       }
       DCHECK_GE(label_value, 0);
       DCHECK_LT(label_value, prob_->shape(softmax_axis_));
+      float lweight = label_weights!=NULL? label_weights[label_value] : 1.0;
       loss -= log(std::max(prob_data[i * dim + label_value * inner_num_ + j],
-          min_dtype<Ftype>()));
+          min_dtype<Ftype>())) * lweight;
       ++count;
     }
   }

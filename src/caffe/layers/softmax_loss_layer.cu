@@ -12,7 +12,7 @@ __global__ void SoftmaxLossForwardGPU(const int nthreads,
           const Dtype* prob_data, const Dtype* label, Dtype* loss,
           const int num, const int dim, const int spatial_dim,
           const bool has_ignore_label_, const int ignore_label_,
-          Dtype* counts) {
+          const float *label_weights, Dtype* counts) {
   CUDA_KERNEL_LOOP(index, nthreads) {
     const int n = index / spatial_dim;
     const int s = index % spatial_dim;
@@ -21,8 +21,9 @@ __global__ void SoftmaxLossForwardGPU(const int nthreads,
       loss[index] = 0;
       counts[index] = 0;
     } else {
+        float lweight = label_weights!=NULL? label_weights[label_value] : 1.0;
       loss[index] = -log(max(prob_data[n * dim + label_value * spatial_dim + s],
-          min_dtype<Dtype>()));
+          min_dtype<Dtype>())) * lweight;
       counts[index] = 1;
     }
   }
@@ -33,7 +34,7 @@ __global__ void SoftmaxLossForwardGPU<half>(const int nthreads,
     const half* prob_data, const half* label, half* loss,
     const int num, const int dim, const int spatial_dim,
     const bool has_ignore_label_, const int ignore_label_,
-    half* counts) {
+    const float *label_weights, half* counts) {
   const float minh = __half2float(min_dtype<half>());
   CUDA_KERNEL_LOOP(index, nthreads) {
     const int n = index / spatial_dim;
@@ -43,8 +44,9 @@ __global__ void SoftmaxLossForwardGPU<half>(const int nthreads,
       loss[index].setx(0U);
       counts[index].setx(0U);
     } else {
+      float lweight = label_weights!=NULL? label_weights[label_value] : 1.0;
       loss[index] = float2half_clip(- log(max(__half2float(
-          prob_data[n * dim + label_value * spatial_dim + s]), minh)));
+          prob_data[n * dim + label_value * spatial_dim + s]), minh)) * lweight);
       counts[index].setx(0x3c00U);  // set to 1
     }
   }
@@ -66,18 +68,19 @@ void SoftmaxWithLossLayer<Ftype, Btype>::Forward_gpu(
   // to avoid having to allocate additional GPU memory.
   Ftype* counts = prob_->template mutable_gpu_diff<Ftype>();
   cudaStream_t stream = Caffe::thread_stream();
+  const float *label_weights = label_weights_.count()>0? label_weights_.gpu_data() : NULL;
   if (tp<Ftype>() == FLOAT16) {
     // NOLINT_NEXT_LINE(whitespace/operators)
     SoftmaxLossForwardGPU<half><<<CAFFE_GET_BLOCKS(nthreads),
         CAFFE_CUDA_NUM_THREADS, 0, stream>>>(nthreads, reinterpret_cast<const half*>(prob_data),
         reinterpret_cast<const half*>(label), reinterpret_cast<half*>(loss_data),
-        outer_num_, dim, inner_num_, has_ignore_label_, ignore_label_,
+        outer_num_, dim, inner_num_, has_ignore_label_, ignore_label_, label_weights,
         reinterpret_cast<half*>(counts));
   } else {
     // NOLINT_NEXT_LINE(whitespace/operators)
     SoftmaxLossForwardGPU<<<CAFFE_GET_BLOCKS(nthreads),
         CAFFE_CUDA_NUM_THREADS, 0, stream>>> (nthreads, prob_data, label, loss_data,
-        outer_num_, dim, inner_num_, has_ignore_label_, ignore_label_, counts);
+        outer_num_, dim, inner_num_, has_ignore_label_, ignore_label_, label_weights, counts);
   }
   CUDA_CHECK(cudaStreamSynchronize(stream));
   float loss;

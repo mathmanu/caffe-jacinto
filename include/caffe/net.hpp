@@ -352,12 +352,12 @@ class Net {
   template <typename Dtype> void OptimizeNet();
   
   //Some utility functions
-  vector<int> GetTopLayerIds(int layer_id);
-  vector<int> GetBottomLayerIds(int layer_id);
-  string GetTopLayerType(int layer_id);
-  string GetBottomLayerType(int layer_id);
-  string GetTopLayerType2(int layer_id);
-  string GetBottomLayerType2(int layer_id);
+  vector<int> GetTopLayerIds(int layer_id, bool only_one=true);
+  vector<int> GetBottomLayerIds(int layer_id, bool only_one=true);
+  string GetTopLayerType(int layer_id, bool only_one=true);
+  string GetBottomLayerType(int layer_id, bool only_one=true);
+  string GetTopLayerType2(int layer_id, bool only_one=true);
+  string GetBottomLayerType2(int layer_id, bool only_one=true);
   vector<const QuantizationParameter::QParams*> GetBottomLayerQParams(int layer_id);
 
  protected:

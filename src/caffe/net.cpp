@@ -1561,22 +1561,27 @@ void Net::OptimizeNet() {
       LAYER_SEQ_TYPE_BN_SCALE_CONV
   };
 
-  auto layer_sequence_type = [&](int i) {
+  auto layer_sequence_type = [&](int layer_id) {
+    std::string layer_name = layers_[layer_id]->layer_param().name();
+    std::string layer_type = layers_[layer_id]->layer_param().type();
+    std::string layer_type_next = GetTopLayerType(layer_id);
+    std::string layer_type_next2 = GetTopLayerType2(layer_id);
+    std::string layer_type_prev = GetBottomLayerType(layer_id);
+    std::string layer_type_prev2 = GetBottomLayerType2(layer_id);
+
     LayerSequenceType type = LAYER_SEQ_TYPE_OTHER;
-    if ((i < (layers_.size()-2)) && layers_[i]->type() == std::string("Convolution") &&
-      layers_[i+1]->type() == std::string("BatchNorm") &&
-      layers_[i+2]->type() == std::string("Scale")) {
+    if ((layer_id < (layers_.size()-2)) && layer_type == std::string("Convolution") &&
+        layer_type_next == std::string("BatchNorm") && layer_type_next2 == std::string("Scale")) {
         type = LAYER_SEQ_TYPE_CONV_BN_SCALE;
-    } else if ((i < (layers_.size()-1)) && layers_[i]->type() == std::string("Convolution") &&
-      layers_[i+1]->type() == std::string("BatchNorm")) {
+    } else if ((layer_id < (layers_.size()-1)) && layer_type == std::string("Convolution") &&
+        layer_type_next == std::string("BatchNorm")) {
         type = LAYER_SEQ_TYPE_CONV_BN;
-    } else if ((i < (layers_.size()-1)) && layers_[i]->type() == std::string("BatchNorm") &&
-      layers_[i+1]->type() == std::string("Convolution")) {
+    } else if ((layer_id < (layers_.size()-1)) && layer_type == std::string("BatchNorm") &&
+        layer_type_next == std::string("Convolution")) {
         type = LAYER_SEQ_TYPE_BN_CONV;
-    } else if ((i < (layers_.size()-2)) && layers_[i]->type() == std::string("BatchNorm") &&
-       layers_[i+1]->type() == std::string("Scale") &&
-       layers_[i+2]->type() == std::string("Convolution")) {
-        if(i>0 && layers_[i-1]->type() != std::string("Convolution")) {
+    } else if ((layer_id < (layers_.size()-2)) && layer_type == std::string("BatchNorm") &&
+        layer_type_next == std::string("Scale") && layer_type_next2 == std::string("Convolution")) {
+        if(layer_id>0 && layer_type_prev != std::string("Convolution")) {
           type = LAYER_SEQ_TYPE_BN_SCALE_CONV;
         }
     }
@@ -1940,80 +1945,139 @@ void Net::UpdateQuantizationRangeInLayers() {
   }
 }
 
-vector<int> Net::GetTopLayerIds(int layer_id) {
+vector<int> Net::GetTopLayerIds(int layer_id, bool only_one) {
     vector<int> top_layer_ids;
     vector<int> cur_top_ids = this->top_ids(layer_id);
     for(int t=0; t<cur_top_ids.size(); t++) {
       int tid = cur_top_ids[t];
-      for(int search_lid=0; search_lid<layers_.size(); search_lid++) {
+      int found_lid = -1;
+      for(int search_lid=(layer_id+1); search_lid<layers_.size(); search_lid++) {
         vector<int> seach_bids = this->bottom_ids(search_lid);
         for(int b=0; b<seach_bids.size(); b++) {
-            int bid = seach_bids[b];
-            if(bid == tid) {
-                top_layer_ids.push_back(search_lid);
+            if(tid == seach_bids[b]) {
+                found_lid = search_lid;
+                break;
+            }
+        }
+        if(found_lid >= 0) {
+            top_layer_ids.push_back(found_lid);
+            if(only_one) {
+                break;
             }
         }
       }
     }
     return top_layer_ids;
 }
-vector<int> Net::GetBottomLayerIds(int layer_id) {
+vector<int> Net::GetBottomLayerIds(int layer_id, bool only_one) {
     vector<int> bottom_layer_ids;
     vector<int> cur_bottom_ids = this->bottom_ids(layer_id);
     for(int b=0; b<cur_bottom_ids.size(); b++) {
       int bid = cur_bottom_ids[b];
-      for(int search_lid=0; search_lid<layers_.size(); search_lid++) {
-        vector<int> seach_bids = this->top_ids(search_lid);
-        for(int t=0; t<seach_bids.size(); t++) {
-            int tid = seach_bids[t];
-            if(bid == tid) {
-                bottom_layer_ids.push_back(search_lid);
+      int found_lid = -1;
+      for(int search_lid=0; search_lid<layer_id; search_lid++) {
+        vector<int> seach_tids = this->top_ids(search_lid);
+        for(int t=0; t<seach_tids.size(); t++) {
+            if(search_lid < layer_id && bid == seach_tids[t]) {
+                found_lid = search_lid;
             }
         }
+      }
+      if(found_lid >= 0) {
+          bottom_layer_ids.push_back(found_lid);
+          if(only_one) {
+              break;
+          }
       }
     }
     return bottom_layer_ids;
 }
-string Net::GetTopLayerType(int layer_id) {
-    vector<int> top_layer_ids = GetTopLayerIds(layer_id);
-    return top_layer_ids.size()==1? layers_[top_layer_ids[0]]->type(): "";
+string Net::GetTopLayerType(int layer_id, bool only_one) {
+    vector<int> layer_ids = GetTopLayerIds(layer_id);
+    string layer_types = "";
+    for(int i=0; i<layer_ids.size(); i++) {
+        if(layer_types != "") {
+            layer_types += ",";
+        }
+        layer_types += layers_[layer_ids[i]]->type();
+        if(only_one) {
+            break;
+        }
+    }
+    return layer_types;
 }
-string Net::GetBottomLayerType(int layer_id) {
-    vector<int> bottom_layer_ids = GetBottomLayerIds(layer_id);
-    return bottom_layer_ids.size()==1? layers_[bottom_layer_ids[0]]->type(): "";
+string Net::GetBottomLayerType(int layer_id, bool only_one) {
+    vector<int> layer_ids = GetBottomLayerIds(layer_id);
+    string layer_types = "";
+    for(int i=0; i<layer_ids.size(); i++) {
+        if(layer_types != "") {
+            layer_types += ",";
+        }
+        layer_types += layers_[layer_ids[i]]->type();
+        if(only_one) {
+            break;
+        }
+    }
+    return layer_types;
 }
-string Net::GetTopLayerType2(int layer_id) {
-    vector<int> top_layer_ids = GetTopLayerIds(layer_id);
-    if(top_layer_ids.size()==1) {
-        int top_layer_id = top_layer_ids[0];
-        vector<int> top_layer_ids2 = GetTopLayerIds(top_layer_id);
-        return top_layer_ids2.size()==1? layers_[top_layer_ids2[0]]->type(): "";
+string Net::GetTopLayerType2(int layer_id, bool only_one) {
+    vector<int> layer_ids = GetTopLayerIds(layer_id);
+    string layer_types = "";
+    if(layer_ids.size()==1) {
+        int top_layer_id = layer_ids[0];
+        vector<int> layer_ids2 = GetTopLayerIds(top_layer_id);
+        for(int i=0; i<layer_ids2.size(); i++) {
+            if(layer_types != "") {
+                layer_types += ",";
+            }
+            layer_types += layers_[layer_ids2[i]]->type();
+            if(only_one) {
+                break;
+            }
+        }
+        return layer_types;
     } else {
-        return "UnknownLayerType";
+        return "";
     }
 }
-string Net::GetBottomLayerType2(int layer_id) {
-    vector<int> bottom_layer_ids = GetBottomLayerIds(layer_id);
-    if(bottom_layer_ids.size()==1) {
-        int bottom_layer_id = bottom_layer_ids[0];
-        vector<int> bottom_layer_ids2 = GetBottomLayerIds(bottom_layer_id);
-        return bottom_layer_ids2.size()==1? layers_[bottom_layer_ids2[0]]->type(): "";
+string Net::GetBottomLayerType2(int layer_id, bool only_one) {
+    vector<int> layer_ids = GetBottomLayerIds(layer_id);
+    string layer_types = "";
+    if(layer_ids.size()==1) {
+        int bottom_layer_id = layer_ids[0];
+        vector<int> layer_ids2 = GetBottomLayerIds(bottom_layer_id);
+        for(int i=0; i<layer_ids2.size(); i++) {
+            if(layer_types != "") {
+                layer_types += ",";
+            }
+            layer_types += layers_[layer_ids2[i]]->type();
+            if(only_one) {
+                break;
+            }
+        }
+        return layer_types;
     } else {
         return "";
     }
 }
 vector<const QuantizationParameter::QParams*> Net::GetBottomLayerQParams(int layer_id) {
     vector<const QuantizationParameter::QParams*> bottom_qparams;
-    for(int search_bid=0; search_bid<this->bottom_ids(layer_id).size(); search_bid++) {
-        int bottom_id = this->bottom_ids(layer_id)[search_bid];
-        for (int search_lid = 0; search_lid < layers_.size(); search_lid++) {
-            for(int search_tid=0; search_tid<this->top_ids(layer_id).size(); search_tid++) {
-              int top_id = this->top_ids(search_lid)[search_tid];
-              if(bottom_id == top_id) {
-                  const QuantizationParameter::QParams& qparam_out = layers_[search_lid]->layer_param().quantization_param().qparam_out(top_id);
-                  bottom_qparams.push_back(&qparam_out);
+    for(int b=0; b<this->bottom_ids(layer_id).size(); b++) {
+        int search_bid = this->bottom_ids(layer_id)[b];
+        int found_lid = -1;
+        int found_tid = -1;
+        for (int search_lid = 0; search_lid < layer_id; search_lid++) {
+            for(int t=0; t<this->top_ids(search_lid).size(); t++) {
+              int search_tid = this->top_ids(search_lid)[t];
+              if(search_bid == search_tid) {
+                  found_lid = search_lid;
+                  found_tid = search_tid;
               }
             }
+        }
+        if(found_lid >= 0) {
+            const QuantizationParameter::QParams& qparam_out = layers_[found_lid]->layer_param().quantization_param().qparam_out(found_tid);
+            bottom_qparams.push_back(&qparam_out);
         }
     }
     return bottom_qparams;
@@ -2026,10 +2090,7 @@ void Net::EnableQuantizationForSelectedLayers() {
       std::string layer_name = layers_[layer_id]->layer_param().name();
       std::string layer_type = layers_[layer_id]->layer_param().type();
 
-      std::string layer_type_next = GetTopLayerType(layer_id);
-      std::string layer_type_next2 = GetTopLayerType2(layer_id);
-      std::string layer_type_prev = GetBottomLayerType(layer_id);
-      std::string layer_type_prev2 = GetBottomLayerType2(layer_id);
+      //LOG(INFO) << "Checking whether quantization is needed for: " << layer_type << " " << layer_name;
 
      //It is assumed that operations across multiple blobs (such as eltwise) is done in high precision.
      //So, we don't need to align the quantization ranges of different inputs.
@@ -2047,6 +2108,16 @@ void Net::EnableQuantizationForSelectedLayers() {
           }
         }
       }
+
+      //find if this is a merged layer
+      std::string layer_type_next = GetTopLayerType(layer_id);
+      std::string layer_type_next2 = GetTopLayerType2(layer_id);
+      std::string layer_type_prev = GetBottomLayerType(layer_id);
+      std::string layer_type_prev2 = GetBottomLayerType2(layer_id);
+
+      //std::cout << "LinearLayerChain: " << "(" << layer_type_prev2 << ")(" << layer_type_prev << ")("
+      //        << layer_type << " - " << layer_name << ")" << "(" << layer_type_next << ")("
+      //        << layer_type_next2 << ")" << std::endl;
 
       bool is_merged_layer = false;
       if(layer_type == "Convolution" || layer_type == "InnerProduct" || "Deconvolution") {
@@ -2192,23 +2263,29 @@ void Net::EstiamteQScaleParams(float min, float max, int bitwidth, bool power2_s
 }
 
 void Net::SetQuantizationParamsLayerInput(const int layer_id) {
-  const NetQuantizationParameter& net_qparam = net_param_.net_quantization_param();
+  //const NetQuantizationParameter& net_qparam = net_param_.net_quantization_param();
   QuantizationParameter& quantization_param = *layers_[layer_id]->mutable_layer_param().mutable_quantization_param();
 
+  vector<const QuantizationParameter::QParams*> qparam_bot_vec = this->GetBottomLayerQParams(layer_id);
   int num_bottom_vecs = bottom_vecs_[layer_id].size();
+  CHECK(qparam_bot_vec.size() == num_bottom_vecs) << "Incorrect number of bottom qparams obtained";
+
   //It is assumed that operations across multiple blobs (such as eltwise) is done in high precision.
   //So, we don't need to align the quantization ranges of different inputs.
   for(int blob_id = 0; blob_id<num_bottom_vecs; blob_id++) {
     if(quantization_param.qparam_in_size() <= blob_id) {
       quantization_param.add_qparam_in();
     }
-    float min_layer = min_in_[layer_id][blob_id];
-    float max_layer = max_in_[layer_id][blob_id];
 
-    bool unsigned_data = (min_layer>=0);
+    //float min_layer = min_in_[layer_id][blob_id];
+    //float max_layer = max_in_[layer_id][blob_id];
+    //bool unsigned_data = (min_layer>=0);
+    //QuantizationParameter::QParams& qparam_in = *quantization_param.mutable_qparam_in(blob_id);
+    //EstiamteQScaleParams(min_layer, max_layer, net_qparam.bitwidth_activations(),
+    //   net_qparam.power2_scale_activations(), unsigned_data, net_qparam.apply_offset_activations(), qparam_in);
+
     QuantizationParameter::QParams& qparam_in = *quantization_param.mutable_qparam_in(blob_id);
-    EstiamteQScaleParams(min_layer, max_layer, net_qparam.bitwidth_activations(),
-       net_qparam.power2_scale_activations(), unsigned_data, net_qparam.apply_offset_activations(), qparam_in);
+    qparam_in = *qparam_bot_vec[blob_id];
   }
 }
 

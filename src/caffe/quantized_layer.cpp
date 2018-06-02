@@ -15,12 +15,13 @@ void QuantizedLayer<Ftype, Btype>::Quantize_cpu(const vector<Blob*>& bottom, con
   if (this->layer_param_.has_quantization_param()) {
     //LOG(INFO) << "Quantizing layer: " << this->layer_param_.name();
     const vector<shared_ptr<Blob > >& blobs = this->blobs();
-    const QuantizationParameter& param = this->layer_param_.quantization_param();
+    QuantizationParameter& param = *this->layer_param_.mutable_quantization_param();
     if (param.precision() != QuantizationParameter_Precision_FLOAT) {
       // Trim layer input
       for (int i = 0; i < std::min<int>(param.qparam_in_size(),bottom.size()); ++i) {
         if(param.qparam_in(i).quantize()) {
           this->QuantizeLayerInputs_cpu(bottom[i]->mutable_cpu_data<Ftype>(), i, bottom[i]->count());
+          param.mutable_qparam_in(i)->set_scale_applied(param.qparam_in(i).scale_target());
         }
       }
 
@@ -29,6 +30,7 @@ void QuantizedLayer<Ftype, Btype>::Quantize_cpu(const vector<Blob*>& bottom, con
     	if(param.qparam_w(blob_id).quantize() && param.quantized_infer_count() == 0) {
     	    bool clip = (blob_id == 0);
             this->QuantizeWeights_cpu(blobs[blob_id]->mutable_cpu_data<Ftype>(), blob_id, blobs[blob_id]->count(), clip);
+            param.mutable_qparam_w(blob_id)->set_scale_applied(param.mutable_qparam_w(blob_id)->scale_target());
         }
       }
 
@@ -36,6 +38,7 @@ void QuantizedLayer<Ftype, Btype>::Quantize_cpu(const vector<Blob*>& bottom, con
       for(int i=0; i<top.size(); i++) {
           if(param.qparam_out(i).quantize()) {
               this->QuantizeLayerOutputs_cpu(top[i]->mutable_cpu_data<Ftype>(), i, top[i]->count());
+              param.mutable_qparam_out(i)->set_scale_applied(param.qparam_out(i).scale_target());
           }
       }
     }
@@ -50,7 +53,7 @@ void QuantizedLayer<Ftype, Btype>::QuantizeWeights_cpu(Ftype* data, const int bl
   switch (param.precision()) {
   case QuantizationParameter_Precision_DYNAMIC_FIXED_POINT:
     Trim2FixedPoint_cpu(data, count, param.power2_scale_weights(), qparam_w.bitwidth(),
-        param.rounding_scheme(), qparam_w.fracbits(), qparam_w.scale(),
+        param.rounding_scheme(), qparam_w.fracbits(), qparam_w.scale_target(),
         qparam_w.offset(), qparam_w.unsigned_quant(), clip);
     break;
   case QuantizationParameter_Precision_FLOAT:
@@ -71,7 +74,7 @@ void QuantizedLayer<Ftype, Btype>::QuantizeLayerInputs_cpu(Ftype* data, const in
   switch (param.precision()) {
     case QuantizationParameter_Precision_DYNAMIC_FIXED_POINT:
       Trim2FixedPoint_cpu(data, count, param.power2_scale_activations(), qparam_in.bitwidth(),
-          param.rounding_scheme(), qparam_in.fracbits(), qparam_in.scale(),
+          param.rounding_scheme(), qparam_in.fracbits(), qparam_in.scale_target(),
           qparam_in.offset(), qparam_in.unsigned_quant(), true);
       break;
     case QuantizationParameter_Precision_FLOAT:
@@ -90,7 +93,7 @@ void QuantizedLayer<Ftype, Btype>::QuantizeLayerOutputs_cpu(
   switch (param.precision()) {
     case QuantizationParameter_Precision_DYNAMIC_FIXED_POINT:
       Trim2FixedPoint_cpu(data, count, param.power2_scale_activations(), qparam_out.bitwidth(),
-          param.rounding_scheme(), qparam_out.fracbits(), qparam_out.scale(),
+          param.rounding_scheme(), qparam_out.fracbits(), qparam_out.scale_target(),
           qparam_out.offset(), qparam_out.unsigned_quant(), true);
       break;
     case QuantizationParameter_Precision_FLOAT:

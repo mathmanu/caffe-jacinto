@@ -2355,10 +2355,12 @@ message QuantizationParameter {
     optional int32 fracbits = 3 [default = 0];
     optional bool unsigned_data = 4 [ default = false];
     optional bool unsigned_quant = 5 [ default = false];    
-    optional float scale = 6 [default = 0];
-    optional float offset = 7 [default = 0];    
-    optional float min = 8 [default = 0];
-    optional float max = 9 [default = 0];    
+    optional float scale_target = 6 [default = 1.0];
+    optional float scale_applied = 7 [default = 1.0];    
+    optional int32 shiftbits = 8 [default = 0];      
+    optional float offset = 9 [default = 0];    
+    optional float min = 10 [default = 0];
+    optional float max = 11 [default = 0];    
   }
   repeated QParams qparam_in = 5;
   repeated QParams qparam_w = 6;

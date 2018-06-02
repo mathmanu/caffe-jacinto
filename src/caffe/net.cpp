@@ -2065,18 +2065,20 @@ vector<const QuantizationParameter::QParams*> Net::GetBottomLayerQParams(int lay
     for(int b=0; b<this->bottom_ids(layer_id).size(); b++) {
         int search_bid = this->bottom_ids(layer_id)[b];
         int found_lid = -1;
-        int found_tid = -1;
+        //int found_tid = -1;
+        int found_top = -1;
         for (int search_lid = 0; search_lid < layer_id; search_lid++) {
             for(int t=0; t<this->top_ids(search_lid).size(); t++) {
               int search_tid = this->top_ids(search_lid)[t];
               if(search_bid == search_tid) {
                   found_lid = search_lid;
-                  found_tid = search_tid;
+                  //found_tid = search_tid;
+                  found_top = t;
               }
             }
         }
         if(found_lid >= 0) {
-            const QuantizationParameter::QParams& qparam_out = layers_[found_lid]->layer_param().quantization_param().qparam_out(found_tid);
+            const QuantizationParameter::QParams& qparam_out = layers_[found_lid]->layer_param().quantization_param().qparam_out(found_top);
             bottom_qparams.push_back(&qparam_out);
         }
     }
@@ -2201,7 +2203,6 @@ void Net::SetQuantizationParams() {
             QuantizationParameter_Rounding_STOCHASTIC : net_qparam.rounding_scheme());
 
     for (int layer_id = 0; layer_id < layers_.size(); layer_id++) {
-      if (true/*!layers_[layer_id]->layer_param().has_quantization_param()*/) {
         QuantizationParameter& quantization_param = *layers_[layer_id]->mutable_layer_param().mutable_quantization_param();
 
         quantization_param.set_precision(net_qparam.precision());
@@ -2218,9 +2219,10 @@ void Net::SetQuantizationParams() {
 
         // quantize output activations
         SetQuantizationParamsLayerOutput(layer_id);
-      }
     }
   }
+
+  //this->DisplayQuantizationParams();
 }
 
 int Net::EstimateAbsBits(float val) {
@@ -2229,36 +2231,43 @@ int Net::EstimateAbsBits(float val) {
 
 void Net::EstiamteQScaleParams(float min, float max, int bitwidth, bool power2_scale,
     bool unsigned_data, bool apply_offset, QuantizationParameter::QParams& qparam_xx) {
+  float scale_applied = qparam_xx.scale_applied();
+
   qparam_xx.set_bitwidth(bitwidth);
   qparam_xx.set_unsigned_data(unsigned_data);
   qparam_xx.set_unsigned_quant(unsigned_data || apply_offset);
   qparam_xx.set_min(min);
   qparam_xx.set_max(max);
 
-  float max_val_abs = std::max(std::fabs(max), std::fabs(min));
-  float max_val_range = std::abs(max - min);
+  //fractbits cannot be computed in cases where non-power of 2 quant is involved. not using it.
+  qparam_xx.set_fracbits(0);
+
+  float max_val_abs = std::max(std::fabs(max), std::fabs(min))*scale_applied;
+  float max_val_range = std::abs(max - min)*scale_applied;
 
   if(power2_scale) {
     int estimated_bits = apply_offset? EstimateAbsBits(max_val_range) :
         (unsigned_data? EstimateAbsBits(max_val_abs) : (EstimateAbsBits(max_val_abs)+1));
-    int fracbits = bitwidth - estimated_bits;
-    qparam_xx.set_fracbits(fracbits);
+    int shiftbits = estimated_bits - bitwidth;
+    //account for the scaling due to right shift by shiftbits
+    float shiftbits_scale = 1.0/((shiftbits>=0)? float(1<<shiftbits) : float(1.0/(1<<std::abs(shiftbits))));
+    float scale_target = scale_applied * shiftbits_scale;
 
-    float scale = fracbits>0? float(1<<fracbits) : float(1.0/(1<<std::abs(fracbits)));
-    qparam_xx.set_scale(scale);
-    qparam_xx.set_offset(apply_offset? (0 - min * scale) : 0);
+    qparam_xx.set_shiftbits(shiftbits);
+    qparam_xx.set_scale_target(scale_target);
+    qparam_xx.set_offset(apply_offset? (0 - min * scale_target) : 0);
   } else {
     //We can even use (1L<<bitwidth). Since we clip the quantized output - this should not be an issue.
     //However found that ((1L<<bitwidth)-1) gave slightly better quality
     float max_qrange = ((1L<<bitwidth)-1);
     float max_qrange_half = ((1L<<(bitwidth-1))-1);
-    float scale = apply_offset? max_qrange/max_val_range :
-        (unsigned_data? max_qrange/max_val_abs : max_qrange_half/max_val_abs);
-    qparam_xx.set_scale(scale);
+    float scale_target = apply_offset? max_qrange/max_val_range :
+      (unsigned_data? max_qrange/max_val_abs : max_qrange_half/max_val_abs);
 
-    //fracbits is not integer - so cannot be set accurately.
-    qparam_xx.set_fracbits(0);
-    qparam_xx.set_offset(apply_offset? (0 - min * scale) : 0);
+    //shiftbits are not integer - so cannot be set accurately.
+    qparam_xx.set_shiftbits(0);
+    qparam_xx.set_offset(apply_offset? (0 - min * scale_target) : 0);
+    qparam_xx.set_scale_target(scale_target);
   }
 }
 
@@ -2277,21 +2286,35 @@ void Net::SetQuantizationParamsLayerInput(const int layer_id) {
       quantization_param.add_qparam_in();
     }
 
-    //float min_layer = min_in_[layer_id][blob_id];
-    //float max_layer = max_in_[layer_id][blob_id];
-    //bool unsigned_data = (min_layer>=0);
-    //QuantizationParameter::QParams& qparam_in = *quantization_param.mutable_qparam_in(blob_id);
-    //EstiamteQScaleParams(min_layer, max_layer, net_qparam.bitwidth_activations(),
-    //   net_qparam.power2_scale_activations(), unsigned_data, net_qparam.apply_offset_activations(), qparam_in);
-
+    //Get the scale applied to this blob
     QuantizationParameter::QParams& qparam_in = *quantization_param.mutable_qparam_in(blob_id);
-    qparam_in = *qparam_bot_vec[blob_id];
+    CHECK(qparam_bot_vec[blob_id] != NULL) << "Input QParams should not be NULL";
+    qparam_in.set_scale_applied(qparam_bot_vec[blob_id]->scale_applied());
+
+    const NetQuantizationParameter& net_qparam = net_param_.net_quantization_param();
+    float min_layer = min_in_[layer_id][blob_id];
+    float max_layer = max_in_[layer_id][blob_id];
+    bool unsigned_data = (min_layer>=0);
+    EstiamteQScaleParams(min_layer, max_layer, net_qparam.bitwidth_activations(),
+       net_qparam.power2_scale_activations(), unsigned_data, net_qparam.apply_offset_activations(), qparam_in);
   }
 }
 
 void Net::SetQuantizationParamsLayerOutput(const int layer_id) {
   const NetQuantizationParameter& net_qparam = net_param_.net_quantization_param();
   QuantizationParameter& quantization_param = *layers_[layer_id]->mutable_layer_param().mutable_quantization_param();
+  std::string layer_type = layers_[layer_id]->layer_param().type();
+
+  int num_bottom_vecs = bottom_vecs_[layer_id].size();
+  float scale_applied_in_max = num_bottom_vecs>0? -1.0: 1.0;
+  //Get the max scale applied in the case of multiple blobs
+  for(int blob_id = 0; blob_id<num_bottom_vecs; blob_id++) {
+    QuantizationParameter::QParams& qparam_in = *quantization_param.mutable_qparam_in(blob_id);
+    scale_applied_in_max = std::max(scale_applied_in_max, qparam_in.scale_applied());
+  }
+
+  float scale_applied_w = (layer_type == "Convolution")? quantization_param.mutable_qparam_w(0)->scale_applied() : 1.0;
+
   int num_top_vecs = top_vecs_[layer_id].size();
   for(int blob_id = 0; blob_id<num_top_vecs; blob_id++) {
       if(quantization_param.qparam_out_size() <= blob_id) {
@@ -2302,24 +2325,30 @@ void Net::SetQuantizationParamsLayerOutput(const int layer_id) {
       bool unsigned_data = (min_layer>=0);
 
       QuantizationParameter::QParams& qparam_out = *quantization_param.mutable_qparam_out(blob_id);
+      qparam_out.set_scale_applied(scale_applied_in_max * scale_applied_w);
+
       EstiamteQScaleParams(min_layer, max_layer, net_qparam.bitwidth_activations(),
           net_qparam.power2_scale_activations(), unsigned_data, net_qparam.apply_offset_activations(), qparam_out);
 
       int num_blobs = layers_[layer_id]->blobs().size();
       int fracbits_in = quantization_param.qparam_in_size()>0? quantization_param.qparam_in(0).fracbits() : 0;
-      int fracbits_weights = num_blobs>0? quantization_param.qparam_w(0).fracbits() : 0;
       int fracbits_out = qparam_out.fracbits();
-      //avoid left shift at output - will lose accuracy
-      if((fracbits_in + fracbits_weights) < fracbits_out) {
-        fracbits_out = (fracbits_in + fracbits_weights);
-        qparam_out.set_fracbits(fracbits_out);
+
+      int fracbits_weights = num_blobs>0? quantization_param.qparam_w(0).fracbits() : 0;
+      if(layer_type == "Convolution") {
+          //avoid left shift at output - will lose accuracy
+          if((fracbits_in + fracbits_weights) < fracbits_out) {
+            fracbits_out = (fracbits_in + fracbits_weights);
+            qparam_out.set_fracbits(fracbits_out);
+          }
       }
 
-      //qparam_out.set_fractbits(fracbits_out);
       if(qparam_out.quantize()) {
-        if(num_blobs>0 && quantization_param.qparam_in_size()>0 && (fracbits_in + fracbits_weights) < fracbits_out) {
+        qparam_out.set_scale_applied(qparam_out.scale_target());
+
+        if(quantization_param.qparam_in_size()>0 && (fracbits_in + fracbits_weights) < fracbits_out) {
           LOG(FATAL) << "Qformat error for layer: " << layers_[layer_id]->layer_param().name()
-              << "  fracbits_in:" << fracbits_in << " fracbits_weights:" << fracbits_weights
+              << " fracbits_in:" << fracbits_in << " fracbits_weights:" << fracbits_weights
               << " fracbits_out:" << fracbits_out;
         }
       }
@@ -2344,6 +2373,10 @@ void Net::SetQuantizationParamsLayerWeights(const int layer_id) {
     QuantizationParameter::QParams& qparam_w = *quantization_param.mutable_qparam_w(blob_id);
     EstiamteQScaleParams(min_layer, max_layer, bitwidth,
         net_qparam.power2_scale_weights(), unsigned_data, net_qparam.apply_offset_weights(), qparam_w);
+
+    if(qparam_w.quantize()) {
+        qparam_w.set_scale_applied(qparam_w.scale_target());
+    }
   }
 }
 
@@ -2356,53 +2389,65 @@ void Net::DisplayQuantizationParams() {
       // if this is a convolutional layer which should be quantized ...
       QuantizationParameter& quantization_param = *layers_[i]->mutable_layer_param().mutable_quantization_param();
       int num_blobs = layers_[i]->blobs().size();
-      if (quantization_param.qparam_w_size()>0 && net_qparam.quantize_weights() && num_blobs>0 && quantization_param.qparam_w(0).quantize()) {
+      if (quantization_param.qparam_w_size()>0 && net_qparam.quantize_weights() && num_blobs>0 &&
+              quantization_param.qparam_w(0).quantize()) {
         LOG(INFO)<<" Q weights:" << i << " Name:" << layers_[i]->layer_param().name() <<
         " bitwidth:" << quantization_param.qparam_w(0).bitwidth() <<
         " fracbits:" << quantization_param.qparam_w(0).fracbits() <<
-        " scale:" << quantization_param.qparam_w(0).scale() <<
+        " scale:" << quantization_param.qparam_w(0).scale_target() <<
         " offset:" << quantization_param.qparam_w(0).offset() <<
         " unsigned_data:" << quantization_param.qparam_w(0).unsigned_data() <<
         " min:" << quantization_param.qparam_w(0).min() <<
-        " max:" << quantization_param.qparam_w(0).max();
+        " max:" << quantization_param.qparam_w(0).max() <<
+        " scale_applied:" << quantization_param.qparam_w(0).scale_applied() <<
+        " scale_target:" << quantization_param.qparam_w(0).scale_target();
       }
 
-      if (quantization_param.qparam_w_size()>1 && net_qparam.quantize_weights() && num_blobs>1 && quantization_param.qparam_w(1).quantize()) {
+      if (quantization_param.qparam_w_size()>1 && net_qparam.quantize_weights() && num_blobs>1 &&
+              quantization_param.qparam_w(1).quantize()) {
         LOG(INFO)<<" Q bias:" << i << " Name:" << layers_[i]->layer_param().name() <<
         " bitwidth:" << quantization_param.qparam_w(1).bitwidth() <<
         " fracbits:" << quantization_param.qparam_w(1).fracbits() <<
-        " scale:" << quantization_param.qparam_w(1).scale() <<
+        " scale:" << quantization_param.qparam_w(1).scale_target() <<
         " offset:" << quantization_param.qparam_w(1).offset() <<
         " unsigned_data:" << quantization_param.qparam_w(1).unsigned_data() <<
         " min:" << quantization_param.qparam_w(1).min() <<
-        " max:" << quantization_param.qparam_w(1).max();
+        " max:" << quantization_param.qparam_w(1).max() <<
+        " scale_applied:" << quantization_param.qparam_w(1).scale_applied() <<
+        " scale_target:" << quantization_param.qparam_w(1).scale_target();
       }
 
-      if (quantization_param.qparam_in_size()>0 && net_qparam.quantize_activations() && quantization_param.qparam_in(0).quantize()) {
+      if (quantization_param.qparam_in_size()>0 && net_qparam.quantize_activations() &&
+              quantization_param.qparam_in(0).quantize()) {
         int num_bottom_vecs = bottom_vecs_[i].size();
         std::stringstream ss;
         ss << " Q input :" << i << " Name:" << layers_[i]->layer_param().name();
         for(int blob_id=0; blob_id<std::min<int>(num_bottom_vecs, quantization_param.qparam_in_size()); blob_id++) {
           ss << " bitwidth:" << quantization_param.qparam_in(blob_id).bitwidth();
           ss << " fracbits:" << quantization_param.qparam_in(blob_id).fracbits();
-          ss << " scale:" << quantization_param.qparam_in(blob_id).scale() ;
+          ss << " scale:" << quantization_param.qparam_in(blob_id).scale_target() ;
           ss << " offset:" << quantization_param.qparam_in(blob_id).offset() ;
           ss << " unsigned_data:" << quantization_param.qparam_in(blob_id).unsigned_data();
           ss << " min:" << quantization_param.qparam_in(blob_id).min();
           ss << " max:" << quantization_param.qparam_in(blob_id).max();
+          ss << " scale_applied:" << quantization_param.qparam_in(blob_id).scale_applied();
+          ss << " scale_target:" << quantization_param.qparam_in(blob_id).scale_target();
         }
         LOG(INFO) << ss.str();
       }
 
-      if (quantization_param.qparam_out_size()>0 && net_qparam.quantize_activations() && quantization_param.qparam_out(0).quantize()) {
+      if (quantization_param.qparam_out_size()>0 && net_qparam.quantize_activations() &&
+              quantization_param.qparam_out(0).quantize()) {
         LOG(INFO)<< " Q output:" << i << " Name:" << layers_[i]->layer_param().name() <<
         " bitwidth:" << quantization_param.qparam_out(0).bitwidth() <<
         " fracbits:" << quantization_param.qparam_out(0).fracbits() <<
-        " scale:" << quantization_param.qparam_out(0).scale() <<
+        " scale:" << quantization_param.qparam_out(0).scale_target() <<
         " offset:" << quantization_param.qparam_out(0).offset() <<
         " unsigned_data:" << quantization_param.qparam_out(0).unsigned_data() <<
         " min:" << quantization_param.qparam_out(0).min() <<
-        " max:" << quantization_param.qparam_out(0).max();
+        " max:" << quantization_param.qparam_out(0).max() <<
+        " scale_applied:" << quantization_param.qparam_out(0).scale_applied() <<
+        " scale_target:" << quantization_param.qparam_out(0).scale_target();
       }
     }
   }

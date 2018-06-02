@@ -1805,11 +1805,11 @@ void Net::StartQuantization() {
   if(quantize) {
     const NetQuantizationParameter& net_qparam = net_param_.net_quantization_param();
     if(infer_count_ >= net_qparam.quantization_start()) {
-      this->SetQuantizationParams();
       if(infer_count_ == net_qparam.quantization_start()) {
         LOG(INFO)<< "Enabling quantization flag in quantization_param at infer/iter index: " << infer_count_;
         this->EnableQuantizationForSelectedLayers();
       }
+      this->SetQuantizationParams();
     }
   }
 }
@@ -2161,7 +2161,7 @@ void Net::EnableQuantizationForSelectedLayers() {
       bool is_quantized_layer_type = false;
       if(layer_type == "Convolution" || layer_type == "InnerProduct" || layer_type == "Deconvolution" ||
               layer_type == "BatchNorm" || layer_type == "Scale" || layer_type == "ReLU" ||
-              layer_type == "PReLU" || layer_type == "Eltwise" || layer_type == "Concat") {
+              layer_type == "PReLU" || layer_type == "Eltwise" || layer_type == "Concat" || layer_type == "Bias") {
           is_quantized_layer_type = true;
       }
       if(layer_type_lower.find("data") != string::npos) {
@@ -2250,8 +2250,8 @@ void Net::EstiamteQScaleParams(float min, float max, int bitwidth, bool power2_s
         (unsigned_data? EstimateAbsBits(max_val_abs) : (EstimateAbsBits(max_val_abs)+1));
     int shiftbits = estimated_bits - bitwidth;
     //account for the scaling due to right shift by shiftbits
-    float shiftbits_scale = 1.0/((shiftbits>=0)? float(1<<shiftbits) : float(1.0/(1<<std::abs(shiftbits))));
-    float scale_target = scale_applied * shiftbits_scale;
+    float scale_relative = 1.0/((shiftbits>=0)? float(1<<shiftbits) : float(1.0/(1<<std::abs(shiftbits))));
+    float scale_target = scale_relative*scale_applied;
 
     qparam_xx.set_shiftbits(shiftbits);
     qparam_xx.set_scale_target(scale_target);
@@ -2261,14 +2261,18 @@ void Net::EstiamteQScaleParams(float min, float max, int bitwidth, bool power2_s
     //However found that ((1L<<bitwidth)-1) gave slightly better quality
     float max_qrange = ((1L<<bitwidth)-1);
     float max_qrange_half = ((1L<<(bitwidth-1))-1);
-    float scale_target = apply_offset? max_qrange/max_val_range :
+    float scale_relative = apply_offset? max_qrange/max_val_range :
       (unsigned_data? max_qrange/max_val_abs : max_qrange_half/max_val_abs);
+    float scale_target = scale_relative*scale_applied;
 
     //shiftbits are not integer - so cannot be set accurately.
     qparam_xx.set_shiftbits(0);
     qparam_xx.set_offset(apply_offset? (0 - min * scale_target) : 0);
     qparam_xx.set_scale_target(scale_target);
   }
+
+  //the new scale target is on top of the scale applied. so the effective scale will be a product of both,
+  //after the scaling is applied.
 }
 
 void Net::SetQuantizationParamsLayerInput(const int layer_id) {
@@ -2297,6 +2301,10 @@ void Net::SetQuantizationParamsLayerInput(const int layer_id) {
     bool unsigned_data = (min_layer>=0);
     EstiamteQScaleParams(min_layer, max_layer, net_qparam.bitwidth_activations(),
        net_qparam.power2_scale_activations(), unsigned_data, net_qparam.apply_offset_activations(), qparam_in);
+
+    if(qparam_in.quantize()) {
+        qparam_in.set_scale_applied(qparam_in.scale_applied() * qparam_in.scale_target());
+    }
   }
 }
 
@@ -2313,8 +2321,10 @@ void Net::SetQuantizationParamsLayerOutput(const int layer_id) {
     scale_applied_in_max = std::max(scale_applied_in_max, qparam_in.scale_applied());
   }
 
-  float scale_applied_w = (layer_type == "Convolution" || layer_type == "InnerProduct" || layer_type == "Deconvolution")?
-          quantization_param.mutable_qparam_w(0)->scale_applied() : 1.0;
+  //this scale will be applied only in the quantization function,
+  //but we need to calculate the scaling effect (on the output) due to quantization scale of weights.
+  float scale_target_w = (layer_type == "Convolution" || layer_type == "InnerProduct" || layer_type == "Deconvolution")?
+          quantization_param.mutable_qparam_w(0)->scale_target() : 1.0;
 
   int num_top_vecs = top_vecs_[layer_id].size();
   for(int blob_id = 0; blob_id<num_top_vecs; blob_id++) {
@@ -2325,8 +2335,11 @@ void Net::SetQuantizationParamsLayerOutput(const int layer_id) {
       float max_layer = max_out_[layer_id][blob_id];
       bool unsigned_data = (min_layer>=0);
 
+      //the convolution operations in floating point doesn't change the applied scale,
+      //but since the weights are quantized, there is a scaling that happens due to it.
+      //applied for it by multiplying with it.
       QuantizationParameter::QParams& qparam_out = *quantization_param.mutable_qparam_out(blob_id);
-      qparam_out.set_scale_applied(scale_applied_in_max * scale_applied_w);
+      qparam_out.set_scale_applied(scale_applied_in_max * scale_target_w);
 
       EstiamteQScaleParams(min_layer, max_layer, net_qparam.bitwidth_activations(),
           net_qparam.power2_scale_activations(), unsigned_data, net_qparam.apply_offset_activations(), qparam_out);
@@ -2334,7 +2347,6 @@ void Net::SetQuantizationParamsLayerOutput(const int layer_id) {
       int num_blobs = layers_[layer_id]->blobs().size();
       int fracbits_in = quantization_param.qparam_in_size()>0? quantization_param.qparam_in(0).fracbits() : 0;
       int fracbits_out = qparam_out.fracbits();
-
       int fracbits_weights = num_blobs>0? quantization_param.qparam_w(0).fracbits() : 0;
       if(layer_type == "Convolution" || layer_type == "InnerProduct" || layer_type == "Deconvolution") {
           //avoid left shift at output - will lose accuracy
@@ -2342,16 +2354,18 @@ void Net::SetQuantizationParamsLayerOutput(const int layer_id) {
             fracbits_out = (fracbits_in + fracbits_weights);
             qparam_out.set_fracbits(fracbits_out);
           }
+
+          if((fracbits_in + fracbits_weights) < fracbits_out) {
+            LOG(FATAL) << "Qformat error for layer: " << layers_[layer_id]->layer_param().name()
+                << " fracbits_in:" << fracbits_in << " fracbits_weights:" << fracbits_weights
+                << " fracbits_out:" << fracbits_out;
+          }
       }
 
       if(qparam_out.quantize()) {
+        //the new scale target is on top of the scale applied. so multiply them and set and the new scale applied.
         qparam_out.set_scale_applied(qparam_out.scale_target());
-
-        if(quantization_param.qparam_in_size()>0 && (fracbits_in + fracbits_weights) < fracbits_out) {
-          LOG(FATAL) << "Qformat error for layer: " << layers_[layer_id]->layer_param().name()
-              << " fracbits_in:" << fracbits_in << " fracbits_weights:" << fracbits_weights
-              << " fracbits_out:" << fracbits_out;
-        }
+        //LOG(INFO) << layer_type << ": " << blob_id << ": " << "scale_applied:" << qparam_out.scale_applied();
       }
   }
 }
@@ -2375,9 +2389,11 @@ void Net::SetQuantizationParamsLayerWeights(const int layer_id) {
     EstiamteQScaleParams(min_layer, max_layer, bitwidth,
         net_qparam.power2_scale_weights(), unsigned_data, net_qparam.apply_offset_weights(), qparam_w);
 
-    if(qparam_w.quantize()) {
-        qparam_w.set_scale_applied(qparam_w.scale_target());
-    }
+    //if we set scale_applied for weights, the next time scale_target computation will go wrong.
+    //since the same values and blob are re-used every frame. Anyway, scale_applied of weights is not used.
+    //if(qparam_w.quantize()) {
+    //    qparam_w.set_scale_applied(qparam_w.scale_applied() * qparam_w.scale_target());
+    //}
   }
 }
 

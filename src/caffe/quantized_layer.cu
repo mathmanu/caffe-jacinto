@@ -16,7 +16,6 @@ void QuantizedLayer<Ftype, Btype>::Quantize_gpu(const vector<Blob*>& bottom,
       for (int i = 0; i < std::min<int>(param.qparam_in_size(),bottom.size()); ++i) {
         if(param.qparam_in(i).quantize()) {
           this->QuantizeLayerInputs_gpu(bottom[i]->mutable_gpu_data<Ftype>(), i, bottom[i]->count());
-          param.mutable_qparam_in(i)->set_scale_applied(param.qparam_in(i).scale_target());
         }
       }
 
@@ -25,7 +24,6 @@ void QuantizedLayer<Ftype, Btype>::Quantize_gpu(const vector<Blob*>& bottom,
         if(param.qparam_w(blob_id).quantize() && param.quantized_infer_count() == 0) {
       	  bool clip = (blob_id == 0);
           this->QuantizeWeights_gpu(blobs[blob_id]->mutable_gpu_data<Ftype>(), blob_id, blobs[blob_id]->count(), clip);
-          param.mutable_qparam_w(blob_id)->set_scale_applied(param.mutable_qparam_w(blob_id)->scale_target());
         }
       }
 
@@ -33,7 +31,6 @@ void QuantizedLayer<Ftype, Btype>::Quantize_gpu(const vector<Blob*>& bottom,
       for (int i = 0; i < top.size(); ++i) {
         if(param.qparam_out(i).quantize()) {
           this->QuantizeLayerOutputs_gpu(top[i]->mutable_gpu_data<Ftype>(), i, top[i]->count());
-          param.mutable_qparam_out(i)->set_scale_applied(param.qparam_out(i).scale_target());
         }
       }
     }

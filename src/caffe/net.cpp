@@ -2122,7 +2122,7 @@ void Net::EnableQuantizationForSelectedLayers() {
       //        << layer_type_next2 << ")" << std::endl;
 
       bool is_merged_layer = false;
-      if(layer_type == "Convolution" || layer_type == "InnerProduct" || "Deconvolution") {
+      if(layer_type == "Convolution" || layer_type == "InnerProduct" || layer_type == "Deconvolution") {
           if(layer_type_next == "BatchNorm" || layer_type_next == "Scale" || layer_type_next == "ReLU") {
               is_merged_layer = true;
           }
@@ -2313,7 +2313,8 @@ void Net::SetQuantizationParamsLayerOutput(const int layer_id) {
     scale_applied_in_max = std::max(scale_applied_in_max, qparam_in.scale_applied());
   }
 
-  float scale_applied_w = (layer_type == "Convolution")? quantization_param.mutable_qparam_w(0)->scale_applied() : 1.0;
+  float scale_applied_w = (layer_type == "Convolution" || layer_type == "InnerProduct" || layer_type == "Deconvolution")?
+          quantization_param.mutable_qparam_w(0)->scale_applied() : 1.0;
 
   int num_top_vecs = top_vecs_[layer_id].size();
   for(int blob_id = 0; blob_id<num_top_vecs; blob_id++) {
@@ -2335,7 +2336,7 @@ void Net::SetQuantizationParamsLayerOutput(const int layer_id) {
       int fracbits_out = qparam_out.fracbits();
 
       int fracbits_weights = num_blobs>0? quantization_param.qparam_w(0).fracbits() : 0;
-      if(layer_type == "Convolution") {
+      if(layer_type == "Convolution" || layer_type == "InnerProduct" || layer_type == "Deconvolution") {
           //avoid left shift at output - will lose accuracy
           if((fracbits_in + fracbits_weights) < fracbits_out) {
             fracbits_out = (fracbits_in + fracbits_weights);

@@ -2098,19 +2098,6 @@ void Net::EnableQuantizationForSelectedLayers() {
      //So, we don't need to align the quantization ranges of different inputs.
      //Infact we don't quantize the input - it is assumed to be already quantized when it reaches the current layer.
 
-      //quantize weights
-      if(net_qparam.quantize_weights()) {
-        if(layer_type == "Convolution" || layer_type == "InnerProduct" || layer_type == "Deconvolution") {
-          QuantizationParameter& quantization_param = *layers_[layer_id]->mutable_layer_param().mutable_quantization_param();
-          for(int blob_id=0; blob_id<layers_[layer_id]->blobs().size(); blob_id++) {
-            if(quantization_param.qparam_w_size() <= blob_id) {
-              quantization_param.add_qparam_w();
-            }
-            quantization_param.mutable_qparam_w(blob_id)->set_quantize(true);
-          }
-        }
-      }
-
       //find if this is a merged layer
       std::string layer_type_next = GetTopLayerType(layer_id);
       std::string layer_type_next2 = GetTopLayerType2(layer_id);
@@ -2120,6 +2107,13 @@ void Net::EnableQuantizationForSelectedLayers() {
       //std::cout << "LinearLayerChain: " << "(" << layer_type_prev2 << ")(" << layer_type_prev << ")("
       //        << layer_type << " - " << layer_name << ")" << "(" << layer_type_next << ")("
       //        << layer_type_next2 << ")" << std::endl;
+
+      bool is_ignored_layer_name = false;
+      for(int i=0; i<net_qparam.ignored_layer_names_size(); i++) {
+          if(layer_name == net_qparam.ignored_layer_names(i)) {
+              is_ignored_layer_name = true;
+          }
+      }
 
       bool is_merged_layer = false;
       if(layer_type == "Convolution" || layer_type == "InnerProduct" || layer_type == "Deconvolution") {
@@ -2168,10 +2162,18 @@ void Net::EnableQuantizationForSelectedLayers() {
           is_quantized_layer_type = true;
       }
 
-      bool is_ignored_layer_name = false;
-      for(int i=0; i<net_qparam.ignored_layer_names_size(); i++) {
-          if(layer_name == net_qparam.ignored_layer_names(i)) {
-              is_ignored_layer_name = true;
+      //quantize weights
+      if(net_qparam.quantize_weights()) {
+          if(is_quantized_layer_type && (!is_merged_layer) && (!is_ignored_layer_name)) {
+              if(layer_type == "Convolution" || layer_type == "InnerProduct" || layer_type == "Deconvolution") {
+                  QuantizationParameter& quantization_param = *layers_[layer_id]->mutable_layer_param().mutable_quantization_param();
+                  for(int blob_id=0; blob_id<layers_[layer_id]->blobs().size(); blob_id++) {
+                    if(quantization_param.qparam_w_size() <= blob_id) {
+                      quantization_param.add_qparam_w();
+                    }
+                    quantization_param.mutable_qparam_w(blob_id)->set_quantize(true);
+                  }
+              }
           }
       }
 
@@ -2293,7 +2295,9 @@ void Net::SetQuantizationParamsLayerInput(const int layer_id) {
     //Get the scale applied to this blob
     QuantizationParameter::QParams& qparam_in = *quantization_param.mutable_qparam_in(blob_id);
     CHECK(qparam_bot_vec[blob_id] != NULL) << "Input QParams should not be NULL";
-    qparam_in.set_scale_applied(qparam_bot_vec[blob_id]->scale_applied());
+    if(qparam_bot_vec[blob_id]->has_scale_applied()) {
+      qparam_in.set_scale_applied(qparam_bot_vec[blob_id]->scale_applied());
+    }
 
     const NetQuantizationParameter& net_qparam = net_param_.net_quantization_param();
     float min_layer = min_in_[layer_id][blob_id];
@@ -2303,7 +2307,7 @@ void Net::SetQuantizationParamsLayerInput(const int layer_id) {
        net_qparam.power2_scale_activations(), unsigned_data, net_qparam.apply_offset_activations(), qparam_in);
 
     if(qparam_in.quantize()) {
-        qparam_in.set_scale_applied(qparam_in.scale_applied() * qparam_in.scale_target());
+        qparam_in.set_scale_applied(qparam_in.scale_target());
     }
   }
 }
@@ -2339,7 +2343,9 @@ void Net::SetQuantizationParamsLayerOutput(const int layer_id) {
       //but since the weights are quantized, there is a scaling that happens due to it.
       //applied for it by multiplying with it.
       QuantizationParameter::QParams& qparam_out = *quantization_param.mutable_qparam_out(blob_id);
-      qparam_out.set_scale_applied(scale_applied_in_max * scale_target_w);
+      if(layer_type == "Convolution" || layer_type == "InnerProduct" || layer_type == "Deconvolution") {
+          qparam_out.set_scale_applied(scale_applied_in_max * scale_target_w);
+      }
 
       EstiamteQScaleParams(min_layer, max_layer, net_qparam.bitwidth_activations(),
           net_qparam.power2_scale_activations(), unsigned_data, net_qparam.apply_offset_activations(), qparam_out);
@@ -2363,7 +2369,6 @@ void Net::SetQuantizationParamsLayerOutput(const int layer_id) {
       }
 
       if(qparam_out.quantize()) {
-        //the new scale target is on top of the scale applied. so multiply them and set and the new scale applied.
         qparam_out.set_scale_applied(qparam_out.scale_target());
         //LOG(INFO) << layer_type << ": " << blob_id << ": " << "scale_applied:" << qparam_out.scale_applied();
       }
@@ -2392,7 +2397,7 @@ void Net::SetQuantizationParamsLayerWeights(const int layer_id) {
     //if we set scale_applied for weights, the next time scale_target computation will go wrong.
     //since the same values and blob are re-used every frame. Anyway, scale_applied of weights is not used.
     //if(qparam_w.quantize()) {
-    //    qparam_w.set_scale_applied(qparam_w.scale_applied() * qparam_w.scale_target());
+    //    qparam_w.set_scale_applied(qparam_w.scale_target());
     //}
   }
 }

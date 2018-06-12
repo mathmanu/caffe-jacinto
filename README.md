@@ -44,6 +44,17 @@ Note that Caffe-jacinto does not directly support any embedded/low-power device.
 ###### Absorbing Batch Normalization into convolution weights
 * A tool is provided to absorb batch norm values into convolution weights. This may help to speedup inference. This will also help if Batch Norm layers are not supported in an embedded implementation.
 
+### Acknowledgements
+This repository was forked from [NVIDIA/caffe](http://www.github.com/NVIDIA/caffe) and we have added several enhancements on top of it. We acknowledge use of code from other soruces as listed below, and sincerely thank their authors. See the [LICENSE](/LICENSE) file for the COPYRIGHT and LICENSE notices.
+* [BVLC/caffe](https://github.com/BVLC/caffe) - base code.
+* [NVIDIA/caffe](http://www.github.com/NVIDIA/caffe) - base code.
+* [weiliu89/caffe/tree/ssd](https://github.com/weiliu89/caffe/tree/ssd) - Caffe SSD Object Detection source code and related scripts, which were later incorporated into [NVIDIA/caffe](http://www.github.com/NVIDIA/caffe).
+* [Ristretto](https://github.com/pmgysel/caffe) - Quantization accuracy simulation
+* [dilation](https://github.com/fyu/dilation) - Semantic Segmentation data loading layer ImageLabelListData layer (not used in the latest branch) and some parameters.
+* [MobileNet-Caffe](https://github.com/shicai/MobileNet-Caffe) - Mobilenet scripts are inspired by Mobilenet-Caffe pre-trained models and scripts.
+* TODO in the next release (not yet added): [sp2823/caffe](https://github.com/sp2823/caffe), [BVCL/caffe/pull/5665](https://github.com/BVLC/caffe/pull/5665) - ConvolutionDepthwise layer for faster depthwise separable convolutions.
+* TODO in the next release (not yet added): [drnikolaev/caffe](https://github.com/drnikolaev/caffe) - experimental commits that are not yet integrated into [NVIDIA/caffe](http://www.github.com/NVIDIA/caffe).
+
 <br>
 The following sections are kept as it is from the original Caffe.
 # Caffe

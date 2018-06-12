@@ -8,7 +8,7 @@ namespace caffe {
 template <typename Ftype, typename Btype>
 void ReLULayer<Ftype, Btype>::Forward_cpu(const vector<Blob*>& bottom,
     const vector<Blob*>& top) {
-  this->Quantize_cpu(bottom, top);
+  //this->Quantize_cpu(bottom, top);
   
   const Ftype* bottom_data = bottom[0]->cpu_data<Ftype>();
   Ftype* top_data = top[0]->mutable_cpu_data<Ftype>();

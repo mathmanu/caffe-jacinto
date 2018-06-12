@@ -69,7 +69,7 @@ template <typename Ftype, typename Btype>
 void PReLULayer<Ftype, Btype>::Backward_gpu(const vector<Blob*>& top,
     const vector<bool>& propagate_down,
     const vector<Blob*>& bottom) {
-  this->Quantize_gpu(bottom, top);
+  //this->Quantize_gpu(bottom, top);
   
   const Btype* bottom_data = bottom[0]->gpu_data<Btype>();
   const Btype* top_diff = top[0]->gpu_diff<Btype>();

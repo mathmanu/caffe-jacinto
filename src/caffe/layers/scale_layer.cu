@@ -29,7 +29,7 @@ __global__ void ScaleBiasForward(const int n, const Dtype* in,
 template <typename Ftype, typename Btype>
 void ScaleLayer<Ftype, Btype>::Forward_gpu(
     const vector<Blob*>& bottom, const vector<Blob*>& top) {
-  this->Quantize_gpu(bottom, top);
+  //this->Quantize_gpu(bottom, top);
   
   if (bottom[0] == top[0]) {
     // in-place computation; need to store bottom data before overwriting it.

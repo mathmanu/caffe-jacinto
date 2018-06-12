@@ -35,7 +35,7 @@ void EltwiseLayer<Ftype, Btype>::Forward_gpu(const vector<Blob*>& bottom,
     const vector<Blob*>& top) {
   //It is assumed that operations across multiple blobs (such as eltwise) is done in high precision.
   //so that there won't be loss of precision when we align the quantization ranges of different inputs.
-  this->Quantize_gpu(bottom, top);
+  //this->Quantize_gpu(bottom, top);
   int* mask = nullptr;
   const int count = top[0]->count();
   //  convert to Ftype

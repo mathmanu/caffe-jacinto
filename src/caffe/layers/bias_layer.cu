@@ -19,7 +19,7 @@ __global__ void BiasForward(const int n, const Dtype* in,
 template <typename Ftype, typename Btype>
 void BiasLayer<Ftype, Btype>::Forward_gpu(const vector<Blob*>& bottom,
       const vector<Blob*>& top) {
-  this->Quantize_gpu(bottom, top);
+  //this->Quantize_gpu(bottom, top);
   const int count = top[0]->count();
   const Ftype* bottom_data = bottom[0]->gpu_data<Ftype>();
   const Ftype* bias_data =

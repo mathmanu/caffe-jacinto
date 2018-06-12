@@ -66,7 +66,7 @@ void PReLULayer<Ftype, Btype>::Reshape(const vector<Blob*>& bottom,
 template <typename Ftype, typename Btype>
 void PReLULayer<Ftype, Btype>::Forward_cpu(const vector<Blob*>& bottom,
     const vector<Blob*>& top) {
-  this->Quantize_gpu(bottom, top);
+  //this->Quantize_gpu(bottom, top);
   
   const Ftype* bottom_data = bottom[0]->cpu_data<Ftype>();
   Ftype* top_data = top[0]->mutable_cpu_data<Ftype>();

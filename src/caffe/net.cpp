@@ -1818,7 +1818,9 @@ void Net::FinishQuantization() {
   bool quantize = (net_param_.quantize() && net_param_.net_quantization_param().quantization_start() > 0);
   if(quantize) {
     const NetQuantizationParameter& net_qparam = net_param_.net_quantization_param();
-    this->UpdateQuantizationRangeInLayers();
+    if(net_qparam.update_quantization_param()) {
+        this->UpdateQuantizationRangeInLayers();
+    }
 
     if(net_qparam.quantization_start() > 0 && infer_count_ >= net_qparam.quantization_start()) {
       string phase = this->phase() == caffe::TRAIN ? "Train" : "Test";
@@ -2087,7 +2089,7 @@ vector<const QuantizationParameter::QParams*> Net::GetBottomLayerQParams(int lay
 
 void Net::EnableQuantizationForSelectedLayers() {
   const NetQuantizationParameter& net_qparam = net_param_.net_quantization_param();
-  if(net_qparam.insert_quantization_param()) {
+  if(net_qparam.update_quantization_param()) {
     for (int layer_id = 0; layer_id < layers_.size(); layer_id++) {
       std::string layer_name = layers_[layer_id]->layer_param().name();
       std::string layer_type = layers_[layer_id]->layer_param().type();
@@ -2199,7 +2201,7 @@ void Net::EnableQuantizationForSelectedLayers() {
 void Net::SetQuantizationParams() {
   const NetQuantizationParameter& net_qparam = net_param_.net_quantization_param();
 
-  if(net_qparam.insert_quantization_param()) {
+  if(net_qparam.update_quantization_param()) {
     //insert quantization_param in the layers that do not have it
     QuantizationParameter_Rounding rounding_scheme = (this->phase() == caffe::TRAIN ?
             QuantizationParameter_Rounding_STOCHASTIC : net_qparam.rounding_scheme());

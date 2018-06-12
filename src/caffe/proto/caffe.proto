@@ -2392,12 +2392,12 @@ message NetQuantizationParameter {
   optional QuantizationParameter_Rounding rounding_scheme = 11 [default = QuantizationParameter_Rounding_NEAREST];  
     
   optional int32 display_quantization = 12 [default = 2000];
-  optional bool insert_quantization_param = 13 [default = true];
+  optional bool update_quantization_param = 13 [default = true];
   
   //frame/iter at which quantization is introduced    
   optional int32 quantization_start = 14 [default = 1];  
-  optional float range_update_factor = 15 [default = 0.10];
-  optional float range_expansion_factor = 16 [default = 1.1]; 
+  optional float range_update_factor = 15 [default = 0.01];
+  optional float range_expansion_factor = 16 [default = 1.25]; 
   
   repeated string ignored_layer_names = 17;
 }

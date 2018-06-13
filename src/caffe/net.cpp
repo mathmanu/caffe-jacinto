@@ -2157,7 +2157,8 @@ void Net::EnableQuantizationForSelectedLayers() {
       bool is_quantized_layer_type = false;
       if(layer_type == "Convolution" || layer_type == "InnerProduct" || layer_type == "Deconvolution" ||
               layer_type == "BatchNorm" || layer_type == "Scale" || layer_type == "ReLU" ||
-              layer_type == "PReLU" || layer_type == "Eltwise" || layer_type == "Concat" || layer_type == "Bias") {
+              layer_type == "PReLU" || layer_type == "Eltwise" || layer_type == "Concat" ||
+              layer_type == "Bias" || layer_type == "Pooling") {
           is_quantized_layer_type = true;
       }
       if(layer_type_lower.find("data") != string::npos) {

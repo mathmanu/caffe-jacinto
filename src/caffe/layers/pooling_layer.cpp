@@ -225,6 +225,8 @@ void PoolingLayer<Ftype, Btype>::Forward_cpu(const vector<Blob*>& bottom,
   default:
     LOG(FATAL) << "Unknown pooling method.";
   }
+  
+  this->Quantize_cpu(bottom, top);
 }
 
 template <typename Ftype, typename Btype>

@@ -11,7 +11,9 @@ void CuDNNReLULayer<Ftype, Btype>::Forward_gpu(const vector<Blob*>& bottom,
   const Ftype* bottom_data = bottom[0]->gpu_data<Ftype>();
   // Fallback to standard Caffe for leaky ReLU.
   if (ReLULayer<Ftype, Btype>::layer_param_.relu_param().negative_slope() != 0) {
-    return ReLULayer<Ftype, Btype>::Forward_gpu(bottom, top);
+    ReLULayer<Ftype, Btype>::Forward_gpu(bottom, top);
+    this->Quantize_gpu(bottom, top);
+    return;
   }
   CUDNN_CHECK(cudnnActivationForward(Caffe::cudnn_handle(0),
         activ_desc_,
@@ -20,6 +22,8 @@ void CuDNNReLULayer<Ftype, Btype>::Forward_gpu(const vector<Blob*>& bottom,
         cudnn::dataType<Ftype>::zero,
         fwd_top_desc_, top[0]->mutable_gpu_data<Ftype>()));
   CUDA_CHECK(cudaStreamSynchronize(Caffe::thread_stream()));
+
+  this->Quantize_gpu(bottom, top);
 }
 
 template <typename Ftype, typename Btype>

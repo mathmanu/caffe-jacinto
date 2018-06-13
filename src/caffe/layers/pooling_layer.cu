@@ -212,6 +212,8 @@ void PoolingLayer<Ftype, Btype>::Forward_gpu(const vector<Blob*>& bottom,
   }
   CUDA_POST_KERNEL_CHECK;
   CUDA_CHECK(cudaStreamSynchronize(stream));
+  
+  this->Quantize_gpu(bottom, top);
 }
 
 

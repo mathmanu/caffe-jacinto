@@ -6,6 +6,7 @@
 #include "caffe/blob.hpp"
 #include "caffe/layer.hpp"
 #include "caffe/proto/caffe.pb.h"
+#include "caffe/quantized_layer.hpp"
 
 namespace caffe {
 
@@ -15,10 +16,10 @@ namespace caffe {
  * TODO(dox): thorough documentation for Forward, Backward, and proto params.
  */
 template <typename Ftype, typename Btype>
-class PoolingLayer : public Layer<Ftype, Btype> {
+class PoolingLayer : public QuantizedLayer<Ftype, Btype> {
  public:
   explicit PoolingLayer(const LayerParameter& param)
-      : Layer<Ftype, Btype>(param), rand_idx_(Blob::create<Ftype>()) {}
+      : QuantizedLayer<Ftype, Btype>(param), rand_idx_(Blob::create<Ftype>()) {}
   virtual void LayerSetUp(const vector<Blob*>& bottom,
       const vector<Blob*>& top);
   virtual void Reshape(const vector<Blob*>& bottom,

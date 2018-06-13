@@ -21,6 +21,8 @@ void CuDNNPoolingLayer<Ftype, Btype>::Forward_gpu(const vector<Blob*>& bottom,
       private_top_[i]->CopyDataFrom(*top[i], true);
     }
   }
+
+  this->Quantize_gpu(bottom, top);
 }
 
 template <typename Ftype, typename Btype>

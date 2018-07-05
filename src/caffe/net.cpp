@@ -2357,17 +2357,26 @@ void Net::SetQuantizationParamsLayerOutput(const int layer_id) {
       int fracbits_in = quantization_param.qparam_in_size()>0? quantization_param.qparam_in(0).fracbits() : 0;
       int fracbits_out = qparam_out.fracbits();
       int fracbits_weights = num_blobs>0? quantization_param.qparam_w(0).fracbits() : 0;
-      if(layer_type == "Convolution" || layer_type == "InnerProduct" || layer_type == "Deconvolution") {
-          //avoid left shift at output - will lose accuracy
-          if((fracbits_in + fracbits_weights) < fracbits_out) {
-            fracbits_out = (fracbits_in + fracbits_weights);
-            qparam_out.set_fracbits(fracbits_out);
-          }
 
-          if((fracbits_in + fracbits_weights) < fracbits_out) {
-            LOG(FATAL) << "Qformat error for layer: " << layers_[layer_id]->layer_param().name()
-                << " fracbits_in:" << fracbits_in << " fracbits_weights:" << fracbits_weights
-                << " fracbits_out:" << fracbits_out;
+      if(layer_type == "Convolution" || layer_type == "InnerProduct" || layer_type == "Deconvolution") {
+          //special handling for bias.
+          //scale factor for bias = scale_in * scale_w
+          if(blob_id > 0) {
+              QuantizationParameter::QParams& qparam_in = *quantization_param.mutable_qparam_out(0);
+              QuantizationParameter::QParams& qparam_w = *quantization_param.mutable_qparam_w(0);
+              float scale_target = qparam_in.scale_target() * qparam_w.scale_target();
+              qparam_out.set_scale_target(scale_target);
+          } else {
+              //avoid left shift at output - will lose accuracy
+              if((fracbits_in + fracbits_weights) < fracbits_out) {
+                fracbits_out = (fracbits_in + fracbits_weights);
+                qparam_out.set_fracbits(fracbits_out);
+              }
+              //if((fracbits_in + fracbits_weights) < fracbits_out) {
+              //  LOG(FATAL) << "Qformat error for layer: " << layers_[layer_id]->layer_param().name()
+              //      << " fracbits_in:" << fracbits_in << " fracbits_weights:" << fracbits_weights
+              //      << " fracbits_out:" << fracbits_out;
+              //}
           }
       }
 

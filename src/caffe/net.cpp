@@ -2167,7 +2167,7 @@ void Net::EnableQuantizationForSelectedLayers() {
 
       //quantize weights
       if(net_qparam.quantize_weights()) {
-          if(is_quantized_layer_type && (!is_merged_layer) && (!is_ignored_layer_name)) {
+          if(is_quantized_layer_type /*&& (!is_merged_layer)*/ && (!is_ignored_layer_name)) {
               if(layer_type == "Convolution" || layer_type == "InnerProduct" || layer_type == "Deconvolution") {
                   QuantizationParameter& quantization_param = *layers_[layer_id]->mutable_layer_param().mutable_quantization_param();
                   for(int blob_id=0; blob_id<layers_[layer_id]->blobs().size(); blob_id++) {

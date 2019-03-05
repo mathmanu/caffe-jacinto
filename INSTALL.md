@@ -36,6 +36,10 @@ The installation instructions for Ubuntu 14.04 can be summarized as follows (the
  -- https://github.com/OpenKinect/libfreenect2/issues/36 <br>
  -- sudo ln -s /usr/lib/x86_64-linux-gnu/libturbojpeg.so.0.0.0 /usr/lib/x86_64-linux-gnu/libturbojpeg.so
 
+ * <b>Building on Ubuntu 18.04 has an issue.</b> It is related to the opencv python package provided by anacoda. The solution is to remove that opencv python package (if you have it) and then install another one as follows.
+ -- conda remove opencv
+ -- conda install -c menpo opencv3
+ 
 6. Appendix: Caffe's original instructions
  * See http://caffe.berkeleyvision.org/installation.html for the latest
 installation instructions.

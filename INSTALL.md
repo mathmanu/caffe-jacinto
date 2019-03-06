@@ -36,12 +36,12 @@ The installation instructions for Ubuntu 14.04 can be summarized as follows (the
  -- https://github.com/OpenKinect/libfreenect2/issues/36 <br>
  -- sudo ln -s /usr/lib/x86_64-linux-gnu/libturbojpeg.so.0.0.0 /usr/lib/x86_64-linux-gnu/libturbojpeg.so
 
- * <b>Building on Ubuntu 18.04 may face some road blocks</b> - but they are solvable. The exact solution may vary slightly depending on the packages in your system. The following are some guidelines:
+ * <b>Building on Ubuntu 18.04 may face some road blocks</b> - but they are solvable. The exact solution may vary slightly depending on the packages in your system. The following are some guidelines: <br>
   (1) One issue is related to the opencv python package provided by anacoda. The solution is to remove that opencv python package (if you have it) and then install another one as follows.<br>
  -- conda remove opencv <br>
- -- conda install -c menpo opencv3
-  (2) There may be symbol errors related to protobuf. Uninstalling system probuf library and installing anaconda protobuf package solved the issue in our case.
- -- sudo apt remove libprorobuf-dev
+ -- conda install -c menpo opencv3 <br>
+  (2) There may be symbol errors related to protobuf. Uninstalling system probuf library and installing anaconda protobuf package solved the issue in our case. <br>
+ -- sudo apt remove libprorobuf-dev <br>
  -- conda install protobuf
  
 6. Appendix: Caffe's original instructions

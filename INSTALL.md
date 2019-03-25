@@ -42,7 +42,7 @@ The installation instructions for Ubuntu 14.04 can be summarized as follows (the
  -- conda install -c menpo opencv3 <br>
   (2) There may be symbol errors related to protobuf. Uninstalling system probuf library and installing anaconda protobuf package solved the issue in our case. <br>
  -- sudo apt remove libprorobuf-dev <br>
- -- conda install protobuf
+ -- conda install protobuf <br>
  (3) If using CUDA 10, the following error may occur.
 cmake error: CUDA_cublas_device_LIBRARY (ADVANCED) 
 This is due to an issue with cmake. Using cmake version >= 3.12.2 solves this issue. If anaconda has been installed recently, a recent version of cmake will be there in the anaconda bin directory and you can use it.

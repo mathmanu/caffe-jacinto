@@ -36,18 +36,19 @@ The installation instructions for Ubuntu 14.04 can be summarized as follows (the
  -- https://github.com/OpenKinect/libfreenect2/issues/36 <br>
  -- sudo ln -s /usr/lib/x86_64-linux-gnu/libturbojpeg.so.0.0.0 /usr/lib/x86_64-linux-gnu/libturbojpeg.so
 
- * <b>Building on Ubuntu 18.04 may face some road blocks</b> - but they are solvable. The exact solution may vary slightly depending on the packages in your system. The following are some guidelines: <br>
-  (1) One issue is related to the opencv python package provided by anacoda. The solution is to remove that opencv python package (if you have it) and then install another one as follows.<br>
- -- conda remove opencv <br>
- -- conda install -c menpo opencv3 <br>
-  (2) There may be symbol errors related to protobuf. Uninstalling system probuf library and installing anaconda protobuf package solved the issue in our case. <br>
- -- sudo apt remove libprotobuf-dev <br>
- -- conda install protobuf <br>
-  (3) If using CUDA 10, the following error may occur.
-cmake error: CUDA_cublas_device_LIBRARY (ADVANCED) 
-This is due to an issue with cmake. Using cmake version >= 3.12.2 solves this issue. If anaconda has been installed recently, a recent version of cmake will be there in the anaconda bin directory and you can use it.
+6. <b>Building on Ubuntu 18.04</b> - use the following instructions to easily build on Ubuntu 18.04
+ * Downloand and install the latest Anaconda3. Do not use Anaconda2 on Ubuntu18.04 as some libraries (especially OpenCV) may produce link errors.<br>
+ * Create a python 2.7 environment in Anaconda3 and activate it. We are using opencv=3.4 here as several conda python packages will be downgraded if we install opencv=3.2<br>
+ *conda create -n caffe python=2.7 numpy opencv=3.4*<br>
+ *conda activate caffe*<br>
+ * Now install additional packages.<br>
+ *conda install cmake protobuf libprotobuf hdf5 numpy scikit-image*<br>
+ * Since we installed opencv=3.4 in the conda python environement, update the system opencv libraries as well to match it.<br>
+ *sudo -E add-apt-repository ppa:timsc/opencv-3.4*<br>
+ *sudo apt-get install libopencv3.4*<br>
+ * After these installations, do cmake and make as explained before.<br>
 
-6. Appendix: Caffe's original instructions
+7. <b>Appendix: Caffe's original instructions </b>
  * See http://caffe.berkeleyvision.org/installation.html for the latest
 installation instructions.
  * Check the users group in case you need help:

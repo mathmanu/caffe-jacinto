@@ -20,10 +20,11 @@ The installation instructions for Ubuntu 14.04 can be summarized as follows (the
    sudo apt-get install libprotobuf-dev libleveldb-dev libsnappy-dev libopencv-dev libhdf5-serial-dev protobuf-compiler
    sudo apt-get install --no-install-recommends libboost-all-dev
    sudo apt-get install libgflags-dev libgoogle-glog-dev liblmdb-dev
-   sudo apt-get install libturbojpeg
+   sudo apt-get install libopenblas-dev
+   sudo apt-get install libturbojpeg-dev
    ```
- * Install CUDNN. (libcudnn-dev developer deb package can be downloaded from NVIDIA website) and then installed using `dpkg -i path/to/deb`
- * Install [NCCL](https://github.com/NVIDIA/nccl/releases) if there are more than one CUDA GPUs in the system
+ * Install [CUDNN](https://developer.nvidia.com/cudnn)
+ * Install [NCCL](https://developer.nvidia.com/nccl/nccl-download)
  * Install the python packages required. (this portion is not tested and might need tweaking)
    For Anaconda Python:
    ```bash
@@ -46,20 +47,20 @@ The installation instructions for Ubuntu 14.04 can be summarized as follows (the
 
 6. <b>Building on Ubuntu 18.04</b> - use the following instructions to easily build on Ubuntu 18.04
  * Downloand and install the latest Anaconda3. Do not use Anaconda2 on Ubuntu18.04 as some libraries (especially OpenCV) may produce link errors.<br>
- * Create a python 2.7 environment in Anaconda3 and activate it. We are using `opencv=3.4` here as several conda python packages will be downgraded if we install `opencv=3.2`
+ * Create a python 2.7 environment in Anaconda3 and activate it. Here we are assuming that the name of the environment is caffe - although this is not necessary.
    ```bash
-   conda create -n caffe python=2.7 numpy opencv=3.4
+   conda create -n caffe python=2.7 
    conda activate caffe
    ```
  * Now install additional packages.
    ```
-   conda install cmake protobuf libprotobuf hdf5 numpy scikit-image
+   conda install cmake numpy opencv protobuf libprotobuf hdf5 numpy scikit-image
    ```
- * Since we installed opencv=3.4 in the conda python environement, update the system opencv libraries as well to match it.
-   ```
-   sudo -E add-apt-repository ppa:timsc/opencv-3.4
-   sudo apt-get install libopencv3.4
-   ```
+ * In the Makefile.confg, make the following changes.<br>
+   -- Since the default opencv version in Anaconda is now 3.x, uncomment the line OPENCV_VERSION := 3<br>
+   -- Add additional include folders to the line INCLUDE_DIRS. We need to add the full paths to the directories envs/caffe/include and envs/caffe/include/python2.7 located inside the Anaconda installation.<br>
+   -- Add additional lib folders to the line LIBRARY_DIRS. We need to add the full paths to the directories envs/caffe/lib and envs/caffe/lib/python2.7 located inside the Anaconda installation.<br>
+ 
  * After these installations, do cmake and make as explained before.<br>
 
 7. <b>Appendix: Caffe's original instructions </b>

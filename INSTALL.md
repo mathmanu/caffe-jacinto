@@ -58,8 +58,11 @@ The installation instructions for Ubuntu 14.04 can be summarized as follows (the
    ```
  * In the Makefile.confg, make the following changes.<br>
    -- Since the default opencv version in Anaconda is now 3.x, uncomment the line OPENCV_VERSION := 3<br>
-   -- Add additional include folders to the line INCLUDE_DIRS. We need to add the full paths to the directories envs/caffe/include and envs/caffe/include/python2.7 located inside the Anaconda installation.<br>
+   -- Add additional include folders to the line INCLUDE_DIRS. We need to add the full paths to the directories envs/caffe/include envs/caffe/include/python2.7 and envs/caffe/lib/python2.7/site-packages/numpy/core/include located inside the Anaconda installation.<br>
    -- Add additional lib folders to the line LIBRARY_DIRS. We need to add the full paths to the directories envs/caffe/lib and envs/caffe/lib/python2.7 located inside the Anaconda installation.<br>
+ 
+ * At import time or runtime, if there is an issue in finding shared objects (.so files), we may need to specify additional paths into LD_LIBRARY_PATH. Note: This is required only if there is an issue in finding a .so file. The exact path that we may need to add may also be different.
+ export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/user/a0393608/files/apps/anaconda3/envs/caffe/lib
  
  * After these installations, do cmake and make as explained before.<br>
 

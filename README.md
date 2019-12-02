@@ -15,7 +15,7 @@ Care has to be taken to strike the right balance between quality and speedup. We
 * After cloning the source code, switch to the branch caffe-0.17, if it is not checked out already.
 -- *git checkout caffe-0.17*
 
-* Please see the [installation instructions](INSTALL.md) for installing the dependencies and building the code. 
+* Please see the [**installation instructions**](INSTALL.md) for installing the dependencies and building the code. 
 
 ### Training procedure
 **After cloning and building this source code, please visit [tidsp/caffe-jacinto-models](https://github.com/tidsp/caffe-jacinto-models) to do the training.**
